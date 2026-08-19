@@ -1,25 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'providers/session_provider.dart';
-import 'screens/shell_screen.dart';
+
+import 'providers/alert_provider.dart';
+import 'providers/incident_provider.dart';
+import 'screens/app_shell.dart';
+import 'services/supabase_service.dart';
 import 'theme/app_theme.dart';
 
-void main() {
-  runApp(const MyApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await SupabaseService.init(
+    url: 'https://frkwsgriwdezkvrmgsgf.supabase.co',
+    publishableKey: 'sb_publishable_1Ax1SZF9hldmiJ1kyi338w_BvOL4Gxd',
+  );
+
+  runApp(const DisasterApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class DisasterApp extends StatelessWidget {
+  const DisasterApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<FocusState>(
-      create: (_) => FocusState(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => IncidentProvider()),
+        ChangeNotifierProvider(create: (_) => AlertProvider()),
+      ],
       child: MaterialApp(
-        title: 'Focus App',
+        title: 'Disaster & Flood Early-Warning Network',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        home: const ShellScreen(),
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: ThemeMode.system,
+        // Replace with your existing auth-gated router — this assumes the
+        // user is already signed in by the time AppShell mounts.
+        home: const AppShell(),
       ),
     );
   }

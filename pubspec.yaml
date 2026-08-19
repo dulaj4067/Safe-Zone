@@ -38,6 +38,10 @@ dependencies:
   # Used by lib/theme/app_theme.dart for custom text styling (Poppins font).
   google_fonts: ^6.2.1
   provider: ^6.1.5+1
+  supabase_flutter: ^2.17.2
+  google_maps_flutter: ^2.18.0
+  shared_preferences: ^2.3.0
+  http: ^1.3.0
 
 dev_dependencies:
   flutter_test:
