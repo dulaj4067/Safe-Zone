@@ -8,8 +8,9 @@ import '../services/supabase_service.dart';
 import '../widgets/alert_banner.dart';
 import 'admin_broadcast_screen.dart';
 import 'broadcast_dashboard_screen.dart';
-import 'incidents_screen.dart';
-import 'route_screen.dart';
+import 'alerts_screen.dart';
+import 'shelters_screen.dart';
+import 'home_screen.dart';
 
 /// Top-level shell: fetches the signed-in user's profile (for role gating),
 /// initializes the realtime alert subscription (Story 2), and overlays the
@@ -67,6 +68,7 @@ class _AppShellState extends State<AppShell> {
     final isAuthority = _currentUser?.role.isAuthority ?? false;
 
     final tabs = <Widget>[
+      HomeScreen(zones: _zones),
       const IncidentsScreen(),
       const RouteScreen(),
       if (isAuthority) const BroadcastDashboardScreen(),
@@ -113,8 +115,9 @@ class _AppShellState extends State<AppShell> {
         selectedIndex: _tabIndex,
         onDestinationSelected: (i) => setState(() => _tabIndex = i),
         destinations: [
-          const NavigationDestination(icon: Icon(Icons.report), label: 'Incidents'),
-          const NavigationDestination(icon: Icon(Icons.alt_route), label: 'Routes'),
+          const NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
+          const NavigationDestination(icon: Icon(Icons.report), label: 'Alerts'),
+          const NavigationDestination(icon: Icon(Icons.alt_route), label: 'Shelters'),
           if (isAuthority)
             const NavigationDestination(
               icon: Icon(Icons.dashboard),
