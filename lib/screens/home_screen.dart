@@ -9,12 +9,19 @@ import '../models/incident.dart';
 import '../models/zone.dart';
 import '../providers/alert_provider.dart';
 import '../providers/incident_provider.dart';
-import '../theme/app_colors.dart';
+import '../utils/map_tile_sources.dart';
+import '../widgets/severity_badge.dart';
+import '../widgets/app_logo_badge.dart';
+import '../widgets/location_alert_banner.dart';
+import '../widgets/map_controls.dart';
 
 /// SafeZone home tab — district map with live alert-radius overlays
 /// (from AlertProvider.activeAlerts) and incident markers (from
 /// IncidentProvider). The global flood-warning banner is already handled
-/// by AlertBanner in AppShell, so this screen doesn't duplicate it.
+/// by AlertBanner in AppShell; the LocationAlertBanner added here is a
+/// separate, location-filtered banner (only shows when an active alert's
+/// geofence covers the user's location) — see location_alert_banner.dart
+/// for the distinction.
 class HomeScreen extends StatefulWidget {
   /// Optional — pass AppShell's loaded `_zones` if you want the chip in
   /// the top-left corner to label the district nearest the map center.
@@ -73,6 +80,15 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // TODO: replace _initialCenter with the device's real GPS
+            // position once location permissions are wired up (see the
+            // TODO in LocationAlertBanner itself).
+            LocationAlertBanner(
+              userLocation: _initialCenter,
+              onTap: () {
+                // TODO: navigate to a full alert-detail screen.
+              },
+            ),
             const _HeaderRow(),
             Expanded(
               child: Padding(
@@ -129,16 +145,29 @@ class _HeaderRow extends StatelessWidget {
               ],
             ),
           ),
+          Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+              ],
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.notifications_none_rounded),
+              color: const Color(0xFF2A2A2A),
+              onPressed: () {
+                // TODO: navigate to the Alerts tab/screen.
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          const AppLogoBadge(),
         ],
       ),
     );
   }
 }
-
-/// Which base map style is currently showing. Kept as an enum rather than
-/// a bool so a third style (e.g. satellite) can be added later without
-/// renaming anything.
-enum _BaseMapStyle { street, topo }
 
 /// Debug-only stand-ins for AlertProvider data, so the banded
 /// yellow/orange/red look from the mockup is visible during development
@@ -153,32 +182,6 @@ final List<({LatLng center, double radiusMeters, AlertSeverity severity})>
   (center: const LatLng(6.9560, 79.9075), radiusMeters: 1200, severity: AlertSeverity.red),
   (center: const LatLng(6.9520, 79.9140), radiusMeters: 1500, severity: AlertSeverity.yellow),
 ];
-
-Color _severityFillColor(AlertSeverity severity) {
-  switch (severity) {
-    case AlertSeverity.green:
-      return AppColors.severityGreen.withValues(alpha: 0.33);
-    case AlertSeverity.yellow:
-      return AppColors.severityYellow.withValues(alpha: 0.33);
-    case AlertSeverity.orange:
-      return AppColors.severityOrange.withValues(alpha: 0.33);
-    case AlertSeverity.red:
-      return AppColors.severityRed.withValues(alpha: 0.33);
-  }
-}
-
-Color _severityBorderColor(AlertSeverity severity) {
-  switch (severity) {
-    case AlertSeverity.green:
-      return AppColors.severityGreen;
-    case AlertSeverity.yellow:
-      return AppColors.severityYellow;
-    case AlertSeverity.orange:
-      return AppColors.severityOrange;
-    case AlertSeverity.red:
-      return AppColors.severityRed;
-  }
-}
 
 class _SafeZoneMap extends StatefulWidget {
   final LatLng center;
@@ -199,7 +202,7 @@ class _SafeZoneMap extends StatefulWidget {
 
 class _SafeZoneMapState extends State<_SafeZoneMap> {
   final MapController _mapController = MapController();
-  _BaseMapStyle _baseMapStyle = _BaseMapStyle.street;
+  BaseMapStyle _baseMapStyle = BaseMapStyle.street;
 
   ({IconData icon, Color color}) _markerStyleFor(Incident incident) {
     if (incident.isSos) {
@@ -236,7 +239,7 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                   width: 10,
                   height: 10,
                   decoration: BoxDecoration(
-                    color: _severityBorderColor(severity),
+                    color: severityColor(severity),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -245,7 +248,7 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                   severity.label,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: _severityBorderColor(severity),
+                    color: severityColor(severity),
                   ),
                 ),
               ],
@@ -269,16 +272,13 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
 
   void _toggleBaseMapStyle() {
     setState(() {
-      _baseMapStyle = _baseMapStyle == _BaseMapStyle.street
-          ? _BaseMapStyle.topo
-          : _BaseMapStyle.street;
+      _baseMapStyle = _baseMapStyle == BaseMapStyle.street ? BaseMapStyle.topo : BaseMapStyle.street;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final showDebugZones = _showSampleZonesInDebug && kDebugMode && widget.alerts.isEmpty;
-    final isTopo = _baseMapStyle == _BaseMapStyle.topo;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
@@ -298,29 +298,7 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
               ),
             ),
             children: [
-              if (isTopo)
-                // OpenTopoMap — free, keyless XYZ tiles with contour lines
-                // and hillshading, so elevation differences across a
-                // district are actually visible. Tiles stop at z17, so we
-                // cap maxNativeZoom there and let flutter_map upscale the
-                // last tile for any zoom beyond that instead of failing
-                // to load.
-                TileLayer(
-                  urlTemplate: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-                  subdomains: const ['a', 'b', 'c'],
-                  userAgentPackageName: 'com.example.safezone',
-                  maxNativeZoom: 17,
-                )
-              else
-                // Free, keyless raster tiles — no API key or billing setup
-                // required. Swap the urlTemplate for any XYZ-compatible
-                // provider if you want a different look.
-                TileLayer(
-                  urlTemplate:
-                      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-                  subdomains: const ['a', 'b', 'c', 'd'],
-                  userAgentPackageName: 'com.example.safezone',
-                ),
+              buildBaseTileLayer(_baseMapStyle),
               CircleLayer(
                 circles: [
                   for (final alert in widget.alerts)
@@ -328,8 +306,8 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                       point: LatLng(alert.centerLat, alert.centerLng),
                       radius: alert.radiusMeters.toDouble(),
                       useRadiusInMeter: true,
-                      color: _severityFillColor(alert.severity),
-                      borderColor: _severityBorderColor(alert.severity),
+                      color: severityFillColor(alert.severity),
+                      borderColor: severityColor(alert.severity),
                       borderStrokeWidth: 1.5,
                     ),
                   if (showDebugZones)
@@ -338,8 +316,8 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                         point: zone.center,
                         radius: zone.radiusMeters,
                         useRadiusInMeter: true,
-                        color: _severityFillColor(zone.severity),
-                        borderColor: _severityBorderColor(zone.severity),
+                        color: severityFillColor(zone.severity),
+                        borderColor: severityColor(zone.severity),
                         borderStrokeWidth: 1.5,
                       ),
                 ],
@@ -398,14 +376,7 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
               RichAttributionWidget(
                 alignment: AttributionAlignment.bottomLeft,
                 attributions: [
-                  if (isTopo)
-                    const TextSourceAttribution(
-                      'Map data: OpenStreetMap contributors, SRTM | Map style: OpenTopoMap (CC-BY-SA)',
-                    )
-                  else
-                    const TextSourceAttribution(
-                      'Map data: OpenStreetMap contributors | Tiles: CARTO',
-                    ),
+                  TextSourceAttribution(attributionFor(_baseMapStyle)),
                 ],
               ),
             ],
@@ -434,68 +405,15 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
             bottom: 12,
             child: Column(
               children: [
-                _MapLayerToggleButton(isTopo: isTopo, onTap: _toggleBaseMapStyle),
+                MapLayerToggleButton(style: _baseMapStyle, onTap: _toggleBaseMapStyle),
                 const SizedBox(height: 12),
-                _ZoomButton(icon: Icons.add, onTap: () => _zoomBy(1)),
+                ZoomButton(icon: Icons.add, onTap: () => _zoomBy(1)),
                 const SizedBox(height: 8),
-                _ZoomButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
+                ZoomButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ZoomButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  const _ZoomButton({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      shape: const CircleBorder(),
-      elevation: 2,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Icon(icon, size: 20, color: const Color(0xFF2A2A2A)),
-        ),
-      ),
-    );
-  }
-}
-
-/// Toggles the base map between the warm street style and OpenTopoMap's
-/// terrain/elevation style. Icon flips so it always shows what tapping it
-/// will switch *to*, matching the convention used elsewhere in the app.
-class _MapLayerToggleButton extends StatelessWidget {
-  final bool isTopo;
-  final VoidCallback onTap;
-  const _MapLayerToggleButton({required this.isTopo, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      shape: const CircleBorder(),
-      elevation: 2,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Icon(
-            isTopo ? Icons.map_outlined : Icons.terrain,
-            size: 20,
-            color: const Color(0xFF2A2A2A),
-          ),
-        ),
       ),
     );
   }
