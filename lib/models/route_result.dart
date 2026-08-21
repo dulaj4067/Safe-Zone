@@ -1,4 +1,5 @@
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart' show LatLngBounds;
+import 'package:latlong2/latlong.dart';
 
 enum TravelMode { walking, driving }
 
@@ -30,20 +31,7 @@ class RouteResult {
     return '${hours}h ${rem}min';
   }
 
-  LatLngBounds get bounds {
-    var minLat = points.first.latitude;
-    var maxLat = points.first.latitude;
-    var minLng = points.first.longitude;
-    var maxLng = points.first.longitude;
-    for (final p in points) {
-      if (p.latitude < minLat) minLat = p.latitude;
-      if (p.latitude > maxLat) maxLat = p.latitude;
-      if (p.longitude < minLng) minLng = p.longitude;
-      if (p.longitude > maxLng) maxLng = p.longitude;
-    }
-    return LatLngBounds(
-      southwest: LatLng(minLat, minLng),
-      northeast: LatLng(maxLat, maxLng),
-    );
-  }
+  /// flutter_map's LatLngBounds has a ready-made fromPoints constructor,
+  /// so this no longer needs manual min/max tracking.
+  LatLngBounds get bounds => LatLngBounds.fromPoints(points);
 }

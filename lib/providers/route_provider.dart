@@ -1,15 +1,22 @@
 import 'package:flutter/foundation.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../models/route_result.dart';
+import '../models/shelter.dart';
 import '../services/routing_service.dart';
+import '../services/shelter_service.dart';
 
 enum PointBeingSet { origin, destination }
 
 class RouteProvider extends ChangeNotifier {
   final RoutingService _service;
+  final ShelterService _shelterService;
 
-  RouteProvider({required RoutingService service}) : _service = service;
+  RouteProvider({
+    required RoutingService service,
+    ShelterService? shelterService,
+  })  : _service = service,
+        _shelterService = shelterService ?? ShelterService();
 
   LatLng? origin;
   LatLng? destination;
@@ -20,12 +27,34 @@ class RouteProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
+  List<Shelter> shelters = [];
+  bool isLoadingShelters = false;
+
   RouteResult? get result => _result;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  /// Story 5 AC: request is only meaningful once both points are set.
+  /// Request is only meaningful once both points are set.
   bool get canRequestRoute => origin != null && destination != null;
+
+  /// Call once from the screen's init (mirrors IncidentProvider.load() /
+  /// AlertProvider.init() elsewhere in the app).
+  Future<void> init() async {
+    await loadShelters();
+  }
+
+  Future<void> loadShelters() async {
+    isLoadingShelters = true;
+    notifyListeners();
+    try {
+      shelters = await _shelterService.fetchShelters();
+    } catch (_) {
+      // Leave whatever shelter list we already had (if any) rather than
+      // clearing it on a transient network failure.
+    }
+    isLoadingShelters = false;
+    notifyListeners();
+  }
 
   void setActivePoint(PointBeingSet point) {
     activePoint = point;
@@ -50,6 +79,16 @@ class RouteProvider extends ChangeNotifier {
   void setOriginToCurrentLocation(LatLng current) {
     origin = current;
     activePoint = PointBeingSet.destination;
+    notifyListeners();
+  }
+
+  /// Tapping a shelter marker sets it directly as the destination —
+  /// shelters are the only valid routing target on this screen, so this
+  /// skips the generic tap-to-place flow for destination specifically.
+  void selectShelterAsDestination(Shelter shelter) {
+    destination = LatLng(shelter.latitude, shelter.longitude);
+    _result = null;
+    _error = null;
     notifyListeners();
   }
 

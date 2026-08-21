@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/route_provider.dart';
 import '../models/route_result.dart';
+import '../models/shelter.dart';
+import '../providers/route_provider.dart';
 import '../services/routing_service.dart';
+import '../utils/map_tile_sources.dart';
+import '../widgets/map_controls.dart';
 import '../widgets/route_summary_card.dart';
 
-/// Combines Story 5 (request a route between two points) and Story 6
-/// (display the suggested route on a map) into one screen — they're the
-/// same interaction from a citizen's point of view: tap two points, see
-/// the path. Splitting them into separate screens would add a navigation
-/// step for no benefit during an actual disaster.
+/// Combines "request a route between two points" and "display the
+/// suggested route on a map" into one screen. Only shelters are shown as
+/// possible destinations — tapping a shelter marker sets it as the
+/// destination directly; tapping empty map sets the origin.
 class RouteScreen extends StatelessWidget {
   const RouteScreen({super.key});
 
@@ -36,7 +39,52 @@ class _RouteScreenBody extends StatefulWidget {
 }
 
 class _RouteScreenBodyState extends State<_RouteScreenBody> {
-  GoogleMapController? _mapController;
+  static const LatLng _initialCenter = LatLng(6.9615, 79.9010);
+
+  final MapController _mapController = MapController();
+  BaseMapStyle _baseMapStyle = BaseMapStyle.street;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<RouteProvider>().init();
+    });
+  }
+
+  void _zoomBy(double delta) {
+    final camera = _mapController.camera;
+    _mapController.move(camera.center, camera.zoom + delta);
+  }
+
+  void _toggleBaseMapStyle() {
+    setState(() {
+      _baseMapStyle = _baseMapStyle == BaseMapStyle.street ? BaseMapStyle.topo : BaseMapStyle.street;
+    });
+  }
+
+  void _onMapTap(TapPosition tapPosition, LatLng point) {
+    final provider = context.read<RouteProvider>();
+    // Only origin can be placed by tapping empty map — destination must be
+    // a shelter (see _onShelterTap).
+    if (provider.activePoint == PointBeingSet.origin) {
+      provider.setOriginToCurrentLocation(point);
+    }
+  }
+
+  Future<void> _onShelterTap(Shelter shelter) async {
+    final provider = context.read<RouteProvider>();
+    provider.selectShelterAsDestination(shelter);
+    if (provider.canRequestRoute) {
+      await provider.requestRoute();
+      final result = provider.result;
+      if (result != null) {
+        _mapController.fitCamera(
+          CameraFit.bounds(bounds: result.bounds, padding: const EdgeInsets.all(60)),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,47 +106,116 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
         children: [
           _ModeAndStatusBar(provider: provider),
           Expanded(
-            child: Stack(
-              children: [
-                GoogleMap(
-                  initialCameraPosition: const CameraPosition(
-                    target: LatLng(7.4167, 81.8206),
-                    zoom: 12,
-                  ),
-                  onMapCreated: (c) => _mapController = c,
-                  onTap: (latLng) {
-                    context.read<RouteProvider>().setPointFromTap(latLng);
-                    if (context.read<RouteProvider>().canRequestRoute) {
-                      _requestAndFit(context);
-                    }
-                  },
-                  markers: _buildMarkers(provider),
-                  polylines: provider.result != null
-                      ? {
-                          Polyline(
-                            polylineId: const PolylineId('route'),
-                            points: provider.result!.points,
-                            width: 5,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        }
-                      : {},
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.10),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
-                if (provider.isLoading)
-                  const Positioned(
-                    top: 12,
-                    left: 0,
-                    right: 0,
-                    child: Center(child: CircularProgressIndicator()),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Stack(
+                    children: [
+                      FlutterMap(
+                        mapController: _mapController,
+                        options: MapOptions(
+                          initialCenter: _initialCenter,
+                          initialZoom: 13,
+                          minZoom: 5,
+                          maxZoom: 18,
+                          interactionOptions: const InteractionOptions(
+                            flags: InteractiveFlag.all,
+                          ),
+                          onTap: _onMapTap,
+                        ),
+                        children: [
+                          buildBaseTileLayer(_baseMapStyle),
+                          if (provider.result != null)
+                            PolylineLayer(
+                              polylines: [
+                                Polyline(
+                                  points: provider.result!.points,
+                                  strokeWidth: 5,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ],
+                            ),
+                          MarkerLayer(
+                            markers: [
+                              // Only shelters are shown as destinations on
+                              // this screen — no incidents/alerts here.
+                              for (final shelter in provider.shelters)
+                                Marker(
+                                  point: LatLng(shelter.latitude, shelter.longitude),
+                                  width: 40,
+                                  height: 40,
+                                  child: _ShelterMarker(
+                                    shelter: shelter,
+                                    isSelected: provider.destination != null &&
+                                        provider.destination!.latitude == shelter.latitude &&
+                                        provider.destination!.longitude == shelter.longitude,
+                                    onTap: () => _onShelterTap(shelter),
+                                  ),
+                                ),
+                              if (provider.origin != null)
+                                Marker(
+                                  point: provider.origin!,
+                                  width: 32,
+                                  height: 32,
+                                  child: const _PointMarker(
+                                    icon: Icons.my_location,
+                                    color: Color(0xFF1E88E5),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          RichAttributionWidget(
+                            alignment: AttributionAlignment.bottomLeft,
+                            attributions: [
+                              TextSourceAttribution(attributionFor(_baseMapStyle)),
+                            ],
+                          ),
+                        ],
+                      ),
+                      if (provider.isLoadingShelters || provider.isLoading)
+                        const Positioned(
+                          top: 12,
+                          left: 0,
+                          right: 0,
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                      if (provider.error != null)
+                        Positioned(
+                          top: 12,
+                          left: 12,
+                          right: 12,
+                          child: _ErrorBanner(message: provider.error!),
+                        ),
+                      Positioned(
+                        right: 12,
+                        bottom: 12,
+                        child: Column(
+                          children: [
+                            MapLayerToggleButton(style: _baseMapStyle, onTap: _toggleBaseMapStyle),
+                            const SizedBox(height: 12),
+                            ZoomButton(icon: Icons.add, onTap: () => _zoomBy(1)),
+                            const SizedBox(height: 8),
+                            ZoomButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                if (provider.error != null)
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    right: 12,
-                    child: _ErrorBanner(message: provider.error!),
-                  ),
-              ],
+                ),
+              ),
             ),
           ),
           if (provider.result != null)
@@ -107,38 +224,56 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
       ),
     );
   }
+}
 
-  Set<Marker> _buildMarkers(RouteProvider provider) {
-    final markers = <Marker>{};
-    if (provider.origin != null) {
-      markers.add(Marker(
-        markerId: const MarkerId('origin'),
-        position: provider.origin!,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-        infoWindow: const InfoWindow(title: 'Start'),
-      ));
-    }
-    if (provider.destination != null) {
-      markers.add(Marker(
-        markerId: const MarkerId('destination'),
-        position: provider.destination!,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-        infoWindow: const InfoWindow(title: 'Destination'),
-      ));
-    }
-    return markers;
+class _ShelterMarker extends StatelessWidget {
+  final Shelter shelter;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ShelterMarker({
+    required this.shelter,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isSelected ? const Color(0xFFD32F2F) : const Color(0xFF2E7D32);
+    return GestureDetector(
+      onTap: onTap,
+      child: Tooltip(
+        message: shelter.name,
+        child: Container(
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 3)],
+          ),
+          child: const Icon(Icons.night_shelter, color: Colors.white, size: 20),
+        ),
+      ),
+    );
   }
+}
 
-  Future<void> _requestAndFit(BuildContext context) async {
-    final provider = context.read<RouteProvider>();
-    await provider.requestRoute();
-    final result = provider.result;
-    if (result != null && _mapController != null) {
-      // Story 6 AC: map auto-fits to show the entire route.
-      await _mapController!.animateCamera(
-        CameraUpdate.newLatLngBounds(result.bounds, 60),
-      );
-    }
+class _PointMarker extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  const _PointMarker({required this.icon, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 3)],
+      ),
+      child: Icon(icon, color: Colors.white, size: 16),
+    );
   }
 }
 
@@ -174,7 +309,7 @@ class _ModeAndStatusBar extends StatelessWidget {
             provider.origin == null
                 ? 'Tap the map to set your start point'
                 : provider.destination == null
-                    ? 'Tap the map to set your destination'
+                    ? 'Tap a shelter to route there'
                     : '',
             style: Theme.of(context).textTheme.bodySmall,
           ),

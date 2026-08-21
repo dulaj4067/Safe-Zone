@@ -30,19 +30,6 @@ class AlertBanner extends StatelessWidget {
     }
   }
 
-  Color get _stripeColor {
-    switch (alert.severity) {
-      case AlertSeverity.green:
-        return const Color(0xFF2E7D32);
-      case AlertSeverity.yellow:
-        return const Color(0xFFF9A825);
-      case AlertSeverity.orange:
-        return const Color(0xFFEF6C00);
-      case AlertSeverity.red:
-        return const Color(0xFFC62828);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -70,7 +57,11 @@ class AlertBanner extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Container(width: _stripeWidth, color: _stripeColor),
+                    // Uses the same severityColor() as SeverityBadge, the
+                    // map circles, etc. — previously this had its own
+                    // hardcoded hex values here, which could silently
+                    // drift out of sync with AppColors.severity*.
+                    Container(width: _stripeWidth, color: severityColor(alert.severity)),
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.all(14),
