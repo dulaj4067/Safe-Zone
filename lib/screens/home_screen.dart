@@ -6,26 +6,25 @@ import 'package:provider/provider.dart';
 
 import '../models/alert.dart';
 import '../models/incident.dart';
-import '../models/shelter.dart';
 import '../models/zone.dart';
 import '../providers/alert_provider.dart';
 import '../providers/incident_provider.dart';
-import '../services/shelter_service.dart';
+import '../services/supabase_service.dart';
 import '../utils/map_tile_sources.dart';
 import '../widgets/severity_badge.dart';
 import '../widgets/app_logo_badge.dart';
 import '../widgets/location_alert_banner.dart';
 import '../widgets/map_controls.dart';
-import '../widgets/shelter_marker.dart';
+import '../widgets/incident_detail_sheet.dart';
+import 'incident_detail_screen.dart';
 
 /// SafeZone home tab — district map with live alert-radius overlays
-/// (from AlertProvider.activeAlerts), incident markers (from
-/// IncidentProvider), and shelter markers (fetched locally via
-/// ShelterService, same pattern AppShell uses to load zones). The global
-/// flood-warning banner is already handled by AlertBanner in AppShell;
-/// the LocationAlertBanner added here is a separate, location-filtered
-/// banner (only shows when an active alert's geofence covers the user's
-/// location) — see location_alert_banner.dart for the distinction.
+/// (from AlertProvider.activeAlerts) and incident markers (from
+/// IncidentProvider). The global flood-warning banner is already handled
+/// by AlertBanner in AppShell; the LocationAlertBanner added here is a
+/// separate, location-filtered banner (only shows when an active alert's
+/// geofence covers the user's location) — see location_alert_banner.dart
+/// for the distinction.
 class HomeScreen extends StatefulWidget {
   /// Optional — pass AppShell's loaded `_zones` if you want the chip in
   /// the top-left corner to label the district nearest the map center.
@@ -42,9 +41,6 @@ class _HomeScreenState extends State<HomeScreen> {
   static const LatLng _initialCenter = LatLng(6.9615, 79.9010);
   static const Distance _distance = Distance();
 
-  final ShelterService _shelterService = ShelterService();
-  List<Shelter> _shelters = [];
-
   @override
   void initState() {
     super.initState();
@@ -53,17 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
       // AlertProvider.init() is already called once from AppShell, so we
       // don't call it again here — just read its current state below.
     });
-    _loadShelters();
-  }
-
-  Future<void> _loadShelters() async {
-    try {
-      final shelters = await _shelterService.fetchShelters();
-      if (mounted) setState(() => _shelters = shelters);
-    } catch (_) {
-      // Leave shelters empty on failure rather than crashing the map —
-      // same fail-quiet approach RouteProvider.loadShelters() uses.
-    }
   }
 
   String? _nearestZoneName(LatLng center) {
@@ -127,7 +112,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     center: _initialCenter,
                     incidents: incidents,
                     alerts: activeAlerts,
-                    shelters: _shelters,
                     districtLabel: districtLabel,
                   ),
                 ),
@@ -206,14 +190,12 @@ class _SafeZoneMap extends StatefulWidget {
   final LatLng center;
   final List<Incident> incidents;
   final List<DisasterAlert> alerts;
-  final List<Shelter> shelters;
   final String? districtLabel;
 
   const _SafeZoneMap({
     required this.center,
     required this.incidents,
     required this.alerts,
-    required this.shelters,
     required this.districtLabel,
   });
 
@@ -363,18 +345,6 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                         child: const SizedBox.expand(),
                       ),
                     ),
-                  // Shelters — same ShelterMarker/detail sheet used on the
-                  // routing map, so they look identical everywhere.
-                  for (final shelter in widget.shelters)
-                    Marker(
-                      point: LatLng(shelter.latitude, shelter.longitude),
-                      width: 36,
-                      height: 36,
-                      child: ShelterMarker(
-                        shelter: shelter,
-                        onTap: () => showShelterDetailSheet(context, shelter),
-                      ),
-                    ),
                   for (final incident in widget.incidents)
                     Marker(
                       point: LatLng(incident.latitude, incident.longitude),
@@ -384,8 +354,34 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                         final style = _markerStyleFor(incident);
                         return GestureDetector(
                           onTap: () {
-                            // TODO: reuse IncidentDetailSheet here, same as
-                            // your Hub/Incidents screen does.
+                            showModalBottomSheet(
+                              context: context,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                              ),
+                              builder: (_) => IncidentDetailSheet(
+                                incident: incident,
+                                onViewDetails: () {
+                                  Navigator.pop(context);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => IncidentDetailScreen(incident: incident),
+                                    ),
+                                  );
+                                },
+                                onConfirm: () {
+                                  final userId = SupabaseService.currentUserId;
+                                  if (userId != null) {
+                                    context.read<IncidentProvider>().confirmIncident(
+                                          incidentId: incident.id,
+                                          memberId: userId,
+                                        );
+                                  }
+                                  Navigator.pop(context);
+                                },
+                              ),
+                            );
                           },
                           child: Container(
                             decoration: BoxDecoration(
