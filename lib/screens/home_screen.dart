@@ -9,11 +9,14 @@ import '../models/incident.dart';
 import '../models/zone.dart';
 import '../providers/alert_provider.dart';
 import '../providers/incident_provider.dart';
+import '../services/supabase_service.dart';
 import '../utils/map_tile_sources.dart';
 import '../widgets/severity_badge.dart';
 import '../widgets/app_logo_badge.dart';
 import '../widgets/location_alert_banner.dart';
 import '../widgets/map_controls.dart';
+import '../widgets/incident_detail_sheet.dart';
+import 'incident_detail_screen.dart';
 
 /// SafeZone home tab — district map with live alert-radius overlays
 /// (from AlertProvider.activeAlerts) and incident markers (from
@@ -351,8 +354,34 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                         final style = _markerStyleFor(incident);
                         return GestureDetector(
                           onTap: () {
-                            // TODO: reuse IncidentDetailSheet here, same as
-                            // your Hub/Incidents screen does.
+                            showModalBottomSheet(
+                              context: context,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                              ),
+                              builder: (_) => IncidentDetailSheet(
+                                incident: incident,
+                                onViewDetails: () {
+                                  Navigator.pop(context);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => IncidentDetailScreen(incident: incident),
+                                    ),
+                                  );
+                                },
+                                onConfirm: () {
+                                  final userId = SupabaseService.currentUserId;
+                                  if (userId != null) {
+                                    context.read<IncidentProvider>().confirmIncident(
+                                          incidentId: incident.id,
+                                          memberId: userId,
+                                        );
+                                  }
+                                  Navigator.pop(context);
+                                },
+                              ),
+                            );
                           },
                           child: Container(
                             decoration: BoxDecoration(

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/alert_provider.dart';
+import 'providers/auth_provider.dart';
 import 'providers/incident_provider.dart';
 import 'screens/app_shell.dart';
+import 'screens/login_screen.dart';
 import 'services/supabase_service.dart';
 import 'theme/app_theme.dart';
 
@@ -25,6 +27,9 @@ class DisasterApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // AuthProvider must come first — other providers may depend on the
+        // signed-in user's id.
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => IncidentProvider()),
         ChangeNotifierProvider(create: (_) => AlertProvider()),
       ],
@@ -34,10 +39,24 @@ class DisasterApp extends StatelessWidget {
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         themeMode: ThemeMode.system,
-        // Replace with your existing auth-gated router — this assumes the
-        // user is already signed in by the time AppShell mounts.
-        home: const AppShell(),
+        home: const _AuthGate(),
       ),
     );
+  }
+}
+
+/// Switches between [LoginScreen] and [AppShell] based on whether a Supabase
+/// session exists. Reacts to sign-in / sign-out events automatically because
+/// [AuthProvider] calls [notifyListeners] on every auth state change.
+class _AuthGate extends StatelessWidget {
+  const _AuthGate();
+
+  @override
+  Widget build(BuildContext context) {
+    final isSignedIn = context.select<AuthProvider, bool>(
+      (auth) => auth.isSignedIn,
+    );
+
+    return isSignedIn ? const AppShell() : const LoginScreen();
   }
 }

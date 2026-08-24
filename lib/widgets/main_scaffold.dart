@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../screens/home_screen.dart';
 import '../screens/placeholder_screens.dart';
-// TODO: adjust this import path to wherever IncidentsScreen actually lives
-// in your project (it's the screen from your existing incidents_screen.dart).
-import '../screens/alerts_screen.dart';
+import '../screens/incidents_screen.dart';
 
 /// App root: bottom nav with Home, Alerts, SOS, Shelters, Hub.
 /// Use this as (or inside) your MaterialApp's `home`.

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/incident.dart';
@@ -16,15 +18,25 @@ class IncidentProvider extends ChangeNotifier {
 
   List<Incident> _incidents = [];
   bool _isLoading = false;
+  bool _isSubmitting = false;
   bool _isOffline = false;
   String? _errorMessage;
   DateTime? _lastUpdated;
   bool _hasLoadedOnce = false;
   IncidentViewMode _viewMode = IncidentViewMode.map;
 
+  // Filtering state
+  IncidentStatus? _statusFilter;
+  IncidentCategory? _categoryFilter;
+  bool _sosFilter = false;
+
   List<Incident> get incidents => List.unmodifiable(_incidents);
   bool get isLoading => _isLoading;
+  bool get isSubmitting => _isSubmitting;
   IncidentViewMode get viewMode => _viewMode;
+  IncidentStatus? get statusFilter => _statusFilter;
+  IncidentCategory? get categoryFilter => _categoryFilter;
+  bool get sosFilter => _sosFilter;
 
   /// True when the most recent Supabase fetch failed and we're showing
   /// stale (cached or previously-fetched) data instead.
@@ -45,6 +57,49 @@ class IncidentProvider extends ChangeNotifier {
     });
     return list;
   }
+
+  /// Returns [sortedIncidents] filtered by the currently active filters.
+  List<Incident> get filteredIncidents {
+    var list = sortedIncidents;
+
+    if (_statusFilter != null) {
+      list = list.where((i) => i.status == _statusFilter).toList();
+    }
+    if (_categoryFilter != null) {
+      list = list.where((i) => i.category == _categoryFilter).toList();
+    }
+    if (_sosFilter) {
+      list = list.where((i) => i.isSos).toList();
+    }
+
+    return list;
+  }
+
+  // ─── Filter setters ────────────────────────────────────────────────────────
+
+  void setStatusFilter(IncidentStatus? status) {
+    _statusFilter = status;
+    notifyListeners();
+  }
+
+  void setCategoryFilter(IncidentCategory? category) {
+    _categoryFilter = category;
+    notifyListeners();
+  }
+
+  void setSosFilter(bool enabled) {
+    _sosFilter = enabled;
+    notifyListeners();
+  }
+
+  void clearFilters() {
+    _statusFilter = null;
+    _categoryFilter = null;
+    _sosFilter = false;
+    notifyListeners();
+  }
+
+  // ─── Load & Refresh ────────────────────────────────────────────────────────
 
   /// Offline-first load. Call once on screen init (HomeScreen already
   /// does this in its addPostFrameCallback). Paints cached incidents
@@ -76,7 +131,7 @@ class IncidentProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final fresh = await _service.fetchIncidents();
+      final fresh = await _service.fetchIncidents(includeAll: true);
       _incidents = fresh;
       _lastUpdated = DateTime.now();
       _isOffline = false;
@@ -98,6 +153,125 @@ class IncidentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ─── Submit ────────────────────────────────────────────────────────────────
+
+  /// Submits a new incident report. Handles media upload if files are
+  /// provided, then creates the incident record.
+  Future<bool> submitIncident({
+    required IncidentCategory category,
+    required String description,
+    required double latitude,
+    required double longitude,
+    bool isSos = false,
+    File? photoFile,
+    File? videoFile,
+  }) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      String? photoUrl;
+      String? videoUrl;
+
+      // Upload photo if provided
+      if (photoFile != null) {
+        final ext = photoFile.path.split('.').last;
+        final path = 'photos/${DateTime.now().millisecondsSinceEpoch}.$ext';
+        photoUrl = await _service.uploadEvidence(photoFile, path);
+      }
+
+      // Upload video if provided
+      if (videoFile != null) {
+        final ext = videoFile.path.split('.').last;
+        final path = 'videos/${DateTime.now().millisecondsSinceEpoch}.$ext';
+        videoUrl = await _service.uploadEvidence(videoFile, path);
+      }
+
+      // Build draft incident for submission
+      final draft = Incident(
+        id: '', // server-generated
+        reporterId: '', // server-enforced via auth.uid()
+        category: category,
+        description: description,
+        photoUrl: photoUrl,
+        videoUrl: videoUrl,
+        latitude: latitude,
+        longitude: longitude,
+        status: IncidentStatus.pending,
+        credibilityScore: 0,
+        isSos: isSos,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await _service.submitIncident(draft);
+      await refresh();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
+  // ─── Admin Actions ─────────────────────────────────────────────────────────
+
+  /// Verifies a pending incident (admin only).
+  Future<bool> verifyIncident(String incidentId, String adminId) async {
+    try {
+      await _service.updateIncidentStatus(
+        incidentId: incidentId,
+        newStatus: IncidentStatus.verified,
+        verifiedBy: adminId,
+      );
+      await refresh();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Rejects a pending incident (admin only).
+  Future<bool> rejectIncident(String incidentId, String adminId) async {
+    try {
+      await _service.updateIncidentStatus(
+        incidentId: incidentId,
+        newStatus: IncidentStatus.rejected,
+        verifiedBy: adminId,
+      );
+      await refresh();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Resolves a verified incident (admin only).
+  Future<bool> resolveIncident(String incidentId, String adminId) async {
+    try {
+      await _service.updateIncidentStatus(
+        incidentId: incidentId,
+        newStatus: IncidentStatus.resolved,
+        verifiedBy: adminId,
+      );
+      await refresh();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // ─── Confirmations ─────────────────────────────────────────────────────────
+
   /// Records a member confirmation on an incident, then refreshes so the
   /// updated credibility_score (computed server-side, presumably via a
   /// trigger on incident_confirmations) shows up.
@@ -110,5 +284,16 @@ class IncidentProvider extends ChangeNotifier {
       memberId: memberId,
     );
     await refresh();
+  }
+
+  /// Checks if the given user has already confirmed the given incident.
+  Future<bool> hasUserConfirmed({
+    required String incidentId,
+    required String userId,
+  }) async {
+    return _service.hasUserConfirmed(
+      incidentId: incidentId,
+      userId: userId,
+    );
   }
 }

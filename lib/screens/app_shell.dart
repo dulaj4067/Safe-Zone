@@ -8,7 +8,8 @@ import '../services/supabase_service.dart';
 import '../widgets/alert_banner.dart';
 import 'admin_broadcast_screen.dart';
 import 'broadcast_dashboard_screen.dart';
-import 'alerts_screen.dart';
+import 'incidents_screen.dart';
+import 'settings_screen.dart';
 import 'shelters_screen.dart';
 import 'home_screen.dart';
 
@@ -69,11 +70,14 @@ class _AppShellState extends State<AppShell> {
 
     final tabs = <Widget>[
       HomeScreen(zones: _zones),
-      const IncidentsScreen(),
+      IncidentsScreen(currentUser: _currentUser),
       const RouteScreen(),
       if (isAuthority) const BroadcastDashboardScreen(),
-      // Additional citizen-facing tabs (shelters, preparedness hub, etc.)
-      // slot in here as later sprints implement them.
+      SettingsScreen(
+        currentUser: _currentUser,
+        zones: _zones,
+        onProfileUpdated: _loadProfileAndZones,
+      ),
     ];
 
     return Scaffold(
@@ -112,18 +116,23 @@ class _AppShellState extends State<AppShell> {
             )
           : null,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _tabIndex,
+        selectedIndex: _tabIndex >= tabs.length ? 0 : _tabIndex,
         onDestinationSelected: (i) => setState(() => _tabIndex = i),
         destinations: [
-          const NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
-          const NavigationDestination(icon: Icon(Icons.report), label: 'Alerts'),
-          const NavigationDestination(icon: Icon(Icons.alt_route), label: 'Shelters'),
+          const NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
+          const NavigationDestination(icon: Icon(Icons.report_outlined), selectedIcon: Icon(Icons.report), label: 'Incidents'),
+          const NavigationDestination(icon: Icon(Icons.alt_route_outlined), selectedIcon: Icon(Icons.alt_route), label: 'Shelters'),
           if (isAuthority)
             const NavigationDestination(
-              icon: Icon(Icons.dashboard),
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard),
               label: 'Dashboard',
             ),
-          // More destinations added as later sprint screens land.
+          const NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
         ],
       ),
     );
