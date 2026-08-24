@@ -3,6 +3,15 @@ import 'package:flutter/material.dart';
 import '../models/alert.dart';
 import 'severity_badge.dart';
 
+/// Global warning strip — matches the SafeZone mockup exactly: solid
+/// severity-color background, a white pill with the severity label
+/// ("WARNING", "ALERT", etc.), the alert title in bold white, and a
+/// trailing chevron. Sits flush at the very top of the screen, no card,
+/// margin, rounding, or shadow.
+///
+/// There's no visible close icon (the mockup doesn't have one) — swipe
+/// up to dismiss instead, which still calls [onDismiss] so callers
+/// (AppShell's global banner, LocationAlertBanner) don't need to change.
 class AlertBanner extends StatelessWidget {
   final DisasterAlert alert;
   final VoidCallback onDismiss;
@@ -15,126 +24,63 @@ class AlertBanner extends StatelessWidget {
     this.onTap,
   });
 
-  /// Signature detail: urgency is legible even in peripheral vision, not
-  /// just from reading the badge text. Higher severity = thicker stripe.
-  double get _stripeWidth {
-    switch (alert.severity) {
-      case AlertSeverity.green:
-        return 3;
-      case AlertSeverity.yellow:
-        return 5;
-      case AlertSeverity.orange:
-        return 7;
-      case AlertSeverity.red:
-        return 9;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final bannerColor = severityColor(alert.severity);
+
     return SafeArea(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            margin: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Uses the same severityColor() as SeverityBadge, the
-                    // map circles, etc. — previously this had its own
-                    // hardcoded hex values here, which could silently
-                    // drift out of sync with AppColors.severity*.
-                    Container(width: _stripeWidth, color: severityColor(alert.severity)),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: _BannerContent(alert: alert, onDismiss: onDismiss),
+      bottom: false,
+      left: false,
+      right: false,
+      child: Dismissible(
+        key: ValueKey(alert.id),
+        direction: DismissDirection.up,
+        onDismissed: (_) => onDismiss(),
+        child: Material(
+          color: bannerColor,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      alert.severity.label.toUpperCase(),
+                      style: TextStyle(
+                        color: bannerColor,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        letterSpacing: 0.3,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      alert.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 22),
+                ],
               ),
             ),
           ),
         ),
       ),
-    );
-  }
-}
-
-class _BannerContent extends StatelessWidget {
-  final DisasterAlert alert;
-  final VoidCallback onDismiss;
-
-  const _BannerContent({required this.alert, required this.onDismiss});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  SeverityBadge(severity: alert.severity),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      alert.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              if (alert.instructions != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  alert.instructions!,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.7),
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.close, size: 18),
-          onPressed: onDismiss,
-          splashRadius: 18,
-        ),
-      ],
     );
   }
 }
