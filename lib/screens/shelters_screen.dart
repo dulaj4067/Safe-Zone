@@ -8,6 +8,7 @@ import '../models/shelter.dart';
 import '../providers/route_provider.dart';
 import '../services/routing_service.dart';
 import '../utils/map_tile_sources.dart';
+import '../widgets/location_alert_banner.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/route_summary_card.dart';
 
@@ -104,6 +105,15 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
       ),
       body: Column(
         children: [
+          // TODO: replace _initialCenter with the device's real GPS
+          // position once location permissions are wired up (see the
+          // TODO in LocationAlertBanner itself).
+          LocationAlertBanner(
+            userLocation: _initialCenter,
+            onTap: () {
+              // TODO: navigate to a full alert-detail screen.
+            },
+          ),
           _ModeAndStatusBar(provider: provider),
           Expanded(
             child: Padding(

@@ -10,6 +10,7 @@ import '../providers/incident_provider.dart';
 import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/incident_detail_sheet.dart';
+import '../widgets/location_alert_banner.dart';
 
 class IncidentsScreen extends StatefulWidget {
   const IncidentsScreen({super.key});
@@ -19,6 +20,10 @@ class IncidentsScreen extends StatefulWidget {
 }
 
 class _IncidentsScreenState extends State<IncidentsScreen> {
+  // Same default center as HomeScreen, so the location-filtered banner
+  // reacts to the same point until real GPS is wired up.
+  static const LatLng _initialCenter = LatLng(6.9615, 79.9010);
+
   @override
   void initState() {
     super.initState();
@@ -59,6 +64,15 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
       ),
       body: Column(
         children: [
+          // TODO: replace _initialCenter with the device's real GPS
+          // position once location permissions are wired up (see the
+          // TODO in LocationAlertBanner itself).
+          LocationAlertBanner(
+            userLocation: _initialCenter,
+            onTap: () {
+              // TODO: navigate to a full alert-detail screen.
+            },
+          ),
           if (provider.isOffline) _OfflineBanner(lastUpdated: provider.lastUpdated),
           Expanded(
             child: provider.isLoading && provider.incidents.isEmpty
