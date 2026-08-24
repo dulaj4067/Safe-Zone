@@ -6,6 +6,7 @@ import 'providers/incident_provider.dart';
 import 'screens/app_shell.dart';
 import 'services/supabase_service.dart';
 import 'theme/app_theme.dart';
+//import 'screens/critical_alert_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +38,7 @@ class DisasterApp extends StatelessWidget {
         // Replace with your existing auth-gated router — this assumes the
         // user is already signed in by the time AppShell mounts.
         home: const AppShell(),
+          //home: const CriticalAlertScreen(),
       ),
     );
   }
