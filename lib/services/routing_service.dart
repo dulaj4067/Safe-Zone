@@ -3,86 +3,88 @@ import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import '../models/route_result.dart';
 
-/// Wraps the Google Directions API. Requires a Directions-enabled API key —
-/// separate from (but can be the same project as) the Maps SDK key used
-/// for GoogleMap widgets. Set via --dart-define=DIRECTIONS_API_KEY=... or
-/// swap this out for OSRM/Mapbox if you'd rather not depend on Google's
-/// Directions billing.
+/// Wraps the free, keyless OSRM public routing API (router.project-osrm.org)
+/// — no API key, no billing account, no key-restriction footguns to trip
+/// over. It's a community-run demo instance (FOSSGIS), so per their usage
+/// policy: keep requests to non-commercial use and under ~1 request per
+/// second, which matches this app's usage pattern (one request per
+/// shelter tap).
 ///
-/// Note: this still calls Google's Directions REST API over plain HTTP —
-/// that's unrelated to which map-rendering package is used, so switching
-/// the app's map widgets to flutter_map didn't require dropping this.
-/// LatLng here is now latlong2's (matching RouteResult/RouteProvider), not
-/// google_maps_flutter's — that was the only change needed, since this
-/// file only ever used LatLng's .latitude/.longitude, which both packages
-/// provide identically.
+/// If you outgrow the demo server's rate limit later, the exact same
+/// request shape works against a self-hosted OSRM instance — just change
+/// [baseUrl] to point at it.
 class RoutingService {
-  final String apiKey;
-  RoutingService({required this.apiKey});
-  Future<RouteResult> fetchRoute({
+  final String baseUrl;
+  RoutingService({this.baseUrl = 'https://router.project-osrm.org'});
+
+  static String _profileFor(TravelMode mode) {
+    switch (mode) {
+      case TravelMode.walking:
+        return 'foot';
+      case TravelMode.driving:
+        return 'driving';
+    }
+  }
+
+  /// Requests every alternative route OSRM offers between the two points
+  /// (not just its single default pick) — needed so RouteHazardScorer has
+  /// more than one candidate to compare against active disaster alerts.
+  /// OSRM typically returns 1-3 routes, same as the old Google call did.
+  Future<List<RouteResult>> fetchRoutes({
     required LatLng origin,
     required LatLng destination,
     required TravelMode mode,
   }) async {
-    final uri = Uri.https('maps.googleapis.com', '/maps/api/directions/json', {
-      'origin': '${origin.latitude},${origin.longitude}',
-      'destination': '${destination.latitude},${destination.longitude}',
-      'mode': mode.apiValue,
-      'key': apiKey,
-    });
+    final profile = _profileFor(mode);
+    // OSRM's coordinate order is lon,lat — the opposite of LatLng's
+    // lat,lng and of Google's lat,lng. Easy thing to get backwards.
+    final coords =
+        '${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}';
+    final uri = Uri.parse('$baseUrl/route/v1/$profile/$coords').replace(
+      queryParameters: {
+        'alternatives': 'true',
+        'overview': 'full',
+        'geometries': 'geojson',
+      },
+    );
+
     final response = await http.get(uri);
     if (response.statusCode != 200) {
       throw RouteException('Routing request failed (${response.statusCode}).');
     }
+
     final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final status = data['status'] as String?;
-    if (status == 'ZERO_RESULTS') {
+    final code = data['code'] as String?;
+    if (code == 'NoRoute') {
       throw RouteException('No route found between those points.');
     }
-    if (status != 'OK') {
+    if (code != 'Ok') {
       throw RouteException(
-        data['error_message'] as String? ?? 'Routing failed: $status',
+        data['message'] as String? ?? 'Routing failed: $code',
       );
     }
-    final route = (data['routes'] as List).first as Map<String, dynamic>;
-    final leg = (route['legs'] as List).first as Map<String, dynamic>;
-    final encodedPolyline =
-        route['overview_polyline']['points'] as String;
-    return RouteResult(
-      points: _decodePolyline(encodedPolyline),
-      distanceMeters: (leg['distance']['value'] as num).toDouble(),
-      durationSeconds: (leg['duration']['value'] as num).toInt(),
-    );
-  }
-  /// Standard Google polyline algorithm decoder. Implemented inline to
-  /// avoid pulling in an extra package for one small, stable function.
-  List<LatLng> _decodePolyline(String encoded) {
-    final points = <LatLng>[];
-    int index = 0, len = encoded.length;
-    int lat = 0, lng = 0;
-    while (index < len) {
-      int shift = 0, result = 0, b;
-      do {
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      final dlat = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
-      lat += dlat;
-      shift = 0;
-      result = 0;
-      do {
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      final dlng = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
-      lng += dlng;
-      points.add(LatLng(lat / 1e5, lng / 1e5));
+
+    final routes = data['routes'] as List?;
+    if (routes == null || routes.isEmpty) {
+      throw RouteException('No route found between those points.');
     }
-    return points;
+
+    return routes.map((r) {
+      final route = r as Map<String, dynamic>;
+      // geojson geometry gives [lon, lat] pairs directly — no polyline
+      // decoding needed, unlike the old Google integration.
+      final coordinates = (route['geometry']['coordinates'] as List)
+          .map((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
+          .toList();
+      return RouteResult(
+        points: coordinates,
+        distanceMeters: (route['distance'] as num).toDouble(),
+        durationSeconds: (route['duration'] as num).round(),
+      );
+    }).toList();
   }
 }
+
 class RouteException implements Exception {
   final String message;
   RouteException(this.message);
