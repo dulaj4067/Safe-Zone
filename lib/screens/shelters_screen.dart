@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -8,23 +10,29 @@ import '../models/route_result.dart';
 import '../models/shelter.dart';
 import '../providers/alert_provider.dart';
 import '../providers/route_provider.dart';
+import '../services/location_service.dart';
 import '../services/routing_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/map_tile_sources.dart';
+import '../widgets/live_location_marker.dart';
 import '../widgets/location_alert_banner.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/route_summary_card.dart';
 
 /// Combines "request a route between two points" and "display the
-/// suggested route on a map" into one screen. Only shelters are shown as
-/// possible destinations — tapping a shelter marker sets it as the
-/// destination directly; tapping empty map sets the origin.
+/// suggested route on a map" into one screen. Either point can be placed
+/// by tapping anywhere on the map; tapping a shelter marker sets it as
+/// the destination directly as a shortcut. The device's live GPS
+/// position is always shown as a separate marker, independent of
+/// whichever point is currently being placed.
 ///
 /// Routing itself asks OSRM's free, keyless public routing API for every
 /// alternative it offers, then RouteHazardScorer (see
 /// utils/route_hazard_scoring.dart) picks whichever one best avoids
-/// AlertProvider's currently active disaster zones without straying far
-/// from the shortest option — see RouteProvider.requestRoute().
+/// AlertProvider's currently active disaster zones — red zones are
+/// avoided outright whenever any alternative allows it — without
+/// straying far from the shortest option otherwise. See
+/// RouteProvider.requestRoute().
 class RouteScreen extends StatelessWidget {
   const RouteScreen({super.key});
 
@@ -50,7 +58,12 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
   static const LatLng _initialCenter = LatLng(6.9615, 79.9010);
 
   final MapController _mapController = MapController();
+  final LocationService _locationService = LocationService();
+  StreamSubscription<LatLng>? _positionSub;
+
   BaseMapStyle _baseMapStyle = BaseMapStyle.street;
+  LatLng? _liveLocation;
+  bool _locationDenied = false;
 
   @override
   void initState() {
@@ -58,6 +71,32 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<RouteProvider>().init();
     });
+    _startWatchingLocation();
+  }
+
+  Future<void> _startWatchingLocation() async {
+    final granted = await _locationService.ensurePermission();
+    if (!mounted) return;
+    if (!granted) {
+      setState(() => _locationDenied = true);
+      return;
+    }
+    _positionSub = _locationService.watchPosition().listen(
+      (position) {
+        if (mounted) setState(() => _liveLocation = position);
+      },
+      onError: (_) {
+        // Leave whatever last-known position we have rather than
+        // clearing it on a transient GPS/provider error.
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _positionSub?.cancel();
+    _mapController.dispose();
+    super.dispose();
   }
 
   void _zoomBy(double delta) {
@@ -71,30 +110,55 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
     });
   }
 
-  void _onMapTap(TapPosition tapPosition, LatLng point) {
+  /// Tapping anywhere on the map places whichever point (origin or
+  /// destination) is currently active — RouteProvider.setPointFromTap
+  /// auto-advances from origin to destination, so two taps place a full
+  /// route with no restriction to shelter locations.
+  Future<void> _onMapTap(TapPosition tapPosition, LatLng point) async {
     final provider = context.read<RouteProvider>();
-    // Only origin can be placed by tapping empty map — destination must be
-    // a shelter (see _onShelterTap).
-    if (provider.activePoint == PointBeingSet.origin) {
-      provider.setOriginToCurrentLocation(point);
+    provider.setPointFromTap(point);
+    if (provider.canRequestRoute) {
+      await _requestRouteAndFit();
     }
   }
 
+  /// Shortcut: tapping a shelter marker sets it directly as the
+  /// destination, regardless of which point was active.
   Future<void> _onShelterTap(Shelter shelter) async {
     final provider = context.read<RouteProvider>();
     provider.selectShelterAsDestination(shelter);
     if (provider.canRequestRoute) {
-      // Pull whatever's currently active from AlertProvider at request
-      // time — read() rather than watch() since this is a one-shot
-      // action, not something that should re-fire on every alert change.
-      final activeAlerts = context.read<AlertProvider>().activeAlerts;
-      await provider.requestRoute(activeAlerts: activeAlerts);
-      final result = provider.result;
-      if (result != null) {
-        _mapController.fitCamera(
-          CameraFit.bounds(bounds: result.bounds, padding: const EdgeInsets.all(60)),
-        );
+      await _requestRouteAndFit();
+    }
+  }
+
+  /// Seeds the origin from the device's live GPS fix — useful since a
+  /// citizen fleeing a disaster wants "route from where I actually am,"
+  /// not a manually-tapped approximation.
+  Future<void> _useMyLocationAsOrigin() async {
+    final current = _liveLocation ?? await _locationService.getCurrentLocation();
+    if (current == null) {
+      if (mounted) {
+        setState(() => _locationDenied = true);
       }
+      return;
+    }
+    final provider = context.read<RouteProvider>();
+    provider.setOriginToCurrentLocation(current);
+    if (provider.canRequestRoute) {
+      await _requestRouteAndFit();
+    }
+  }
+
+  Future<void> _requestRouteAndFit() async {
+    final provider = context.read<RouteProvider>();
+    final activeAlerts = context.read<AlertProvider>().activeAlerts;
+    await provider.requestRoute(activeAlerts: activeAlerts);
+    final result = provider.result;
+    if (result != null) {
+      _mapController.fitCamera(
+        CameraFit.bounds(bounds: result.bounds, padding: const EdgeInsets.all(60)),
+      );
     }
   }
 
@@ -102,11 +166,21 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
   Widget build(BuildContext context) {
     final provider = context.watch<RouteProvider>();
     final activeAlerts = context.watch<AlertProvider>().activeAlerts;
+    final destination = provider.destination;
+    final destinationIsShelter = destination != null &&
+        provider.shelters.any(
+          (s) => s.latitude == destination.latitude && s.longitude == destination.longitude,
+        );
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Route to safety'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.my_location),
+            tooltip: 'Use my location as start',
+            onPressed: _useMyLocationAsOrigin,
+          ),
           if (provider.origin != null || provider.destination != null)
             IconButton(
               icon: const Icon(Icons.clear),
@@ -117,15 +191,13 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
       ),
       body: Column(
         children: [
-          // TODO: replace _initialCenter with the device's real GPS
-          // position once location permissions are wired up (see the
-          // TODO in LocationAlertBanner itself).
           LocationAlertBanner(
-            userLocation: _initialCenter,
+            userLocation: _liveLocation ?? _initialCenter,
             onTap: () {
               // TODO: navigate to a full alert-detail screen.
             },
           ),
+          if (_locationDenied) const _LocationDeniedBanner(),
           _ModeAndStatusBar(provider: provider),
           Expanded(
             child: Padding(
@@ -149,7 +221,7 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
                       FlutterMap(
                         mapController: _mapController,
                         options: MapOptions(
-                          initialCenter: _initialCenter,
+                          initialCenter: _liveLocation ?? _initialCenter,
                           initialZoom: 13,
                           minZoom: 5,
                           maxZoom: 18,
@@ -189,8 +261,9 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
                             ),
                           MarkerLayer(
                             markers: [
-                              // Only shelters are shown as destinations on
-                              // this screen — no incidents here.
+                              // Shelters remain visible/tappable as a
+                              // one-tap destination shortcut alongside
+                              // free tap-to-place.
                               for (final shelter in provider.shelters)
                                 Marker(
                                   point: LatLng(shelter.latitude, shelter.longitude),
@@ -198,9 +271,9 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
                                   height: 40,
                                   child: _ShelterMarker(
                                     shelter: shelter,
-                                    isSelected: provider.destination != null &&
-                                        provider.destination!.latitude == shelter.latitude &&
-                                        provider.destination!.longitude == shelter.longitude,
+                                    isSelected: destination != null &&
+                                        destination.latitude == shelter.latitude &&
+                                        destination.longitude == shelter.longitude,
                                     onTap: () => _onShelterTap(shelter),
                                   ),
                                 ),
@@ -210,9 +283,31 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
                                   width: 32,
                                   height: 32,
                                   child: const _PointMarker(
-                                    icon: Icons.my_location,
+                                    icon: Icons.trip_origin,
                                     color: Color(0xFF1E88E5),
                                   ),
+                                ),
+                              // A freely-tapped destination (not a
+                              // shelter) gets its own pin — shelters
+                              // already draw their own marker above.
+                              if (destination != null && !destinationIsShelter)
+                                Marker(
+                                  point: destination,
+                                  width: 32,
+                                  height: 32,
+                                  child: const _PointMarker(
+                                    icon: Icons.flag,
+                                    color: Color(0xFFD32F2F),
+                                  ),
+                                ),
+                              // Live device position — always on the map,
+                              // independent of origin/destination.
+                              if (_liveLocation != null)
+                                Marker(
+                                  point: _liveLocation!,
+                                  width: 28,
+                                  height: 28,
+                                  child: const LiveLocationMarker(),
                                 ),
                             ],
                           ),
@@ -261,6 +356,31 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
             _RouteHazardNotice(result: provider.result!),
             RouteSummaryCard(result: provider.result!),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LocationDeniedBanner extends StatelessWidget {
+  const _LocationDeniedBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: Colors.amber.shade100,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: const Row(
+        children: [
+          Icon(Icons.location_off, size: 16),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Location access is off — enable it in Settings to see your position and route from it.',
+              style: TextStyle(fontSize: 13),
+            ),
+          ),
         ],
       ),
     );
@@ -342,8 +462,11 @@ class _RouteHazardNotice extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'This is the safest route available — it still briefly '
-              'crosses a ${result.worstHazardSeverity!.label} zone',
+              result.worstHazardSeverity == AlertSeverity.red
+                  ? 'Every available route crosses a red zone — this one '
+                      'minimizes the distance through it'
+                  : 'This is the safest route available — it still '
+                      'briefly crosses a ${result.worstHazardSeverity!.label} zone',
               style: TextStyle(fontSize: 12, color: color),
             ),
           ),
@@ -436,7 +559,7 @@ class _ModeAndStatusBar extends StatelessWidget {
             provider.origin == null
                 ? 'Tap the map to set your start point'
                 : provider.destination == null
-                    ? 'Tap a shelter to route there'
+                    ? 'Tap the map or a shelter to set your destination'
                     : '',
             style: Theme.of(context).textTheme.bodySmall,
           ),

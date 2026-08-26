@@ -1,17 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+import '../models/alert.dart';
 import '../models/app_user.dart';
 import '../models/incident.dart';
 import '../providers/alert_provider.dart';
 import '../providers/incident_provider.dart';
+import '../services/location_service.dart';
 import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/map_tile_sources.dart';
 import '../widgets/incident_card.dart';
 import '../widgets/incident_detail_sheet.dart';
+import '../widgets/live_location_marker.dart';
+import '../widgets/location_alert_banner.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/severity_badge.dart';
 import 'incident_detail_screen.dart';
@@ -27,12 +33,45 @@ class IncidentsScreen extends StatefulWidget {
 }
 
 class _IncidentsScreenState extends State<IncidentsScreen> {
+  static const LatLng _initialCenter = LatLng(6.9615, 79.9010);
+
+  final LocationService _locationService = LocationService();
+  StreamSubscription<LatLng>? _positionSub;
+
+  LatLng? _liveLocation;
+  bool _locationDenied = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<IncidentProvider>().load();
     });
+    _startWatchingLocation();
+  }
+
+  @override
+  void dispose() {
+    _positionSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _startWatchingLocation() async {
+    final granted = await _locationService.ensurePermission();
+    if (!mounted) return;
+    if (!granted) {
+      setState(() => _locationDenied = true);
+      return;
+    }
+    _positionSub = _locationService.watchPosition().listen(
+      (position) {
+        if (mounted) setState(() => _liveLocation = position);
+      },
+      onError: (_) {
+        // Leave whatever last-known position we have rather than
+        // clearing it on a transient GPS/provider error.
+      },
+    );
   }
 
   void _openReportScreen() {
@@ -60,6 +99,7 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<IncidentProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveCenter = _liveLocation ?? _initialCenter;
 
     return Scaffold(
       appBar: AppBar(
@@ -101,7 +141,13 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ─── Offline Banner ──────────────────────────────────────────────
+          LocationAlertBanner(
+            userLocation: effectiveCenter,
+            onTap: () {
+              // TODO: navigate to a full alert-detail screen.
+            },
+          ),
+          if (_locationDenied) const _LocationDeniedBanner(),
           if (provider.isOffline)
             _OfflineBanner(lastUpdated: provider.lastUpdated),
 
@@ -160,6 +206,8 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
                                 child: _IncidentsMap(
                                   incidents: provider.filteredIncidents,
                                   onIncidentTap: _openIncidentDetail,
+                                  center: effectiveCenter,
+                                  liveLocation: _liveLocation,
                                 ),
                               ),
                             ),
@@ -170,6 +218,33 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
                             onReportTap: _openReportScreen,
                             onRefresh: () => provider.refresh(),
                           ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Location Denied Banner ───────────────────────────────────────────────────
+
+class _LocationDeniedBanner extends StatelessWidget {
+  const _LocationDeniedBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: Colors.amber.shade100,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: const Row(
+        children: [
+          Icon(Icons.location_off, size: 16),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Location access is off — enable it in Settings to see your position on the map.',
+              style: TextStyle(fontSize: 13),
+            ),
           ),
         ],
       ),
@@ -336,10 +411,14 @@ class _IncidentList extends StatelessWidget {
 class _IncidentsMap extends StatefulWidget {
   final List<Incident> incidents;
   final ValueChanged<Incident> onIncidentTap;
+  final LatLng center;
+  final LatLng? liveLocation;
 
   const _IncidentsMap({
     required this.incidents,
     required this.onIncidentTap,
+    required this.center,
+    required this.liveLocation,
   });
 
   @override
@@ -347,9 +426,49 @@ class _IncidentsMap extends StatefulWidget {
 }
 
 class _IncidentsMapState extends State<_IncidentsMap> {
-  static const LatLng _initialCenter = LatLng(6.9615, 79.9010);
   final MapController _mapController = MapController();
   BaseMapStyle _baseMapStyle = BaseMapStyle.street;
+
+  void _showAlertSheet(BuildContext context, DisasterAlert alert) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: severityColor(alert.severity),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  alert.severity.label,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: severityColor(alert.severity),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(alert.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            if (alert.instructions != null) ...[
+              const SizedBox(height: 8),
+              Text(alert.instructions!),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
   void _showIncidentSheet(Incident incident) {
     showModalBottomSheet(
@@ -385,12 +504,12 @@ class _IncidentsMapState extends State<_IncidentsMap> {
       children: [
         FlutterMap(
           mapController: _mapController,
-          options: const MapOptions(
-            initialCenter: _initialCenter,
+          options: MapOptions(
+            initialCenter: widget.center,
             initialZoom: 12,
             minZoom: 5,
             maxZoom: 18,
-            interactionOptions: InteractionOptions(flags: InteractiveFlag.all),
+            interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
           ),
           children: [
             buildBaseTileLayer(_baseMapStyle),
@@ -409,6 +528,16 @@ class _IncidentsMapState extends State<_IncidentsMap> {
             ),
             MarkerLayer(
               markers: [
+                for (final alert in activeAlerts)
+                  Marker(
+                    point: LatLng(alert.centerLat, alert.centerLng),
+                    width: 28,
+                    height: 28,
+                    child: GestureDetector(
+                      onTap: () => _showAlertSheet(context, alert),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
                 for (final incident in widget.incidents)
                   Marker(
                     point: LatLng(incident.latitude, incident.longitude),
@@ -433,6 +562,13 @@ class _IncidentsMapState extends State<_IncidentsMap> {
                       ),
                     ),
                   ),
+                if (widget.liveLocation != null)
+                  Marker(
+                    point: widget.liveLocation!,
+                    width: 28,
+                    height: 28,
+                    child: const LiveLocationMarker(),
+                  ),
               ],
             ),
             RichAttributionWidget(
@@ -443,6 +579,13 @@ class _IncidentsMapState extends State<_IncidentsMap> {
             ),
           ],
         ),
+        if (activeAlerts.isEmpty)
+          const Positioned(
+            top: 16,
+            left: 16,
+            right: 16,
+            child: _NoActiveAlertsBanner(),
+          ),
         Positioned(
           right: 12,
           bottom: 12,
@@ -482,6 +625,38 @@ class _IncidentsMapState extends State<_IncidentsMap> {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─── No Active Alerts Banner ─────────────────────────────────────────────────
+
+class _NoActiveAlertsBanner extends StatelessWidget {
+  const _NoActiveAlertsBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 1)),
+        ],
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.check_circle_outline, size: 18, color: Color(0xFF2E7D32)),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'No active alerts right now',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

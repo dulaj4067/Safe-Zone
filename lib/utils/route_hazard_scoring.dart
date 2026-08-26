@@ -5,14 +5,14 @@ import '../models/route_result.dart';
 
 /// Scores candidate routes by how much they pass through active disaster
 /// alert zones, and ranks them so the safest-and-shortest option comes
-/// first — the Directions API has no concept of these zones on its own,
-/// so this is what actually keeps routing away from them.
+/// first — the Directions/OSRM API has no concept of these zones on its
+/// own, so this is what actually keeps routing away from them.
 ///
-/// Severity is weighted so a route is only preferred over a shorter one
-/// when it meaningfully reduces exposure to a higher-severity zone — a
-/// route that's merely a few meters longer isn't worth avoiding a minor
-/// green-tier advisory for, but distance saved by cutting through a
-/// red-tier zone is never worth it unless every alternative does too.
+/// Red zones are treated as near-inviolable: a route that avoids red
+/// entirely always ranks above one that doesn't, regardless of distance.
+/// Orange/yellow/green are weighted more softly — a route is only
+/// preferred over a shorter one when it meaningfully reduces exposure to
+/// those, not for a few meters saved.
 class RouteHazardScorer {
   static const Distance _distance = Distance();
 
@@ -69,14 +69,21 @@ class RouteHazardScorer {
     return (hazardMeters: hazardMeters, worst: worst);
   }
 
-  static double _scoreFor(RouteResult route) {
+  static bool _crossesRed(RouteResult route) =>
+      route.worstHazardSeverity == AlertSeverity.red;
+
+  static double _weightedScore(RouteResult route) {
     if (route.worstHazardSeverity == null) return route.distanceMeters;
     return route.distanceMeters +
         (route.hazardMeters * _severityWeight(route.worstHazardSeverity!));
   }
 
   /// Annotates each candidate with its hazard exposure and returns them
-  /// sorted safest-and-shortest first.
+  /// ranked safest-and-shortest first. Ranking is two-tier: routes that
+  /// avoid red entirely always come before ones that don't (tier 1), and
+  /// within each tier, routes are ordered by weighted distance/hazard
+  /// score (tier 2) — so red is only ever crossed when literally every
+  /// alternative crosses it too.
   static List<RouteResult> rank(
     List<RouteResult> candidates,
     List<DisasterAlert> activeAlerts,
@@ -89,7 +96,13 @@ class RouteHazardScorer {
       );
     }).toList();
 
-    annotated.sort((a, b) => _scoreFor(a).compareTo(_scoreFor(b)));
+    annotated.sort((a, b) {
+      final aRed = _crossesRed(a) ? 1 : 0;
+      final bRed = _crossesRed(b) ? 1 : 0;
+      if (aRed != bRed) return aRed.compareTo(bRed);
+      return _weightedScore(a).compareTo(_weightedScore(b));
+    });
+
     return annotated;
   }
 }

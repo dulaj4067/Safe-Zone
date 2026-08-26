@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -6,25 +8,25 @@ import 'package:provider/provider.dart';
 
 import '../models/alert.dart';
 import '../models/incident.dart';
+import '../models/shelter.dart';
 import '../models/zone.dart';
 import '../providers/alert_provider.dart';
 import '../providers/incident_provider.dart';
-import '../services/supabase_service.dart';
+import '../services/location_service.dart';
+import '../services/shelter_service.dart';
 import '../utils/map_tile_sources.dart';
 import '../widgets/severity_badge.dart';
 import '../widgets/app_logo_badge.dart';
+import '../widgets/live_location_marker.dart';
 import '../widgets/location_alert_banner.dart';
 import '../widgets/map_controls.dart';
-import '../widgets/incident_detail_sheet.dart';
-import 'incident_detail_screen.dart';
+import '../widgets/shelter_marker.dart';
 
 /// SafeZone home tab — district map with live alert-radius overlays
-/// (from AlertProvider.activeAlerts) and incident markers (from
-/// IncidentProvider). The global flood-warning banner is already handled
-/// by AlertBanner in AppShell; the LocationAlertBanner added here is a
-/// separate, location-filtered banner (only shows when an active alert's
-/// geofence covers the user's location) — see location_alert_banner.dart
-/// for the distinction.
+/// (from AlertProvider.activeAlerts), incident markers (from
+/// IncidentProvider), shelter markers (fetched locally via
+/// ShelterService), and the device's own live GPS position (via
+/// LocationService), always shown as a distinct marker.
 class HomeScreen extends StatefulWidget {
   /// Optional — pass AppShell's loaded `_zones` if you want the chip in
   /// the top-left corner to label the district nearest the map center.
@@ -41,6 +43,14 @@ class _HomeScreenState extends State<HomeScreen> {
   static const LatLng _initialCenter = LatLng(6.9615, 79.9010);
   static const Distance _distance = Distance();
 
+  final ShelterService _shelterService = ShelterService();
+  final LocationService _locationService = LocationService();
+  StreamSubscription<LatLng>? _positionSub;
+
+  List<Shelter> _shelters = [];
+  LatLng? _liveLocation;
+  bool _locationDenied = false;
+
   @override
   void initState() {
     super.initState();
@@ -49,6 +59,42 @@ class _HomeScreenState extends State<HomeScreen> {
       // AlertProvider.init() is already called once from AppShell, so we
       // don't call it again here — just read its current state below.
     });
+    _loadShelters();
+    _startWatchingLocation();
+  }
+
+  @override
+  void dispose() {
+    _positionSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadShelters() async {
+    try {
+      final shelters = await _shelterService.fetchShelters();
+      if (mounted) setState(() => _shelters = shelters);
+    } catch (_) {
+      // Leave shelters empty on failure rather than crashing the map —
+      // same fail-quiet approach RouteProvider.loadShelters() uses.
+    }
+  }
+
+  Future<void> _startWatchingLocation() async {
+    final granted = await _locationService.ensurePermission();
+    if (!mounted) return;
+    if (!granted) {
+      setState(() => _locationDenied = true);
+      return;
+    }
+    _positionSub = _locationService.watchPosition().listen(
+      (position) {
+        if (mounted) setState(() => _liveLocation = position);
+      },
+      onError: (_) {
+        // Leave whatever last-known position we have rather than
+        // clearing it on a transient GPS/provider error.
+      },
+    );
   }
 
   String? _nearestZoneName(LatLng center) {
@@ -72,7 +118,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final incidents = context.watch<IncidentProvider>().sortedIncidents;
     final activeAlerts = context.watch<AlertProvider>().activeAlerts;
-    final districtLabel = _nearestZoneName(_initialCenter);
+    // District chip and the alert banner's relevance ranking should both
+    // reflect where the person actually is once we have a GPS fix,
+    // falling back to the district default until then.
+    final effectiveCenter = _liveLocation ?? _initialCenter;
+    final districtLabel = _nearestZoneName(effectiveCenter);
 
     return Scaffold(
       // Uses the app's theme background (AppTheme.light/dark set
@@ -83,15 +133,13 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // TODO: replace _initialCenter with the device's real GPS
-            // position once location permissions are wired up (see the
-            // TODO in LocationAlertBanner itself).
             LocationAlertBanner(
-              userLocation: _initialCenter,
+              userLocation: effectiveCenter,
               onTap: () {
                 // TODO: navigate to a full alert-detail screen.
               },
             ),
+            if (_locationDenied) const _LocationDeniedBanner(),
             const _HeaderRow(),
             Expanded(
               child: Padding(
@@ -109,9 +157,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                   child: _SafeZoneMap(
-                    center: _initialCenter,
+                    center: effectiveCenter,
                     incidents: incidents,
                     alerts: activeAlerts,
+                    shelters: _shelters,
+                    liveLocation: _liveLocation,
                     districtLabel: districtLabel,
                   ),
                 ),
@@ -119,6 +169,31 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _LocationDeniedBanner extends StatelessWidget {
+  const _LocationDeniedBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: Colors.amber.shade100,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: const Row(
+        children: [
+          Icon(Icons.location_off, size: 16),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Location access is off — enable it in Settings to see your position on the map.',
+              style: TextStyle(fontSize: 13),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -190,12 +265,16 @@ class _SafeZoneMap extends StatefulWidget {
   final LatLng center;
   final List<Incident> incidents;
   final List<DisasterAlert> alerts;
+  final List<Shelter> shelters;
+  final LatLng? liveLocation;
   final String? districtLabel;
 
   const _SafeZoneMap({
     required this.center,
     required this.incidents,
     required this.alerts,
+    required this.shelters,
+    required this.liveLocation,
     required this.districtLabel,
   });
 
@@ -345,6 +424,18 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                         child: const SizedBox.expand(),
                       ),
                     ),
+                  // Shelters — same ShelterMarker/detail sheet used on the
+                  // routing map, so they look identical everywhere.
+                  for (final shelter in widget.shelters)
+                    Marker(
+                      point: LatLng(shelter.latitude, shelter.longitude),
+                      width: 36,
+                      height: 36,
+                      child: ShelterMarker(
+                        shelter: shelter,
+                        onTap: () => showShelterDetailSheet(context, shelter),
+                      ),
+                    ),
                   for (final incident in widget.incidents)
                     Marker(
                       point: LatLng(incident.latitude, incident.longitude),
@@ -354,34 +445,8 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                         final style = _markerStyleFor(incident);
                         return GestureDetector(
                           onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                              ),
-                              builder: (_) => IncidentDetailSheet(
-                                incident: incident,
-                                onViewDetails: () {
-                                  Navigator.pop(context);
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => IncidentDetailScreen(incident: incident),
-                                    ),
-                                  );
-                                },
-                                onConfirm: () {
-                                  final userId = SupabaseService.currentUserId;
-                                  if (userId != null) {
-                                    context.read<IncidentProvider>().confirmIncident(
-                                          incidentId: incident.id,
-                                          memberId: userId,
-                                        );
-                                  }
-                                  Navigator.pop(context);
-                                },
-                              ),
-                            );
+                            // TODO: reuse IncidentDetailSheet here, same as
+                            // your Hub/Incidents screen does.
                           },
                           child: Container(
                             decoration: BoxDecoration(
@@ -396,6 +461,15 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                           ),
                         );
                       }),
+                    ),
+                  // The device's own live position — always shown,
+                  // independent of incidents/shelters/alerts.
+                  if (widget.liveLocation != null)
+                    Marker(
+                      point: widget.liveLocation!,
+                      width: 28,
+                      height: 28,
+                      child: const LiveLocationMarker(),
                     ),
                 ],
               ),
