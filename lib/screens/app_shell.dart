@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'sos_screen.dart';
 
 import '../models/app_user.dart';
 import '../models/zone.dart';
