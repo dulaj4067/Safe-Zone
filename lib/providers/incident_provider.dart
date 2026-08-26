@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/incident.dart';
 import '../services/incident_service.dart';
+import '../services/supabase_service.dart';
 
 /// Which view IncidentsScreen is currently showing. Lives here (rather
 /// than as screen-local state) so the choice survives screen rebuilds
@@ -29,6 +30,7 @@ class IncidentProvider extends ChangeNotifier {
   IncidentStatus? _statusFilter;
   IncidentCategory? _categoryFilter;
   bool _sosFilter = false;
+  bool _myReportsFilter = false;
 
   List<Incident> get incidents => List.unmodifiable(_incidents);
   bool get isLoading => _isLoading;
@@ -37,6 +39,7 @@ class IncidentProvider extends ChangeNotifier {
   IncidentStatus? get statusFilter => _statusFilter;
   IncidentCategory? get categoryFilter => _categoryFilter;
   bool get sosFilter => _sosFilter;
+  bool get myReportsFilter => _myReportsFilter;
 
   /// True when the most recent Supabase fetch failed and we're showing
   /// stale (cached or previously-fetched) data instead.
@@ -62,6 +65,12 @@ class IncidentProvider extends ChangeNotifier {
   List<Incident> get filteredIncidents {
     var list = sortedIncidents;
 
+    if (_myReportsFilter) {
+      final currentUid = SupabaseService.currentUserId;
+      if (currentUid != null) {
+        list = list.where((i) => i.reporterId == currentUid).toList();
+      }
+    }
     if (_statusFilter != null) {
       list = list.where((i) => i.status == _statusFilter).toList();
     }
@@ -92,10 +101,16 @@ class IncidentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setMyReportsFilter(bool enabled) {
+    _myReportsFilter = enabled;
+    notifyListeners();
+  }
+
   void clearFilters() {
     _statusFilter = null;
     _categoryFilter = null;
     _sosFilter = false;
+    _myReportsFilter = false;
     notifyListeners();
   }
 
@@ -217,6 +232,100 @@ class IncidentProvider extends ChangeNotifier {
     }
   }
 
+  /// Edits an existing incident report. Uploads new media files if provided,
+  /// then updates the incident record.
+  Future<bool> editIncident({
+    required String incidentId,
+    required IncidentCategory category,
+    required String description,
+    required double latitude,
+    required double longitude,
+    bool isSos = false,
+    String? existingPhotoUrl,
+    String? existingVideoUrl,
+    File? newPhotoFile,
+    File? newVideoFile,
+    IncidentStatus? status,
+  }) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      String? photoUrl = existingPhotoUrl;
+      String? videoUrl = existingVideoUrl;
+
+      // Upload new photo if provided
+      if (newPhotoFile != null) {
+        final ext = newPhotoFile.path.split('.').last;
+        final path = 'photos/${DateTime.now().millisecondsSinceEpoch}.$ext';
+        photoUrl = await _service.uploadEvidence(newPhotoFile, path);
+      }
+
+      // Upload new video if provided
+      if (newVideoFile != null) {
+        final ext = newVideoFile.path.split('.').last;
+        final path = 'videos/${DateTime.now().millisecondsSinceEpoch}.$ext';
+        videoUrl = await _service.uploadEvidence(newVideoFile, path);
+      }
+
+      await _service.updateIncident(
+        incidentId: incidentId,
+        category: category,
+        description: description,
+        latitude: latitude,
+        longitude: longitude,
+        isSos: isSos,
+        photoUrl: photoUrl,
+        videoUrl: videoUrl,
+        status: status,
+      );
+
+      await refresh();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
+  // ─── Citizen Reporter Actions ──────────────────────────────────────────────
+
+  /// Marks the user's own incident as resolved.
+  Future<bool> resolveMyIncident(String incidentId) async {
+    try {
+      await _service.updateIncidentStatus(
+        incidentId: incidentId,
+        newStatus: IncidentStatus.resolved,
+      );
+      await refresh();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Re-opens a resolved incident back to pending status if conditions change/recur.
+  Future<bool> reopenMyIncident(String incidentId) async {
+    try {
+      await _service.updateIncidentStatus(
+        incidentId: incidentId,
+        newStatus: IncidentStatus.pending,
+      );
+      await refresh();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
   // ─── Admin Actions ─────────────────────────────────────────────────────────
 
   /// Verifies a pending incident (admin only).
@@ -261,6 +370,21 @@ class IncidentProvider extends ChangeNotifier {
         newStatus: IncidentStatus.resolved,
         verifiedBy: adminId,
       );
+      await refresh();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Deletes an incident permanently from the database (authority or reporter).
+  Future<bool> deleteIncident(String incidentId) async {
+    try {
+      await _service.deleteIncident(incidentId);
+      _incidents.removeWhere((i) => i.id == incidentId);
+      notifyListeners();
       await refresh();
       return true;
     } catch (e) {

@@ -1,6 +1,7 @@
 // Basic smoke test — verifies the app starts without throwing.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:focus_app/main.dart';
@@ -9,6 +10,7 @@ void main() {
   setUpAll(() async {
     // Initialise Supabase before the widget tree is pumped so that
     // SupabaseService.client is available during the test.
+    SharedPreferences.setMockInitialValues({});
     await Supabase.initialize(
       url: 'https://frkwsgriwdezkvrmgsgf.supabase.co',
       anonKey: 'sb_publishable_1Ax1SZF9hldmiJ1kyi338w_BvOL4Gxd',

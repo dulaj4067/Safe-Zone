@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/incident.dart';
+import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import 'status_badge.dart';
@@ -111,6 +112,33 @@ class IncidentCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  // My Report badge
+                  if (incident.reporterId == SupabaseService.currentUserId) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.deepEstuary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.deepEstuary.withValues(alpha: 0.3)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.person_outline, size: 12, color: AppColors.deepEstuary),
+                          SizedBox(width: 3),
+                          Text(
+                            'Mine',
+                            style: TextStyle(
+                              color: AppColors.deepEstuary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
                   // SOS badge
                   if (incident.isSos) ...[
                     Container(
