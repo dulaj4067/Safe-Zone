@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
-/// Standalone screen matching the "Emergency Assistance / SOS" mock.
-/// Drop this file into your project and push/route to `SosScreen()`.
+/// SOS / Emergency Assistance tab content.
+/// Meant to be used as one entry in AppShell's `tabs` list —
+/// bottom navigation is already handled by AppShell's NavigationBar,
+/// so this widget only renders the screen body.
 ///
 /// No external packages required — only `flutter/material.dart`.
 /// Swap the color constants below for your app's real theme tokens
@@ -11,7 +13,6 @@ import 'package:flutter/material.dart';
 const _kNavy = Color(0xFF0B2A4A);
 const _kRed = Color(0xFFB63A3A);
 const _kCream = Color(0xFFF3F1EC);
-const _kMuted = Color(0xFF8A8A8A);
 
 class SosScreen extends StatefulWidget {
   const SosScreen({super.key});
@@ -27,7 +28,6 @@ class _SosScreenState extends State<SosScreen>
   late final AnimationController _holdController;
   late final AnimationController _pulseController;
 
-  Timer? _completionGuard;
   bool _isHolding = false;
 
   @override
@@ -43,6 +43,7 @@ class _SosScreenState extends State<SosScreen>
         }
       });
 
+    // Ambient glow behind the button, always gently pulsing.
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -53,7 +54,6 @@ class _SosScreenState extends State<SosScreen>
   void dispose() {
     _holdController.dispose();
     _pulseController.dispose();
-    _completionGuard?.cancel();
     super.dispose();
   }
 
@@ -71,20 +71,25 @@ class _SosScreenState extends State<SosScreen>
   void _onSosTriggered() {
     setState(() => _isHolding = false);
     _holdController.value = 0;
-    HapticFeedbackStub.notify();
 
+    // TODO: Replace with your real SOS dispatch logic
+    // (e.g. call a SupabaseService method, push a location ping, etc.)
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('SOS sent to emergency services.')),
     );
   }
 
   void _reportIncident() {
+    // TODO: Replace with navigation to your report-incident flow,
+    // e.g. Navigator.push(context, MaterialPageRoute(builder: (_) => ReportIncidentScreen()));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Opening incident report…')),
     );
   }
 
   void _callEmergencyServices() {
+    // TODO: Replace with url_launcher:
+    // await launchUrl(Uri(scheme: 'tel', path: '119'));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Calling 119…')),
     );
@@ -92,99 +97,92 @@ class _SosScreenState extends State<SosScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
-            const Text(
-              'Emergency Assistance',
-              style: TextStyle(
-                color: _kNavy,
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-              ),
+    return SafeArea(
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          const Text(
+            'Emergency Assistance',
+            style: TextStyle(
+              color: _kNavy,
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
             ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: _kCream,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border(
-                    left: BorderSide(color: _kNavy.withOpacity(0.6), width: 3),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: _kCream,
+                borderRadius: BorderRadius.circular(4),
+                border: Border(
+                  left: BorderSide(color: _kNavy.withOpacity(0.6), width: 3),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: _SosHoldButton(
+                        holdController: _holdController,
+                        pulseController: _pulseController,
+                        isHolding: _isHolding,
+                        onHoldStart: _startHold,
+                        onHoldEnd: _cancelHold,
+                      ),
+                    ),
                   ),
-                ),
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: Center(
-                        child: _SosHoldButton(
-                          holdController: _holdController,
-                          pulseController: _pulseController,
-                          isHolding: _isHolding,
-                          onHoldStart: _startHold,
-                          onHoldEnd: _cancelHold,
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                      child: Column(
-                        children: [
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: _callEmergencyServices,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _kNavy,
-                                foregroundColor: Colors.white,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(28),
-                                ),
-                                elevation: 0,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _callEmergencyServices,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _kNavy,
+                              foregroundColor: Colors.white,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(28),
                               ),
-                              icon: const Icon(Icons.phone, size: 20),
-                              label: const Text(
-                                'Call Emergency Services (119)',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                              elevation: 0,
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          GestureDetector(
-                            onTap: _reportIncident,
-                            child: const Text(
-                              'Report Incident Instead',
+                            icon: const Icon(Icons.phone, size: 20),
+                            label: const Text(
+                              'Call Emergency Services (119)',
                               style: TextStyle(
-                                color: _kNavy,
-                                fontSize: 14,
+                                fontSize: 15,
                                 fontWeight: FontWeight.w600,
-                                decoration: TextDecoration.underline,
-                                decorationColor: _kNavy,
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 16),
+                        GestureDetector(
+                          onTap: _reportIncident,
+                          child: const Text(
+                            'Report Incident Instead',
+                            style: TextStyle(
+                              color: _kNavy,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                              decorationColor: _kNavy,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            _BottomNavBar(
-              currentIndex: 2,
-              onTap: (i) {},
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -219,6 +217,7 @@ class _SosHoldButton extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
+            // Ambient outer glow, pulses gently at rest, holds steady while pressed.
             AnimatedBuilder(
               animation: pulseController,
               builder: (context, child) {
@@ -241,6 +240,7 @@ class _SosHoldButton extends StatelessWidget {
                 ),
               ),
             ),
+            // Progress ring showing hold completion.
             AnimatedBuilder(
               animation: holdController,
               builder: (context, _) {
@@ -262,6 +262,7 @@ class _SosHoldButton extends StatelessWidget {
                 );
               },
             ),
+            // Core button.
             AnimatedScale(
               scale: isHolding ? 0.96 : 1.0,
               duration: const Duration(milliseconds: 120),
@@ -309,82 +310,4 @@ class _SosHoldButton extends StatelessWidget {
       ),
     );
   }
-}
-
-class _BottomNavBar extends StatelessWidget {
-  const _BottomNavBar({required this.currentIndex, required this.onTap});
-
-  final int currentIndex;
-  final ValueChanged<int> onTap;
-
-  static const _items = [
-    (_NavIcon.home, 'Home'),
-    (_NavIcon.alerts, 'Alerts'),
-    (_NavIcon.sos, 'SOS'),
-    (_NavIcon.shelters, 'Shelters'),
-    (_NavIcon.hub, 'Hub'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Colors.grey.shade200, width: 1),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(_items.length, (i) {
-          final selected = i == currentIndex;
-          final color = selected ? _kNavy : _kMuted;
-          return GestureDetector(
-            onTap: () => onTap(i),
-            behavior: HitTestBehavior.opaque,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(_iconFor(_items[i].$1), color: color, size: 24),
-                const SizedBox(height: 4),
-                Text(
-                  _items[i].$2,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 11,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
-  IconData _iconFor(_NavIcon icon) {
-    switch (icon) {
-      case _NavIcon.home:
-        return Icons.home_outlined;
-      case _NavIcon.alerts:
-        return Icons.notifications_none;
-      case _NavIcon.sos:
-        return Icons.warning_amber_rounded;
-      case _NavIcon.shelters:
-        return Icons.cancel_outlined;
-      case _NavIcon.hub:
-        return Icons.menu;
-    }
-  }
-}
-
-enum _NavIcon { home, alerts, sos, shelters, hub }
-
-/// Placeholder so this file has zero extra package dependencies.
-/// Replace with `HapticFeedback.heavyImpact()` from `flutter/services.dart`
-/// if you want real device vibration on trigger.
-class HapticFeedbackStub {
-  static void notify() {}
 }
