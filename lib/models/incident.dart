@@ -23,6 +23,24 @@ enum IncidentCategory {
     }
   }
 
+  /// Database-ready snake_case value.
+  String get dbValue {
+    switch (this) {
+      case IncidentCategory.waterlogging:
+        return 'waterlogging';
+      case IncidentCategory.blockedRoad:
+        return 'blocked_road';
+      case IncidentCategory.powerOutage:
+        return 'power_outage';
+      case IncidentCategory.trappedPerson:
+        return 'trapped_person';
+      case IncidentCategory.structuralDamage:
+        return 'structural_damage';
+      case IncidentCategory.other:
+        return 'other';
+    }
+  }
+
   String get label {
     switch (this) {
       case IncidentCategory.waterlogging:
@@ -52,6 +70,19 @@ enum IncidentStatus {
         (e) => e.name == value,
         orElse: () => IncidentStatus.pending,
       );
+
+  String get label {
+    switch (this) {
+      case IncidentStatus.pending:
+        return 'Pending';
+      case IncidentStatus.verified:
+        return 'Verified';
+      case IncidentStatus.rejected:
+        return 'Rejected';
+      case IncidentStatus.resolved:
+        return 'Resolved';
+    }
+  }
 }
 
 class Incident {
@@ -70,6 +101,9 @@ class Incident {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// Reporter name — populated when the query joins on profiles.
+  final String? reporterName;
+
   Incident({
     required this.id,
     required this.reporterId,
@@ -85,6 +119,7 @@ class Incident {
     this.verifiedBy,
     required this.createdAt,
     required this.updatedAt,
+    this.reporterName,
   });
 
   /// Parses a row from `incidents_with_latlon` view which exposes
@@ -115,6 +150,23 @@ class Incident {
       updatedAt: DateTime.parse(
         (map['updated_at'] ?? map['created_at']) as String,
       ),
+      reporterName: map['reporter_name'] as String?,
     );
+  }
+
+  /// Payload for inserting a new incident. Location is encoded as PostGIS
+  /// EWKT so Supabase/PostGIS can parse it directly.
+  Map<String, dynamic> toInsertMap({required String reporterId}) {
+    return {
+      'reporter_id': reporterId,
+      'category': category.dbValue,
+      'description': description,
+      'photo_url': photoUrl,
+      'video_url': videoUrl,
+      'location': 'SRID=4326;POINT($longitude $latitude)',
+      'status': 'pending',
+      'credibility_score': 0,
+      'is_sos': isSos,
+    };
   }
 }

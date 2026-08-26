@@ -2,15 +2,22 @@ import 'package:flutter/material.dart';
 
 import '../models/incident.dart';
 import '../theme/app_theme.dart';
+import '../widgets/status_badge.dart';
+import '../widgets/incident_card.dart';
 
+/// Lightweight bottom-sheet for map marker taps (HomeScreen, IncidentsScreen
+/// map view). Shows a compact incident summary with a "View Details" button
+/// that navigates to the full IncidentDetailScreen.
 class IncidentDetailSheet extends StatelessWidget {
   final Incident incident;
   final VoidCallback? onConfirm;
+  final VoidCallback? onViewDetails;
 
   const IncidentDetailSheet({
     super.key,
     required this.incident,
     this.onConfirm,
+    this.onViewDetails,
   });
 
   @override
@@ -34,6 +41,7 @@ class IncidentDetailSheet extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
+              StatusBadge(status: incident.status),
             ],
           ),
           const SizedBox(height: 8),
@@ -60,6 +68,12 @@ class IncidentDetailSheet extends StatelessWidget {
               Text('${incident.credibilityScore} confirmations',
                   style: AppTheme.dataText(context)),
               const Spacer(),
+              Icon(
+                categoryIcon(incident.category),
+                size: 16,
+                color: categoryColor(incident.category),
+              ),
+              const SizedBox(width: 4),
               Text(
                 _timeAgo(incident.createdAt),
                 style: AppTheme.dataText(context),
@@ -67,14 +81,26 @@ class IncidentDetailSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          if (onConfirm != null)
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: onConfirm,
-                child: const Text('Confirm this report'),
-              ),
-            ),
+          Row(
+            children: [
+              if (onViewDetails != null)
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onViewDetails,
+                    child: const Text('View Details'),
+                  ),
+                ),
+              if (onViewDetails != null && onConfirm != null)
+                const SizedBox(width: 12),
+              if (onConfirm != null)
+                Expanded(
+                  child: FilledButton(
+                    onPressed: onConfirm,
+                    child: const Text('Confirm'),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );

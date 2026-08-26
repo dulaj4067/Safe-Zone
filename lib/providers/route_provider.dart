@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../models/alert.dart';
 import '../models/route_result.dart';
 import '../models/shelter.dart';
 import '../services/routing_service.dart';
 import '../services/shelter_service.dart';
+import '../utils/route_hazard_scoring.dart';
 
 enum PointBeingSet { origin, destination }
 
@@ -24,6 +26,8 @@ class RouteProvider extends ChangeNotifier {
   PointBeingSet activePoint = PointBeingSet.origin;
 
   RouteResult? _result;
+  List<RouteResult> _alternatives = [];
+  List<DisasterAlert> _lastActiveAlerts = [];
   bool _isLoading = false;
   String? _error;
 
@@ -31,6 +35,13 @@ class RouteProvider extends ChangeNotifier {
   bool isLoadingShelters = false;
 
   RouteResult? get result => _result;
+
+  /// All candidate routes returned for the current origin/destination,
+  /// ranked safest-and-shortest first (same order [result] was picked
+  /// from) — exposed in case the UI ever wants to offer "use this route
+  /// instead" for a route that's a bit longer but avoids more hazard.
+  List<RouteResult> get alternatives => List.unmodifiable(_alternatives);
+
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -72,6 +83,7 @@ class RouteProvider extends ChangeNotifier {
       destination = point;
     }
     _result = null;
+    _alternatives = [];
     _error = null;
     notifyListeners();
   }
@@ -88,6 +100,7 @@ class RouteProvider extends ChangeNotifier {
   void selectShelterAsDestination(Shelter shelter) {
     destination = LatLng(shelter.latitude, shelter.longitude);
     _result = null;
+    _alternatives = [];
     _error = null;
     notifyListeners();
   }
@@ -95,27 +108,39 @@ class RouteProvider extends ChangeNotifier {
   void setMode(TravelMode newMode) {
     mode = newMode;
     if (_result != null && canRequestRoute) {
-      requestRoute();
+      requestRoute(activeAlerts: _lastActiveAlerts);
     } else {
       notifyListeners();
     }
   }
 
-  Future<void> requestRoute() async {
+  /// Fetches every alternative route the Directions API offers, then
+  /// picks whichever is safest-and-shortest against [activeAlerts] — the
+  /// Directions API itself has no concept of disaster zones, so this
+  /// scoring is what actually keeps the chosen route away from them
+  /// where a reasonable alternative exists. Falls back to plain shortest
+  /// when there are no active alerts, or when every alternative crosses
+  /// one equally.
+  Future<void> requestRoute({List<DisasterAlert> activeAlerts = const []}) async {
     if (!canRequestRoute) return;
 
     _isLoading = true;
     _error = null;
+    _lastActiveAlerts = activeAlerts;
     notifyListeners();
 
     try {
-      _result = await _service.fetchRoute(
+      final candidates = await _service.fetchRoutes(
         origin: origin!,
         destination: destination!,
         mode: mode,
       );
+      final ranked = RouteHazardScorer.rank(candidates, activeAlerts);
+      _alternatives = ranked;
+      _result = ranked.first;
     } catch (e) {
       _result = null;
+      _alternatives = [];
       _error = e is RouteException ? e.message : 'Could not fetch a route.';
     }
 
@@ -128,6 +153,8 @@ class RouteProvider extends ChangeNotifier {
     destination = null;
     activePoint = PointBeingSet.origin;
     _result = null;
+    _alternatives = [];
+    _lastActiveAlerts = [];
     _error = null;
     notifyListeners();
   }

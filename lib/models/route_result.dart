@@ -1,6 +1,8 @@
 import 'package:flutter_map/flutter_map.dart' show LatLngBounds;
 import 'package:latlong2/latlong.dart';
 
+import 'alert.dart';
+
 enum TravelMode { walking, driving }
 
 extension TravelModeApi on TravelMode {
@@ -12,11 +14,36 @@ class RouteResult {
   final double distanceMeters;
   final int durationSeconds;
 
+  /// Meters of this route that fall inside an active disaster alert's
+  /// geofence, and the most severe zone touched (if any) — populated by
+  /// RouteHazardScorer.rank() after routes come back from the Directions
+  /// API, which has no concept of these zones on its own. Zero/null on a
+  /// route that hasn't been scored against alerts.
+  final double hazardMeters;
+  final AlertSeverity? worstHazardSeverity;
+
   RouteResult({
     required this.points,
     required this.distanceMeters,
     required this.durationSeconds,
+    this.hazardMeters = 0,
+    this.worstHazardSeverity,
   });
+
+  bool get passesThroughHazard => worstHazardSeverity != null;
+
+  RouteResult copyWith({
+    double? hazardMeters,
+    AlertSeverity? worstHazardSeverity,
+  }) {
+    return RouteResult(
+      points: points,
+      distanceMeters: distanceMeters,
+      durationSeconds: durationSeconds,
+      hazardMeters: hazardMeters ?? this.hazardMeters,
+      worstHazardSeverity: worstHazardSeverity ?? this.worstHazardSeverity,
+    );
+  }
 
   String get distanceLabel {
     if (distanceMeters < 1000) return '${distanceMeters.round()} m';

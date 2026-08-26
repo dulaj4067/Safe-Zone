@@ -3,10 +3,13 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+import '../models/alert.dart';
 import '../models/route_result.dart';
 import '../models/shelter.dart';
+import '../providers/alert_provider.dart';
 import '../providers/route_provider.dart';
 import '../services/routing_service.dart';
+import '../theme/app_colors.dart';
 import '../utils/map_tile_sources.dart';
 import '../widgets/location_alert_banner.dart';
 import '../widgets/map_controls.dart';
@@ -16,16 +19,20 @@ import '../widgets/route_summary_card.dart';
 /// suggested route on a map" into one screen. Only shelters are shown as
 /// possible destinations — tapping a shelter marker sets it as the
 /// destination directly; tapping empty map sets the origin.
+///
+/// Routing itself asks OSRM's free, keyless public routing API for every
+/// alternative it offers, then RouteHazardScorer (see
+/// utils/route_hazard_scoring.dart) picks whichever one best avoids
+/// AlertProvider's currently active disaster zones without straying far
+/// from the shortest option — see RouteProvider.requestRoute().
 class RouteScreen extends StatelessWidget {
   const RouteScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      // TODO: move this key into your existing app config / --dart-define
-      // setup rather than hardcoding it here.
       create: (_) => RouteProvider(
-        service: RoutingService(apiKey: 'YOUR_DIRECTIONS_API_KEY'),
+        service: RoutingService(),
       ),
       child: const _RouteScreenBody(),
     );
@@ -77,7 +84,11 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
     final provider = context.read<RouteProvider>();
     provider.selectShelterAsDestination(shelter);
     if (provider.canRequestRoute) {
-      await provider.requestRoute();
+      // Pull whatever's currently active from AlertProvider at request
+      // time — read() rather than watch() since this is a one-shot
+      // action, not something that should re-fire on every alert change.
+      final activeAlerts = context.read<AlertProvider>().activeAlerts;
+      await provider.requestRoute(activeAlerts: activeAlerts);
       final result = provider.result;
       if (result != null) {
         _mapController.fitCamera(
@@ -90,6 +101,7 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<RouteProvider>();
+    final activeAlerts = context.watch<AlertProvider>().activeAlerts;
 
     return Scaffold(
       appBar: AppBar(
@@ -148,6 +160,23 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
                         ),
                         children: [
                           buildBaseTileLayer(_baseMapStyle),
+                          // Drawn so it's visible *why* the chosen route
+                          // may curve away from the straight-line path —
+                          // same alert data RouteHazardScorer used to
+                          // pick the route in the first place.
+                          CircleLayer(
+                            circles: [
+                              for (final alert in activeAlerts)
+                                CircleMarker(
+                                  point: LatLng(alert.centerLat, alert.centerLng),
+                                  radius: alert.radiusMeters.toDouble(),
+                                  useRadiusInMeter: true,
+                                  color: _alertFillColor(alert.severity),
+                                  borderColor: _alertBorderColor(alert.severity),
+                                  borderStrokeWidth: 1.5,
+                                ),
+                            ],
+                          ),
                           if (provider.result != null)
                             PolylineLayer(
                               polylines: [
@@ -161,7 +190,7 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
                           MarkerLayer(
                             markers: [
                               // Only shelters are shown as destinations on
-                              // this screen — no incidents/alerts here.
+                              // this screen — no incidents here.
                               for (final shelter in provider.shelters)
                                 Marker(
                                   point: LatLng(shelter.latitude, shelter.longitude),
@@ -228,8 +257,96 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
               ),
             ),
           ),
-          if (provider.result != null)
+          if (provider.result != null) ...[
+            _RouteHazardNotice(result: provider.result!),
             RouteSummaryCard(result: provider.result!),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Same translucent-fill / solid-border severity treatment used on
+/// HomeScreen and IncidentsScreen's maps, duplicated locally rather than
+/// shared — matches how those two screens already do it in this codebase.
+Color _alertFillColor(AlertSeverity severity) {
+  switch (severity) {
+    case AlertSeverity.green:
+      return AppColors.severityGreen.withValues(alpha: 0.33);
+    case AlertSeverity.yellow:
+      return AppColors.severityYellow.withValues(alpha: 0.33);
+    case AlertSeverity.orange:
+      return AppColors.severityOrange.withValues(alpha: 0.33);
+    case AlertSeverity.red:
+      return AppColors.severityRed.withValues(alpha: 0.33);
+  }
+}
+
+Color _alertBorderColor(AlertSeverity severity) {
+  switch (severity) {
+    case AlertSeverity.green:
+      return AppColors.severityGreen;
+    case AlertSeverity.yellow:
+      return AppColors.severityYellow;
+    case AlertSeverity.orange:
+      return AppColors.severityOrange;
+    case AlertSeverity.red:
+      return AppColors.severityRed;
+  }
+}
+
+/// Tells the person whether the route RouteHazardScorer picked fully
+/// avoided active alert zones, or — if every alternative crossed one —
+/// which severity it still had to cross.
+class _RouteHazardNotice extends StatelessWidget {
+  final RouteResult result;
+  const _RouteHazardNotice({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!result.passesThroughHazard) {
+      return Container(
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2E7D32).withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.verified_outlined, size: 16, color: Color(0xFF2E7D32)),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'This route avoids active alert zones',
+                style: TextStyle(fontSize: 12, color: Color(0xFF2E7D32)),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final color = _alertBorderColor(result.worstHazardSeverity!);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, size: 16, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'This is the safest route available — it still briefly '
+              'crosses a ${result.worstHazardSeverity!.label} zone',
+              style: TextStyle(fontSize: 12, color: color),
+            ),
+          ),
         ],
       ),
     );
