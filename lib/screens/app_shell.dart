@@ -70,7 +70,7 @@ class _AppShellState extends State<AppShell> {
     final isAuthority = _currentUser?.role.isAuthority ?? false;
 
     final tabs = <Widget>[
-      HomeScreen(zones: _zones),
+      HomeScreen(zones: _zones, currentUser: _currentUser),
       IncidentsScreen(currentUser: _currentUser),
       const RouteScreen(),
       if (isAuthority) const BroadcastDashboardScreen(),

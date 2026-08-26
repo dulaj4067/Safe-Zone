@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../models/alert.dart';
+import '../models/app_user.dart';
 import '../models/incident.dart';
 import '../models/zone.dart';
 import '../providers/alert_provider.dart';
@@ -30,8 +31,9 @@ class HomeScreen extends StatefulWidget {
   /// the top-left corner to label the district nearest the map center.
   /// Omit it and the chip just won't render.
   final List<Zone> zones;
+  final AppUser? currentUser;
 
-  const HomeScreen({super.key, this.zones = const []});
+  const HomeScreen({super.key, this.zones = const [], this.currentUser});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -113,6 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     incidents: incidents,
                     alerts: activeAlerts,
                     districtLabel: districtLabel,
+                    currentUser: widget.currentUser,
                   ),
                 ),
               ),
@@ -191,12 +194,14 @@ class _SafeZoneMap extends StatefulWidget {
   final List<Incident> incidents;
   final List<DisasterAlert> alerts;
   final String? districtLabel;
+  final AppUser? currentUser;
 
   const _SafeZoneMap({
     required this.center,
     required this.incidents,
     required this.alerts,
     required this.districtLabel,
+    this.currentUser,
   });
 
   @override
@@ -366,7 +371,10 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => IncidentDetailScreen(incident: incident),
+                                      builder: (_) => IncidentDetailScreen(
+                                        incident: incident,
+                                        currentUser: widget.currentUser,
+                                      ),
                                     ),
                                   );
                                 },

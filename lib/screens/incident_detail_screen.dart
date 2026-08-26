@@ -12,6 +12,7 @@ import '../theme/app_theme.dart';
 import '../utils/map_tile_sources.dart';
 import '../widgets/incident_card.dart';
 import '../widgets/status_badge.dart';
+import 'edit_incident_screen.dart';
 
 class IncidentDetailScreen extends StatefulWidget {
   final Incident incident;
@@ -29,6 +30,7 @@ class IncidentDetailScreen extends StatefulWidget {
 
 class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
   late Incident _incident;
+  AppUser? _currentUser;
   bool _hasConfirmed = false;
   bool _checkingConfirmation = true;
   bool _actionLoading = false;
@@ -37,15 +39,33 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
   void initState() {
     super.initState();
     _incident = widget.incident;
-    _checkUserConfirmation();
+    _currentUser = widget.currentUser;
+    _initUserAndConfirmation();
   }
 
-  Future<void> _checkUserConfirmation() async {
+  Future<void> _initUserAndConfirmation() async {
     final userId = SupabaseService.currentUserId;
     if (userId == null) {
       setState(() => _checkingConfirmation = false);
       return;
     }
+
+    if (_currentUser == null) {
+      try {
+        final profileRow = await SupabaseService.client
+            .from('profiles')
+            .select()
+            .eq('id', userId)
+            .maybeSingle();
+        if (profileRow != null && mounted) {
+          setState(() {
+            _currentUser = AppUser.fromMap(profileRow);
+          });
+        }
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
 
     final confirmed = await context
         .read<IncidentProvider>()
@@ -56,6 +76,97 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
         _hasConfirmed = confirmed;
         _checkingConfirmation = false;
       });
+    }
+  }
+
+  Future<void> _openEditScreen() async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditIncidentScreen(incident: _incident),
+      ),
+    );
+
+    if (result == true && mounted) {
+      final updatedList = context.read<IncidentProvider>().incidents;
+      final updated = updatedList.firstWhere(
+        (i) => i.id == _incident.id,
+        orElse: () => _incident,
+      );
+      setState(() {
+        _incident = updated;
+      });
+    }
+  }
+
+  Future<void> _resolveMyIncident() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Mark Incident as Resolved?'),
+        content: const Text(
+          'Have conditions on the ground cleared (e.g. flood water receded, road cleared)? Marking this report as resolved will inform the community that the hazard is no longer active.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF546E7A),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Mark as Resolved'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    setState(() => _actionLoading = true);
+    final provider = context.read<IncidentProvider>();
+    final success = await provider.resolveMyIncident(_incident.id);
+
+    if (mounted) {
+      setState(() {
+        _actionLoading = false;
+        if (success) {
+          _incident = _incident.copyWith(status: IncidentStatus.resolved);
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success ? 'Incident marked as Resolved.' : (provider.errorMessage ?? 'Failed to resolve incident.'),
+          ),
+          backgroundColor: success ? const Color(0xFF546E7A) : AppColors.severityRed,
+        ),
+      );
+    }
+  }
+
+  Future<void> _reopenMyIncident() async {
+    setState(() => _actionLoading = true);
+    final provider = context.read<IncidentProvider>();
+    final success = await provider.reopenMyIncident(_incident.id);
+
+    if (mounted) {
+      setState(() {
+        _actionLoading = false;
+        if (success) {
+          _incident = _incident.copyWith(status: IncidentStatus.pending);
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success ? 'Incident re-opened as active.' : (provider.errorMessage ?? 'Failed to update incident.'),
+          ),
+          backgroundColor: success ? AppColors.severityGreen : AppColors.severityRed,
+        ),
+      );
     }
   }
 
@@ -142,10 +253,167 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
     }
   }
 
+  Future<void> _deleteCitizenReport() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.delete_outline, color: AppColors.severityRed),
+            SizedBox(width: 8),
+            Text('Delete Incident Report?'),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to permanently delete your incident report? This action cannot be undone and will remove the report from the live incident map and community feeds.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.severityRed,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete Report'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    setState(() => _actionLoading = true);
+    final provider = context.read<IncidentProvider>();
+    final success = await provider.deleteIncident(_incident.id);
+
+    if (mounted) {
+      setState(() => _actionLoading = false);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Your incident report has been deleted.'),
+            backgroundColor: AppColors.severityGreen,
+          ),
+        );
+        Navigator.pop(context, true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(provider.errorMessage ?? 'Failed to delete incident.'),
+            backgroundColor: AppColors.severityRed,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteAdminReport() async {
+    String selectedReason = 'Spam / Inappropriate';
+    final reasons = [
+      'Spam / Inappropriate',
+      'Duplicate Incident Report',
+      'False / Misleading Information',
+      'Outdated / Incorrect Location',
+      'Other Violation',
+    ];
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.gavel, color: AppColors.severityRed),
+              SizedBox(width: 8),
+              Text('Moderate / Delete Report'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'As an administrator/moderator, deleting this incident permanently purges it from the map to keep community data trustworthy.',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Reason for deletion:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                initialValue: selectedReason,
+                decoration: const InputDecoration(
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  isDense: true,
+                ),
+                items: reasons
+                    .map((r) => DropdownMenuItem(
+                          value: r,
+                          child: Text(r, style: const TextStyle(fontSize: 13)),
+                        ))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setDialogState(() => selectedReason = val);
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.severityRed,
+              ),
+              icon: const Icon(Icons.delete_forever, size: 16),
+              onPressed: () => Navigator.pop(ctx, true),
+              label: const Text('Delete Permanently'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    setState(() => _actionLoading = true);
+    final provider = context.read<IncidentProvider>();
+    final success = await provider.deleteIncident(_incident.id);
+
+    if (mounted) {
+      setState(() => _actionLoading = false);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Incident removed as "$selectedReason".'),
+            backgroundColor: AppColors.severityRed,
+          ),
+        );
+        Navigator.pop(context, true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(provider.errorMessage ?? 'Failed to delete incident.'),
+            backgroundColor: AppColors.severityRed,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isAuthority = widget.currentUser?.role.isAuthority ?? false;
+    final isAuthority = _currentUser?.role.isAuthority ?? widget.currentUser?.role.isAuthority ?? false;
     final isReporter = widget.incident.reporterId == SupabaseService.currentUserId;
     final color = categoryColor(_incident.category);
 
@@ -154,6 +422,24 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
         title: const Text('Incident Details'),
         elevation: 0,
         actions: [
+          if (isReporter) ...[
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit Incident',
+              onPressed: _openEditScreen,
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: AppColors.severityRed),
+              tooltip: 'Delete Incident',
+              onPressed: _actionLoading ? null : _deleteCitizenReport,
+            ),
+          ] else if (isAuthority) ...[
+            IconButton(
+              icon: const Icon(Icons.delete_forever_outlined, color: AppColors.severityRed),
+              tooltip: 'Delete as Spam / False',
+              onPressed: _actionLoading ? null : _deleteAdminReport,
+            ),
+          ],
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
@@ -485,6 +771,105 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
           ),
           const SizedBox(height: 24),
 
+          // ─── Citizen Reporter Controls ─────────────────────────────────
+          if (isReporter) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.harborSurface : AppColors.cloud,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: AppColors.deepEstuary.withValues(alpha: 0.35),
+                  width: 1.5,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.person_pin_circle_outlined, color: AppColors.deepEstuary, size: 20),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Your Incident Report Controls',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.deepEstuary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'Reporter',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.deepEstuary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _incident.status == IncidentStatus.resolved
+                        ? 'You have marked this incident as resolved. If conditions change or flood hazards re-occur, you can edit or re-open it.'
+                        : 'As the citizen reporter, you can update details as weather and flood conditions change, or mark this incident as resolved.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          label: const Text('Edit Details'),
+                          onPressed: _actionLoading ? null : _openEditScreen,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _incident.status == IncidentStatus.resolved
+                            ? FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: AppColors.severityGreen,
+                                ),
+                                icon: const Icon(Icons.replay, size: 18),
+                                label: const Text('Reopen Incident'),
+                                onPressed: _actionLoading ? null : _reopenMyIncident,
+                              )
+                            : FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFF546E7A),
+                                ),
+                                icon: const Icon(Icons.task_alt, size: 18),
+                                label: const Text('Mark Resolved'),
+                                onPressed: _actionLoading ? null : _resolveMyIncident,
+                              ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.severityRed,
+                        side: BorderSide(color: AppColors.severityRed.withValues(alpha: 0.5)),
+                      ),
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      label: const Text('Delete This Incident Report'),
+                      onPressed: _actionLoading ? null : _deleteCitizenReport,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
           // ─── Authority / Admin Review Actions ──────────────────────────
           if (isAuthority) ...[
             Container(
@@ -505,7 +890,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                       Icon(Icons.admin_panel_settings_outlined, color: AppColors.riverTeal, size: 20),
                       SizedBox(width: 8),
                       Text(
-                        'Authority Verification Controls',
+                        'Authority Verification & Moderation',
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                     ],
@@ -557,10 +942,25 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                     ),
                   ] else ...[
                     Text(
-                      'This incident is already ${_incident.status.label.toLowerCase()}.',
+                      'This incident is currently ${_incident.status.label.toLowerCase()}.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.severityRed,
+                        side: BorderSide(color: AppColors.severityRed.withValues(alpha: 0.6)),
+                      ),
+                      icon: const Icon(Icons.delete_forever, size: 18),
+                      label: const Text('Delete as Spam, Duplicate or False'),
+                      onPressed: _actionLoading ? null : _deleteAdminReport,
+                    ),
+                  ),
                 ],
               ),
             ),

@@ -121,9 +121,11 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
                   selectedStatus: provider.statusFilter,
                   selectedCategory: provider.categoryFilter,
                   sosOnly: provider.sosFilter,
+                  myReportsOnly: provider.myReportsFilter,
                   onStatusChanged: (s) => provider.setStatusFilter(s),
                   onCategoryChanged: (c) => provider.setCategoryChanged(c),
                   onSosChanged: (sos) => provider.setSosFilter(sos),
+                  onMyReportsChanged: (my) => provider.setMyReportsFilter(my),
                   onClearAll: () => provider.clearFilters(),
                 ),
               ],
@@ -183,18 +185,22 @@ class _FilterBar extends StatelessWidget {
   final IncidentStatus? selectedStatus;
   final IncidentCategory? selectedCategory;
   final bool sosOnly;
+  final bool myReportsOnly;
   final ValueChanged<IncidentStatus?> onStatusChanged;
   final ValueChanged<IncidentCategory?> onCategoryChanged;
   final ValueChanged<bool> onSosChanged;
+  final ValueChanged<bool> onMyReportsChanged;
   final VoidCallback onClearAll;
 
   const _FilterBar({
     required this.selectedStatus,
     required this.selectedCategory,
     required this.sosOnly,
+    required this.myReportsOnly,
     required this.onStatusChanged,
     required this.onCategoryChanged,
     required this.onSosChanged,
+    required this.onMyReportsChanged,
     required this.onClearAll,
   });
 
@@ -207,8 +213,18 @@ class _FilterBar extends StatelessWidget {
           // All chip
           FilterChip(
             label: const Text('All'),
-            selected: selectedStatus == null && selectedCategory == null && !sosOnly,
+            selected: selectedStatus == null && selectedCategory == null && !sosOnly && !myReportsOnly,
             onSelected: (_) => onClearAll(),
+          ),
+          const SizedBox(width: 6),
+
+          // My Reports Filter
+          FilterChip(
+            avatar: const Icon(Icons.person_pin_circle_outlined, size: 16, color: AppColors.deepEstuary),
+            label: const Text('My Reports'),
+            selected: myReportsOnly,
+            selectedColor: AppColors.deepEstuary.withValues(alpha: 0.15),
+            onSelected: (val) => onMyReportsChanged(val),
           ),
           const SizedBox(width: 6),
 
