@@ -206,8 +206,40 @@ class IncidentCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                   ],
+                  // Confirmations chip — shown when ≥1 other citizen has
+                  // reported the same hazard and been merged into this report.
+                  if (incident.credibilityScore >= 1) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.riverTeal.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppColors.riverTeal.withValues(alpha: 0.30),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.link_rounded,
+                              size: 12, color: AppColors.riverTeal),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${incident.credibilityScore} confirmation${incident.credibilityScore == 1 ? '' : 's'}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.riverTeal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
                   const Spacer(),
-                  // Credibility score
+                  // Credibility score (raw count, kept for admins / detail view)
                   Icon(
                     Icons.thumb_up_outlined,
                     size: 14,

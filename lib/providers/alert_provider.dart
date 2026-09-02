@@ -2,11 +2,17 @@ import 'package:flutter/foundation.dart';
 
 import '../models/alert.dart';
 import '../services/alert_service.dart';
+import '../services/notification_service.dart';
 
 class AlertProvider extends ChangeNotifier {
   final AlertService _service;
+  final NotificationService _notificationService;
 
-  AlertProvider({AlertService? service}) : _service = service ?? AlertService();
+  AlertProvider({
+    AlertService? service,
+    NotificationService? notificationService,
+  })  : _service = service ?? AlertService(),
+        _notificationService = notificationService ?? NotificationService();
 
   List<DisasterAlert> _activeAlerts = [];
   DisasterAlert? _bannerAlert; // most recent unread alert, shown as banner
@@ -17,8 +23,10 @@ class AlertProvider extends ChangeNotifier {
   DisasterAlert? get bannerAlert => _bannerAlert;
   bool get isOffline => _isOffline;
   DateTime? get lastUpdated => _lastUpdated;
+  NotificationService get notificationService => _notificationService;
 
   Future<void> init() async {
+    await _notificationService.init();
     await _loadInitial();
     _service.subscribeToAlerts(
       onInsert: _handleRealtimeInsert,
@@ -45,6 +53,13 @@ class AlertProvider extends ChangeNotifier {
     // Story 2 AC: show as in-app banner immediately, no restart required.
     _bannerAlert = alert;
     notifyListeners();
+
+    // Trigger OS-level notification. Critical (red) bypasses DND/silent mode.
+    if (alert.severity.isCritical) {
+      _notificationService.showCriticalAlert(alert);
+    } else {
+      _notificationService.showNormalAlert(alert);
+    }
   }
 
   void _handleRealtimeUpdate(DisasterAlert alert) {
@@ -57,6 +72,7 @@ class AlertProvider extends ChangeNotifier {
         if (_bannerAlert?.id == alert.id) {
           _bannerAlert = null;
         }
+        _notificationService.cancelAlert(alert.id);
       } else {
         _activeAlerts[index] = alert;
       }

@@ -175,21 +175,49 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
     if (userId == null) return;
 
     setState(() => _actionLoading = true);
-    await context.read<IncidentProvider>().confirmIncident(
-          incidentId: _incident.id,
-          memberId: userId,
-        );
 
-    if (mounted) {
-      setState(() {
-        _hasConfirmed = true;
-        _actionLoading = false;
-      });
+    try {
+      await context.read<IncidentProvider>().confirmIncident(
+            incidentId: _incident.id,
+            memberId: userId,
+          );
+
+      if (mounted) {
+        setState(() {
+          _hasConfirmed = true;
+          // Bump local score optimistically so the detail screen reflects the
+          // change immediately, without waiting for the next full refresh.
+          _incident = _incident.copyWith(
+            credibilityScore: _incident.credibilityScore + 1,
+          );
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Report confirmed! Credibility score updated.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      // Postgres unique-constraint violation — the user already confirmed this.
+      final isAlreadyConfirmed = e.toString().contains('23505');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Report confirmed! Credibility score updated.')),
+        SnackBar(
+          content: Text(
+            isAlreadyConfirmed
+                ? "You've already confirmed this report \u2014 your vote is counted!"
+                : 'Could not confirm report: $e',
+          ),
+          backgroundColor: isAlreadyConfirmed ? null : Colors.red,
+        ),
       );
+      if (isAlreadyConfirmed) setState(() => _hasConfirmed = true);
+    } finally {
+      if (mounted) setState(() => _actionLoading = false);
     }
   }
+
 
   Future<void> _handleAdminAction(IncidentStatus targetStatus) async {
     final userId = SupabaseService.currentUserId;

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -182,6 +183,64 @@ class IncidentService {
         .delete()
         .eq('id', incidentId);
   }
+
+  /// Scans [candidates] for an active incident that is likely a duplicate of
+  /// the one being reported. Returns the closest match, or `null` if none found.
+  ///
+  /// Criteria (all must be true):
+  ///   - Same [category]
+  ///   - Within [radiusMetres] (default 150 m) via Haversine distance
+  ///   - Status is `pending` or `verified`
+  ///   - Created within the last [withinHours] hours (default 24 h)
+  Incident? findNearbyDuplicate({
+    required IncidentCategory category,
+    required double latitude,
+    required double longitude,
+    required List<Incident> candidates,
+    double radiusMetres = 150,
+    int withinHours = 24,
+  }) {
+    final cutoff = DateTime.now().subtract(Duration(hours: withinHours));
+    Incident? closest;
+    double closestDist = double.infinity;
+
+    for (final inc in candidates) {
+      if (inc.category != category) continue;
+      if (inc.status != IncidentStatus.pending &&
+          inc.status != IncidentStatus.verified) continue;
+      if (inc.createdAt.isBefore(cutoff)) continue;
+
+      final dist = _haversineMetres(
+        latitude, longitude,
+        inc.latitude, inc.longitude,
+      );
+      if (dist <= radiusMetres && dist < closestDist) {
+        closestDist = dist;
+        closest = inc;
+      }
+    }
+    return closest;
+  }
+
+  /// Haversine formula — returns the great-circle distance in metres between
+  /// two WGS-84 coordinate pairs.
+  double _haversineMetres(
+    double lat1, double lon1,
+    double lat2, double lon2,
+  ) {
+    const r = 6371000.0; // Earth radius in metres
+    final dLat = _toRad(lat2 - lat1);
+    final dLon = _toRad(lon2 - lon1);
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_toRad(lat1)) *
+            math.cos(_toRad(lat2)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return r * c;
+  }
+
+  double _toRad(double deg) => deg * math.pi / 180;
 
   Future<void> _writeCache(List<Incident> incidents) async {
     final prefs = await SharedPreferences.getInstance();
