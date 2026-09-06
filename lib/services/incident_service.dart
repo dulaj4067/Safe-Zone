@@ -114,7 +114,49 @@ class IncidentService {
     return (rows as List).isNotEmpty;
   }
 
-  /// Updates the status of an incident (admin only — enforced by RLS).
+  /// Updates an existing incident in Supabase.
+  Future<Incident> updateIncident({
+    required String incidentId,
+    required IncidentCategory category,
+    required String description,
+    required double latitude,
+    required double longitude,
+    bool isSos = false,
+    String? photoUrl,
+    String? videoUrl,
+    IncidentStatus? status,
+  }) async {
+    final updates = <String, dynamic>{
+      'category': category.dbValue,
+      'description': description,
+      'photo_url': photoUrl,
+      'video_url': videoUrl,
+      'location': 'SRID=4326;POINT($longitude $latitude)',
+      'is_sos': isSos,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    if (status != null) {
+      updates['status'] = status.name;
+    }
+
+    final updated = await SupabaseService.client
+        .from('incidents')
+        .update(updates)
+        .eq('id', incidentId)
+        .select(
+          'id, reporter_id, category, description, photo_url, video_url, '
+          'status, credibility_score, is_sos, verified_by, created_at, updated_at',
+        )
+        .single();
+
+    final map = Map<String, dynamic>.from(updated);
+    map['lat'] = latitude;
+    map['lng'] = longitude;
+
+    return Incident.fromMap(map);
+  }
+
+  /// Updates the status of an incident (admin or incident reporter).
   Future<void> updateIncidentStatus({
     required String incidentId,
     required IncidentStatus newStatus,
@@ -122,6 +164,7 @@ class IncidentService {
   }) async {
     final updates = <String, dynamic>{
       'status': newStatus.name,
+      'updated_at': DateTime.now().toIso8601String(),
     };
     if (verifiedBy != null) {
       updates['verified_by'] = verifiedBy;
@@ -129,6 +172,14 @@ class IncidentService {
     await SupabaseService.client
         .from('incidents')
         .update(updates)
+        .eq('id', incidentId);
+  }
+
+  /// Deletes an incident record from Supabase (authorities or the original reporter).
+  Future<void> deleteIncident(String incidentId) async {
+    await SupabaseService.client
+        .from('incidents')
+        .delete()
         .eq('id', incidentId);
   }
 

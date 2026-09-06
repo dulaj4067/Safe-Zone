@@ -4,11 +4,13 @@ import 'package:provider/provider.dart';
 import '../models/app_user.dart';
 import '../models/zone.dart';
 import '../providers/auth_provider.dart';
+import '../providers/incident_provider.dart';
 import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import 'admin_broadcast_screen.dart';
 import 'admin_incident_review_screen.dart';
+import 'incidents_screen.dart';
 
 /// Settings screen tailored for both [UserRole.member] (Citizens) and
 /// [UserRole.authority] / [UserRole.admin] / [UserRole.volunteerOrg].
@@ -415,9 +417,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ─── Safety & Data Resilience ──────────────────────────────────────────────
 
   Widget _buildSafetyAndDataCard(BuildContext context) {
+    final myIncidentsCount = context
+        .watch<IncidentProvider>()
+        .incidents
+        .where((i) => i.reporterId == SupabaseService.currentUserId)
+        .length;
+
     return Card(
       child: Column(
         children: [
+          ListTile(
+            leading: const Icon(Icons.person_pin_circle_outlined, color: AppColors.deepEstuary),
+            title: const Text('My Reported Incidents'),
+            subtitle: const Text('View, edit details, or resolve your incident reports'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.deepEstuary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$myIncidentsCount',
+                    style: AppTheme.dataText(context).copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.deepEstuary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.chevron_right, size: 20),
+              ],
+            ),
+            onTap: () {
+              context.read<IncidentProvider>().clearFilters();
+              context.read<IncidentProvider>().setMyReportsFilter(true);
+              context.read<IncidentProvider>().setViewMode(IncidentViewMode.list);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => IncidentsScreen(currentUser: widget.currentUser),
+                ),
+              );
+            },
+          ),
+          const Divider(height: 1),
           SwitchListTile.adaptive(
             title: const Text('Live GPS Safety Beacon'),
             subtitle: const Text(

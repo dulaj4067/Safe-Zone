@@ -160,6 +160,22 @@ create policy "Authority can update incidents"
   using (is_authority())
   with check (is_authority());
 
+drop policy if exists "Citizens can update their own incidents" on incidents;
+create policy "Citizens can update their own incidents"
+  on incidents for update to authenticated
+  using (reporter_id = auth.uid())
+  with check (reporter_id = auth.uid());
+
+drop policy if exists "Authority can delete incidents" on incidents;
+create policy "Authority can delete incidents"
+  on incidents for delete to authenticated
+  using (is_authority());
+
+drop policy if exists "Citizens can delete their own incidents" on incidents;
+create policy "Citizens can delete their own incidents"
+  on incidents for delete to authenticated
+  using (reporter_id = auth.uid());
+
 drop policy if exists "Authenticated can confirm incidents" on incident_confirmations;
 create policy "Authenticated can confirm incidents"
   on incident_confirmations for insert to authenticated

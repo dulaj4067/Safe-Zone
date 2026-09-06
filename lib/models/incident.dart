@@ -169,4 +169,55 @@ class Incident {
       'is_sos': isSos,
     };
   }
+
+  /// Payload for updating an existing incident.
+  Map<String, dynamic> toUpdateMap() {
+    return {
+      'category': category.dbValue,
+      'description': description,
+      'photo_url': photoUrl,
+      'video_url': videoUrl,
+      'location': 'SRID=4326;POINT($longitude $latitude)',
+      'is_sos': isSos,
+      'status': status.name,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+  }
+
+  Incident copyWith({
+    String? id,
+    String? reporterId,
+    IncidentCategory? category,
+    String? description,
+    String? photoUrl,
+    String? videoUrl,
+    double? latitude,
+    double? longitude,
+    IncidentStatus? status,
+    int? credibilityScore,
+    bool? isSos,
+    String? verifiedBy,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? reporterName,
+  }) {
+    return Incident(
+      id: id ?? this.id,
+      reporterId: reporterId ?? this.reporterId,
+      category: category ?? this.category,
+      description: description ?? this.description,
+      photoUrl: photoUrl ?? this.photoUrl,
+      videoUrl: videoUrl ?? this.videoUrl,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      status: status ?? this.status,
+      credibilityScore: credibilityScore ?? this.credibilityScore,
+      isSos: isSos ?? this.isSos,
+      verifiedBy: verifiedBy ?? this.verifiedBy,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      reporterName: reporterName ?? this.reporterName,
+    );
+  }
 }
+

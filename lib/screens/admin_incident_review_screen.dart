@@ -115,6 +115,96 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
     }
   }
 
+  Future<void> _quickDelete(Incident incident) async {
+    String selectedReason = 'Spam / Inappropriate';
+    final reasons = [
+      'Spam / Inappropriate',
+      'Duplicate Incident Report',
+      'False / Misleading Information',
+      'Outdated / Incorrect Location',
+      'Other Violation',
+    ];
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.gavel, color: AppColors.severityRed),
+              SizedBox(width: 8),
+              Text('Delete / Purge Report'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Permanently remove this report from the map to eliminate spam, duplicates, or false submissions.',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Moderation reason:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                initialValue: selectedReason,
+                decoration: const InputDecoration(
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  isDense: true,
+                ),
+                items: reasons
+                    .map((r) => DropdownMenuItem(
+                          value: r,
+                          child: Text(r, style: const TextStyle(fontSize: 13)),
+                        ))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setDialogState(() => selectedReason = val);
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.severityRed,
+              ),
+              icon: const Icon(Icons.delete_forever, size: 16),
+              onPressed: () => Navigator.pop(ctx, true),
+              label: const Text('Delete Permanently'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    final success = await context.read<IncidentProvider>().deleteIncident(incident.id);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? 'Incident removed as "$selectedReason".'
+                : 'Failed to delete incident.',
+          ),
+          backgroundColor: AppColors.severityRed,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<IncidentProvider>();
@@ -212,11 +302,18 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
                   incident: incident,
                   onTap: () => _openDetail(incident),
                 ),
-                if (showPendingActions) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // Quick Delete for spam/duplicate/false
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.severityRed),
+                      tooltip: 'Delete as Spam / Duplicate / False',
+                      onPressed: () => _quickDelete(incident),
+                    ),
+                    const Spacer(),
+                    if (showPendingActions) ...[
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.severityRed,
@@ -236,22 +333,18 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
                         onPressed: () => _quickVerify(incident),
                       ),
                     ],
-                  ),
-                ],
-                if (showResolveAction) ...[
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF546E7A),
+                    if (showResolveAction) ...[
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF546E7A),
+                        ),
+                        icon: const Icon(Icons.task_alt, size: 16),
+                        label: const Text('Mark Resolved'),
+                        onPressed: () => _quickResolve(incident),
                       ),
-                      icon: const Icon(Icons.task_alt, size: 16),
-                      label: const Text('Mark Resolved'),
-                      onPressed: () => _quickResolve(incident),
-                    ),
-                  ),
-                ],
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
