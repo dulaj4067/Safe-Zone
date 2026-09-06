@@ -220,4 +220,14 @@ create policy "Allow deletes to incident media"
   on storage.objects for delete
   using (bucket_id = 'incident-media');
 
-
+-- ============================================================================
+-- 9. Optimised partial index for duplicate-detection radius queries
+-- ============================================================================
+-- The Flutter client-side Haversine check in IncidentService.findNearbyDuplicate()
+-- filters candidates from the in-memory list, so this index benefits any future
+-- server-side RPC or Supabase Edge Function that does the radius check in SQL.
+-- Being partial (only active incidents) it is roughly half the size of the
+-- unconditional idx_incidents_location_gist, making ST_DWithin lookups faster.
+create index if not exists idx_incidents_active_location
+  on incidents using gist (location)
+  where status in ('pending', 'verified');

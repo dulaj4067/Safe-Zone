@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -8,11 +9,14 @@ import 'package:provider/provider.dart';
 
 import '../models/incident.dart';
 import '../providers/incident_provider.dart';
+import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../utils/format_utils.dart';
 import '../utils/map_tile_sources.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/incident_card.dart';
+import 'incident_detail_screen.dart';
 
 class ReportIncidentScreen extends StatefulWidget {
   final LatLng? initialLocation;
@@ -37,6 +41,12 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   String? _videoFileName;
   BaseMapStyle _baseMapStyle = BaseMapStyle.street;
 
+  // ── Inline duplicate warning ───────────────────────────────────────────────
+  /// Set whenever the form's category or pin location matches a nearby active
+  /// incident. Cleared when the banner is dismissed or the inputs change away.
+  Incident? _nearbyDuplicate;
+  bool _dismissedInlineBanner = false;
+
   @override
   void initState() {
     super.initState();
@@ -49,6 +59,25 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   void dispose() {
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  // ─── Inline proximity check ────────────────────────────────────────────────
+
+  /// Re-evaluates the duplicate banner after any form field change.
+  /// Does nothing when the banner has been manually dismissed by the citizen.
+  void _checkDuplicateInline() {
+    if (_dismissedInlineBanner) return;
+    final provider = context.read<IncidentProvider>();
+    final found = provider.checkForDuplicate(
+      category: _selectedCategory,
+      latitude: _selectedLocation.latitude,
+      longitude: _selectedLocation.longitude,
+    );
+    if (found?.id != _nearbyDuplicate?.id) {
+      setState(() {
+        _nearbyDuplicate = found;
+      });
+    }
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -142,9 +171,131 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
     );
   }
 
-  Future<void> _submit() async {
+  // ─── Duplicate-aware submit flow ───────────────────────────────────────────
+
+  /// Entry point wired to the Submit button. Checks for a nearby duplicate
+  /// first; if one is found, shows [_DuplicateDialog] instead of submitting.
+  Future<void> _checkDuplicateThenSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final provider = context.read<IncidentProvider>();
+    final duplicate = provider.checkForDuplicate(
+      category: _selectedCategory,
+      latitude: _selectedLocation.latitude,
+      longitude: _selectedLocation.longitude,
+    );
+
+    if (!mounted) return;
+
+    if (duplicate != null) {
+      // A nearby same-category active report already exists — let the citizen
+      // decide whether to confirm it, still report separately, or cancel.
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => _DuplicateDialog(
+          duplicate: duplicate,
+          reportLocation: _selectedLocation,
+          onConfirmExisting: () => _confirmExistingAndNavigate(duplicate),
+          onReportAnyway: _doSubmit,
+        ),
+      );
+    } else {
+      await _doSubmit();
+    }
+  }
+
+  /// Called when the citizen taps "Confirm existing": adds a credibility vote
+  /// to the existing incident (via the confirmations table) then navigates to it.
+  ///
+  /// Guards against double-confirmation: if the user has already confirmed this
+  /// incident we skip the insert and navigate directly with an informational
+  /// message instead of letting Supabase throw a unique-constraint error.
+  Future<void> _confirmExistingAndNavigate(Incident existing) async {
+    final uid = SupabaseService.currentUserId;
+    if (uid == null) return;
+
+    final provider = context.read<IncidentProvider>();
+
+    // ── Guard: has this user already confirmed this incident? ────────────────
+    final alreadyConfirmed = await provider.hasUserConfirmed(
+      incidentId: existing.id,
+      userId: uid,
+    );
+    if (!mounted) return;
+
+    if (alreadyConfirmed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.white),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  "You've already confirmed this report — your vote is counted!",
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.riverTeal,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      // Still navigate to the existing incident so the citizen can see it.
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => IncidentDetailScreen(incident: existing),
+        ),
+      );
+      return;
+    }
+
+    // ── Normal path: add confirmation ────────────────────────────────────────
+    try {
+      await provider.confirmIncident(
+        incidentId: existing.id,
+        memberId: uid,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle_outline, color: Colors.white),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Thanks! Your confirmation has been added to the existing report.',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.severityGreen,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      // Navigate to the existing incident, replacing the form so Back goes home.
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => IncidentDetailScreen(incident: existing),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not confirm: $e'),
+          backgroundColor: AppColors.severityRed,
+        ),
+      );
+    }
+  }
+
+  /// The actual Supabase submission — called either directly (no duplicate) or
+  /// after the citizen chooses "Report Anyway" in the duplicate dialog.
+  Future<void> _doSubmit() async {
     final provider = context.read<IncidentProvider>();
     final success = await provider.submitIncident(
       category: _selectedCategory,
@@ -181,7 +332,9 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(provider.errorMessage ?? 'Failed to submit report. Please try again.'),
+            content: Text(
+              provider.errorMessage ?? 'Failed to submit report. Please try again.',
+            ),
             backgroundColor: AppColors.severityRed,
           ),
         );
@@ -262,7 +415,12 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                         if (val) {
                           _selectedCategory = IncidentCategory.trappedPerson;
                         }
+                        // Reset inline banner so it re-evaluates for the new
+                        // category after SOS toggle.
+                        _dismissedInlineBanner = false;
+                        _nearbyDuplicate = null;
                       });
+                      _checkDuplicateInline();
                     },
                   ),
                 ],
@@ -291,7 +449,14 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               }).toList(),
               onChanged: (cat) {
                 if (cat != null) {
-                  setState(() => _selectedCategory = cat);
+                  setState(() {
+                    _selectedCategory = cat;
+                    // Reset dismissed state so the banner can re-appear for
+                    // the newly selected category.
+                    _dismissedInlineBanner = false;
+                    _nearbyDuplicate = null;
+                  });
+                  _checkDuplicateInline();
                 }
               },
             ),
@@ -355,7 +520,11 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                         onTap: (tapPosition, point) {
                           setState(() {
                             _selectedLocation = point;
+                            // Let the banner re-evaluate for the new pin.
+                            _dismissedInlineBanner = false;
+                            _nearbyDuplicate = null;
                           });
+                          _checkDuplicateInline();
                         },
                       ),
                       children: [
@@ -549,13 +718,30 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             ),
             const SizedBox(height: 28),
 
+            // ─── Inline proximity banner ───────────────────────────────────
+            if (_nearbyDuplicate != null && !_dismissedInlineBanner)
+              _ProximityBanner(
+                duplicate: _nearbyDuplicate!,
+                reportLocation: _selectedLocation,
+                onView: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          IncidentDetailScreen(incident: _nearbyDuplicate!),
+                    ),
+                  );
+                },
+                onDismiss: () =>
+                    setState(() => _dismissedInlineBanner = true),
+              ),
+
             // ─── Submit Button ─────────────────────────────────────────────
             FilledButton(
               style: FilledButton.styleFrom(
                 backgroundColor: _isSos ? AppColors.severityRed : AppColors.deepEstuary,
                 minimumSize: const Size.fromHeight(50),
               ),
-              onPressed: isSubmitting ? null : _submit,
+              onPressed: isSubmitting ? null : _checkDuplicateThenSubmit,
               child: isSubmitting
                   ? const SizedBox(
                       height: 20,
@@ -577,6 +763,374 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Duplicate-detection dialog
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Shown when [ReportIncidentScreen] detects that an active incident of the
+/// same category already exists near the citizen's chosen location.
+///
+/// Three outcomes:
+///  - **Confirm existing**: add a credibility vote; navigate to that incident.
+///  - **Report anyway**: submit the new incident as usual.
+///  - **Cancel**: dismiss and return to the form.
+class _DuplicateDialog extends StatelessWidget {
+  final Incident duplicate;
+  final LatLng reportLocation;
+  final VoidCallback onConfirmExisting;
+  final VoidCallback onReportAnyway;
+
+  const _DuplicateDialog({
+    required this.duplicate,
+    required this.reportLocation,
+    required this.onConfirmExisting,
+    required this.onReportAnyway,
+  });
+
+  /// Haversine distance in metres between [reportLocation] and [duplicate].
+  double _distanceMetres() {
+    const r = 6371000.0;
+    final lat1 = reportLocation.latitude * math.pi / 180;
+    final lat2 = duplicate.latitude * math.pi / 180;
+    final dLat =
+        (duplicate.latitude - reportLocation.latitude) * math.pi / 180;
+    final dLon =
+        (duplicate.longitude - reportLocation.longitude) * math.pi / 180;
+    final a = math.pow(math.sin(dLat / 2), 2) +
+        math.cos(lat1) * math.cos(lat2) * math.pow(math.sin(dLon / 2), 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return r * c;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = categoryColor(duplicate.category);
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Header ───────────────────────────────────────────────────────
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.severityOrange.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.merge_type_rounded,
+                    color: AppColors.severityOrange,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Similar Report Found',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // ── Existing incident summary card ────────────────────────────────
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppColors.harborSurface
+                    : color.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: color.withValues(alpha: 0.25)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(categoryIcon(duplicate.category),
+                          color: color, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          duplicate.category.label,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      // Confirmations badge
+                      if (duplicate.credibilityScore > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.riverTeal.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppColors.riverTeal.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.people_alt_outlined,
+                                  size: 12, color: AppColors.riverTeal),
+                              const SizedBox(width: 3),
+                              Text(
+                                '${duplicate.credibilityScore}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.riverTeal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (duplicate.description != null &&
+                      duplicate.description!.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      duplicate.description!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(height: 1.4),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.schedule_outlined,
+                          size: 13,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Text(
+                        timeAgo(duplicate.createdAt),
+                        style:
+                            AppTheme.dataText(context).copyWith(fontSize: 11),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(Icons.near_me_outlined,
+                          size: 13,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Text(
+                        '~${distanceLabel(_distanceMetres())} away',
+                        style:
+                            AppTheme.dataText(context).copyWith(fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            Text(
+              'A nearby ${duplicate.category.label.toLowerCase()} report already exists. '
+              'Would you like to confirm it (adds credibility) or still file a new report?',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(height: 1.5),
+            ),
+            const SizedBox(height: 20),
+
+            // ── Action buttons ────────────────────────────────────────────────
+            // Primary: confirm existing
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.deepEstuary,
+                minimumSize: const Size.fromHeight(44),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: const Icon(Icons.thumb_up_alt_outlined, size: 18),
+              label: const Text('Confirm Existing Report'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                onConfirmExisting();
+              },
+            ),
+            const SizedBox(height: 8),
+
+            // Secondary: report anyway
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(44),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                side:
+                    const BorderSide(color: AppColors.deepEstuary, width: 1.5),
+              ),
+              icon: const Icon(Icons.add_location_alt_outlined, size: 18),
+              label: const Text('Still File a New Report'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                onReportAnyway();
+              },
+            ),
+            const SizedBox(height: 8),
+
+            // Tertiary: cancel
+            TextButton(
+              style: TextButton.styleFrom(
+                minimumSize: const Size.fromHeight(40),
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Inline proximity banner
+// ────────────────────────────────────────────────────────────────────────────────
+
+/// Compact amber banner shown inline (above the submit button) while the
+/// citizen is filling the form, whenever [checkForDuplicate] finds a match.
+///
+/// Lets the citizen:
+///  - **View** the existing incident (opens its detail screen without losing
+///    the draft form — they can press Back to return).
+///  - **Dismiss** the banner and continue editing (the banner re-appears if
+///    they change category or move the pin to a new match).
+class _ProximityBanner extends StatelessWidget {
+  final Incident duplicate;
+  final LatLng reportLocation;
+  final VoidCallback onView;
+  final VoidCallback onDismiss;
+
+  const _ProximityBanner({
+    required this.duplicate,
+    required this.reportLocation,
+    required this.onView,
+    required this.onDismiss,
+  });
+
+  double _distanceMetres() {
+    const r = 6371000.0;
+    final lat1 = reportLocation.latitude * math.pi / 180;
+    final lat2 = duplicate.latitude * math.pi / 180;
+    final dLat =
+        (duplicate.latitude - reportLocation.latitude) * math.pi / 180;
+    final dLon =
+        (duplicate.longitude - reportLocation.longitude) * math.pi / 180;
+    final a = math.pow(math.sin(dLat / 2), 2) +
+        math.cos(lat1) * math.cos(lat2) * math.pow(math.sin(dLon / 2), 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return r * c;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.severityOrange.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.severityOrange.withValues(alpha: 0.35),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Icon
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(
+              Icons.merge_type_rounded,
+              color: AppColors.severityOrange,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Text block
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Similar report nearby',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: AppColors.severityOrange,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${duplicate.category.label} • '
+                  '~${distanceLabel(_distanceMetres())} away • '
+                  '${timeAgo(duplicate.createdAt)}',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(height: 1.4),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // View + dismiss buttons stacked
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: onView,
+                child: Text(
+                  'View',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.severityOrange,
+                    decoration: TextDecoration.underline,
+                    decorationColor: AppColors.severityOrange,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              GestureDetector(
+                onTap: onDismiss,
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

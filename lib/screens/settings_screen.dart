@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/alert.dart';
 import '../models/app_user.dart';
 import '../models/zone.dart';
 import '../providers/auth_provider.dart';
 import '../providers/incident_provider.dart';
+import '../services/notification_service.dart';
 import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
@@ -386,7 +388,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile.adaptive(
             title: const Text('Critical Flood Siren Override'),
             subtitle: const Text(
-              'Play audible sirens for Emergency level flood alerts even if device is on silent',
+              'Play audible sirens for Emergency level flood alerts even if device is on silent or Do Not Disturb',
             ),
             value: _sirenOverride,
             onChanged: (v) => setState(() => _sirenOverride = v),
@@ -408,6 +410,122 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             value: _smsBackup,
             onChanged: (v) => setState(() => _smsBackup = v),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.severityRed.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.severityRed.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.do_not_disturb_on_total_silence,
+                          size: 20, color: AppColors.severityRed),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Red critical alerts are configured to bypass Do Not Disturb via dedicated high-priority alarm channels.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        icon: const Icon(Icons.security, size: 16),
+                        label: const Text(
+                          'DND Access Settings',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        onPressed: () async {
+                          await NotificationService()
+                              .requestNotificationPolicyAccess();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Checking system notification and Do Not Disturb settings...',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.severityRed,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        icon: const Icon(Icons.volume_up, size: 16),
+                        label: const Text(
+                          'Test Critical Siren',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        onPressed: () async {
+                          final testAlert = DisasterAlert(
+                            id: 'test_critical_${DateTime.now().millisecondsSinceEpoch}',
+                            title: 'Flash Flood Emergency Simulation',
+                            alertType: 'flood',
+                            severity: AlertSeverity.red,
+                            status: AlertStatus.active,
+                            centerLat: 6.9271,
+                            centerLng: 79.8612,
+                            radiusMeters: 3000,
+                            instructions:
+                                'TEST ALERT: Critical flood alert bypasses Do Not Disturb. Evacuate low-lying riverbanks immediately.',
+                            source: 'Disaster Management Centre',
+                            createdAt: DateTime.now(),
+                            updatedAt: DateTime.now(),
+                          );
+
+                          await NotificationService()
+                              .showCriticalAlert(testAlert);
+
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Triggered Test Critical Siren notification (bypass DND)',
+                                ),
+                                backgroundColor: AppColors.severityRed,
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),

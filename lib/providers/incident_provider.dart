@@ -168,6 +168,26 @@ class IncidentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ─── Duplicate Detection ───────────────────────────────────────────────────
+
+  /// Returns the closest active incident that matches [category] within
+  /// 150 m of ([latitude], [longitude]) and was reported in the last 24 h,
+  /// or `null` if no duplicate is found.
+  ///
+  /// Uses the in-memory [_incidents] list — no network call required.
+  Incident? checkForDuplicate({
+    required IncidentCategory category,
+    required double latitude,
+    required double longitude,
+  }) {
+    return _service.findNearbyDuplicate(
+      category: category,
+      latitude: latitude,
+      longitude: longitude,
+      candidates: _incidents,
+    );
+  }
+
   // ─── Submit ────────────────────────────────────────────────────────────────
 
   /// Submits a new incident report. Handles media upload if files are
