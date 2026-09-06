@@ -22,6 +22,9 @@ import '../widgets/live_location_marker.dart';
 import '../widgets/location_alert_banner.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/shelter_marker.dart';
+import '../widgets/incident_detail_sheet.dart';
+import '../screens/incident_detail_screen.dart';
+import '../services/supabase_service.dart';
 
 /// SafeZone home tab — district map with live alert-radius overlays
 /// (from AlertProvider.activeAlerts), incident markers (from
