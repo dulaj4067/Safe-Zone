@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:focus_app/models/incident.dart';
-import 'package:focus_app/providers/incident_provider.dart';
-import 'package:focus_app/screens/edit_incident_screen.dart';
+import 'package:safezone/models/incident.dart';
+import 'package:safezone/providers/incident_provider.dart';
+import 'package:safezone/screens/edit_incident_screen.dart';
 
 void main() {
   group('Incident Model - Citizen Edit & Serialization', () {
