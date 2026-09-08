@@ -72,7 +72,7 @@ class _AppShellState extends State<AppShell> {
       HomeScreen(zones: _zones, currentUser: _currentUser),
       IncidentsScreen(currentUser: _currentUser),
       const RouteScreen(),
-      if (isAuthority) const BroadcastDashboardScreen(),
+      if (isAuthority) BroadcastDashboardScreen(zones: _zones),
       SettingsScreen(
         currentUser: _currentUser,
         zones: _zones,

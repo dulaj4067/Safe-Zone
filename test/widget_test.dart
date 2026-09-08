@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:focus_app/main.dart';
+import 'package:safezone/main.dart';
 
 void main() {
   setUpAll(() async {
