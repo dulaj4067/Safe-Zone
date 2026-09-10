@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import '../providers/safety_provider.dart';
 import '../models/risk_zone.dart';
 import '../widgets/live_location_marker.dart';
+import '../widgets/session_history_list.dart';
 
 class LiveEtaSharingScreen extends StatefulWidget {
   final RiskZone? currentRiskZone;
@@ -19,6 +20,45 @@ class LiveEtaSharingScreen extends StatefulWidget {
 }
 
 class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
+  final List<SessionHistoryEntry> _sessionHistory = [
+    SessionHistoryEntry(
+      id: 's1',
+      title: 'Risk-zone route check-in',
+      occurredAt: DateTime(2024, 1, 10, 8, 40),
+      subtitle: 'Shared safe route update',
+    ),
+    SessionHistoryEntry(
+      id: 's2',
+      title: 'Shelter arrival confirmation',
+      occurredAt: DateTime(2024, 1, 11, 7, 5),
+      subtitle: 'Reached safer ground',
+    ),
+    SessionHistoryEntry(
+      id: 's3',
+      title: 'Flood map refresh',
+      occurredAt: DateTime(2024, 1, 12, 9, 15),
+      subtitle: 'Updated nearest safe route',
+    ),
+    SessionHistoryEntry(
+      id: 's4',
+      title: 'Family ETA sync',
+      occurredAt: DateTime(2024, 1, 13, 18, 30),
+      subtitle: 'Live share to selected contacts',
+    ),
+    SessionHistoryEntry(
+      id: 's5',
+      title: 'Evening safety ping',
+      occurredAt: DateTime(2024, 1, 14, 21, 0),
+      subtitle: 'Checked in after commute',
+    ),
+    SessionHistoryEntry(
+      id: 's6',
+      title: 'Night watch update',
+      occurredAt: DateTime(2024, 1, 15, 22, 10),
+      subtitle: 'Location beacon remained active',
+    ),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -133,6 +173,53 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                   ),
                 );
               },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                    ),
+                    builder: (sheetContext) {
+                      return SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.history),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Session history',
+                                    style: Theme.of(sheetContext).textTheme.titleMedium,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              SessionHistoryList(
+                                sessions: _sessionHistory,
+                                pageSize: 3,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+                icon: const Icon(Icons.history, size: 18),
+                label: const Text('Session history'),
+              ),
             ),
           ),
           SafeArea(
