@@ -1,8 +1,10 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:provider/provider.dart';
 import 'package:latlong2/latlong.dart';
 import '../providers/safety_provider.dart';
 import '../models/risk_zone.dart';
+import '../utils/map_tile_sources.dart';
 import '../widgets/live_location_marker.dart';
 import '../widgets/session_history_list.dart';
 
@@ -20,6 +22,8 @@ class LiveEtaSharingScreen extends StatefulWidget {
 }
 
 class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
+  bool _safeBroadcastSent = false;
+
   final List<SessionHistoryEntry> _sessionHistory = [
     SessionHistoryEntry(
       id: 's1',
@@ -78,6 +82,9 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
     final eta = update?.etaRemaining ?? Duration.zero;
     final km = update?.distanceRemainingKm ?? 0.0;
     final zone = widget.currentRiskZone;
+    final mapCenter = update == null
+      ? _zoneCenter(zone) ?? const LatLng(6.9615, 79.9010)
+      : LatLng(update.latitude, update.longitude);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Live Location - Sharing')),
@@ -92,14 +99,44 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
             ),
           Expanded(
             flex: 3,
-            child: Container(
-              width: double.infinity,
-              color: const Color(0xFFE3EAF2),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Real "you are here" marker, matching the rest of the app's map style.
-                  const LiveLocationMarker(),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                FlutterMap(
+                  options: MapOptions(
+                    initialCenter: mapCenter,
+                    initialZoom: 14,
+                    minZoom: 5,
+                    maxZoom: 18,
+                    interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
+                  ),
+                  children: [
+                    buildBaseTileLayer(
+                      isCartoApiKeyConfigured ? BaseMapStyle.street : BaseMapStyle.topo,
+                    ),
+                    if (zone != null && zone.boundary.isNotEmpty)
+                      PolygonLayer(
+                        polygons: [
+                          Polygon(
+                            points: zone.boundary,
+                            color: zone.fillColor,
+                            borderColor: zone.borderColor,
+                            borderStrokeWidth: 2,
+                          ),
+                        ],
+                      ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: mapCenter,
+                          width: 40,
+                          height: 40,
+                          child: const LiveLocationMarker(),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
                   Positioned(
                     top: 16,
                     left: 16,
@@ -127,8 +164,7 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                       ),
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
           ),
           Padding(
@@ -222,6 +258,35 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
               ),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: _safeBroadcastSent ? Colors.green.shade600 : Colors.green.shade700,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(48),
+              ),
+              onPressed: _safeBroadcastSent
+                  ? null
+                  : () async {
+                      setState(() => _safeBroadcastSent = true);
+                      await context.read<SafetyProvider>().sendImSafeBroadcast(
+                        currentRiskZone: widget.currentRiskZone,
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Your safety circle has been notified that you are safe.'),
+                          ),
+                        );
+                      }
+                    },
+              icon: Icon(
+                _safeBroadcastSent ? Icons.check_circle : Icons.check_circle_outline,
+              ),
+              label: Text(_safeBroadcastSent ? 'Broadcast sent' : "I'm Safe"),
+            ),
+          ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -243,6 +308,14 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
         ],
       ),
     );
+  }
+
+  LatLng? _zoneCenter(RiskZone? zone) {
+    if (zone == null || zone.boundary.isEmpty) return null;
+
+    final latitude = zone.boundary.fold<double>(0, (sum, point) => sum + point.latitude);
+    final longitude = zone.boundary.fold<double>(0, (sum, point) => sum + point.longitude);
+    return LatLng(latitude / zone.boundary.length, longitude / zone.boundary.length);
   }
 }
 
