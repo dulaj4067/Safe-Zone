@@ -1,7 +1,10 @@
-﻿import 'package:flutter/foundation.dart';
+﻿import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:latlong2/latlong.dart';
 import '../models/safety_circle_contact.dart';
 import '../models/risk_zone.dart';
 import '../services/supabase_service.dart';
+import '../services/location_service.dart';
 
 class LocationUpdate {
   final double latitude;
@@ -19,7 +22,8 @@ class LocationUpdate {
   });
 }
 
-/// Handles live ETA/location sharing and one-tap "I'm Safe" broadcasts.
+/// Handles live ETA/location sharing (now backed by real GPS via
+/// LocationService) and one-tap "I'm Safe" broadcasts.
 ///
 /// SCHEMA ASSUMPTIONS - check your `sql/` folder and adjust table/column
 /// names if these do not match:
@@ -27,7 +31,16 @@ class LocationUpdate {
 ///   location_shares(id, owner_id, zone_id, lat, lng, eta_seconds,
 ///                    distance_km, is_active, created_at)
 ///   safety_broadcasts(id, user_id, zone_id, sent_at)
+///
+/// ETA ASSUMPTION: there's no routing API wired up yet, so "distance
+/// remaining" is computed as a straight-line (haversine) distance to an
+/// optional destination, and ETA is estimated using a rough average
+/// travel speed. Replace `_assumedSpeedKmh` or plug in a real routing
+/// service (matching whatever your RouteProvider/routing_service.dart
+/// already does) for an accurate ETA.
 class SafetyProvider extends ChangeNotifier {
+  final LocationService _locationService = LocationService();
+
   List<SafetyCircleContact> _circle = [];
   bool _isSharing = false;
   String? _activeShareId;
@@ -36,6 +49,10 @@ class SafetyProvider extends ChangeNotifier {
   DateTime? _lastBroadcastAt;
   String? _errorMessage;
   bool _isLoading = false;
+
+  StreamSubscription<LatLng>? _positionSubscription;
+  LatLng? _destination;
+  static const double _assumedSpeedKmh = 20; // rough avg travel speed estimate
 
   List<SafetyCircleContact> get circle => _circle;
   bool get isLoading => _isLoading;
@@ -83,12 +100,13 @@ class SafetyProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Starts sharing REAL live location/ETA using LocationService.
+  /// [destination] is optional — if provided, distance/ETA are computed
+  /// against it. If null, we still share live position, just without a
+  /// meaningful ETA countdown.
   Future<void> startSharingEta({
     RiskZone? currentRiskZone,
-    required double startLat,
-    required double startLng,
-    required Duration initialEta,
-    required double initialDistanceKm,
+    LatLng? destination,
   }) async {
     final userId = SupabaseService.currentUserId;
     if (userId == null) {
@@ -97,14 +115,36 @@ class SafetyProvider extends ChangeNotifier {
       return;
     }
 
+    final granted = await _locationService.ensurePermission();
+    if (!granted) {
+      _errorMessage = 'Location permission denied. Enable it in settings to share your location.';
+      notifyListeners();
+      return;
+    }
+
+    final start = await _locationService.getCurrentLocation();
+    if (start == null) {
+      _errorMessage = 'Could not get current location.';
+      notifyListeners();
+      return;
+    }
+
+    _destination = destination;
+    final initialDistanceKm = destination != null
+        ? Geolocator_distanceKm(start, destination)
+        : 0.0;
+    final initialEta = destination != null
+        ? Duration(seconds: ((initialDistanceKm / _assumedSpeedKmh) * 3600).round())
+        : Duration.zero;
+
     try {
       final row = await SupabaseService.client
           .from('location_shares')
           .insert({
             'owner_id': userId,
             'zone_id': currentRiskZone?.id,
-            'lat': startLat,
-            'lng': startLng,
+            'lat': start.latitude,
+            'lng': start.longitude,
             'eta_seconds': initialEta.inSeconds,
             'distance_km': initialDistanceKm,
             'is_active': true,
@@ -116,21 +156,42 @@ class SafetyProvider extends ChangeNotifier {
       _activeRiskZone = currentRiskZone;
       _isSharing = true;
       _latestUpdate = LocationUpdate(
-        latitude: startLat,
-        longitude: startLng,
+        latitude: start.latitude,
+        longitude: start.longitude,
         timestamp: DateTime.now(),
         etaRemaining: initialEta,
         distanceRemainingKm: initialDistanceKm,
       );
       _errorMessage = null;
+
+      // Subscribe to REAL GPS updates from LocationService.
+      _positionSubscription?.cancel();
+      _positionSubscription = _locationService.watchPosition().listen((pos) {
+        _onPositionUpdate(pos);
+      });
+
+      // TODO: also open a Supabase Realtime channel here so selected
+      // contacts see updates live, e.g.
+      // SupabaseService.client.channel('location_share_$_activeShareId')...
     } catch (e) {
       _errorMessage = 'Failed to start sharing: $e';
     }
     notifyListeners();
   }
 
-  Future<void> pushLocationUpdate(LocationUpdate update) async {
+  Future<void> _onPositionUpdate(LatLng pos) async {
     if (!_isSharing || _activeShareId == null) return;
+
+    final distanceKm = _destination != null ? Geolocator_distanceKm(pos, _destination!) : 0.0;
+    final etaSeconds = _destination != null ? ((distanceKm / _assumedSpeedKmh) * 3600).round() : 0;
+
+    final update = LocationUpdate(
+      latitude: pos.latitude,
+      longitude: pos.longitude,
+      timestamp: DateTime.now(),
+      etaRemaining: Duration(seconds: etaSeconds),
+      distanceRemainingKm: distanceKm,
+    );
     _latestUpdate = update;
     notifyListeners();
 
@@ -146,12 +207,16 @@ class SafetyProvider extends ChangeNotifier {
       notifyListeners();
     }
 
-    if (update.distanceRemainingKm <= 0) {
+    if (_destination != null && distanceKm <= 0.05) {
+      // Within ~50m of destination — treat as arrived.
       await stopSharing();
     }
   }
 
   Future<void> stopSharing() async {
+    _positionSubscription?.cancel();
+    _positionSubscription = null;
+
     if (_activeShareId != null) {
       try {
         await SupabaseService.client
@@ -164,6 +229,7 @@ class SafetyProvider extends ChangeNotifier {
     _isSharing = false;
     _activeShareId = null;
     _activeRiskZone = null;
+    _destination = null;
     notifyListeners();
   }
 
@@ -188,4 +254,18 @@ class SafetyProvider extends ChangeNotifier {
     }
     notifyListeners();
   }
+
+  @override
+  void dispose() {
+    _positionSubscription?.cancel();
+    super.dispose();
+  }
+}
+
+/// Straight-line (haversine) distance in km between two points.
+/// Uses the `Distance` calculator from latlong2, which is already a
+/// dependency in this project (used by risk_zone.dart).
+double Geolocator_distanceKm(LatLng a, LatLng b) {
+  const calculator = Distance();
+  return calculator.as(LengthUnit.Kilometer, a, b);
 }
