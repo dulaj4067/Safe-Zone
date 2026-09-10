@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../models/alert.dart';
 import '../models/app_user.dart';
 import '../models/incident.dart';
+import '../models/risk_zone.dart';
 import '../models/shelter.dart';
 import '../models/zone.dart';
 import '../providers/alert_provider.dart';
@@ -24,6 +25,7 @@ import '../widgets/map_controls.dart';
 import '../widgets/shelter_marker.dart';
 import '../widgets/incident_detail_sheet.dart';
 import '../screens/incident_detail_screen.dart';
+import '../screens/select_safety_circle_screen.dart';
 import '../services/supabase_service.dart';
 
 /// SafeZone home tab — district map with live alert-radius overlays
@@ -119,6 +121,25 @@ class _HomeScreenState extends State<HomeScreen> {
     return nearest?.name;
   }
 
+  RiskZone? _nearestRiskZone(LatLng center) {
+    RiskZone? nearest;
+    double? bestDistance;
+    for (final zone in sampleRiskZones) {
+      final centroid = zone.boundary.reduce(
+        (a, b) => LatLng(
+          (a.latitude + b.latitude) / 2,
+          (a.longitude + b.longitude) / 2,
+        ),
+      );
+      final d = _distance(center, centroid);
+      if (bestDistance == null || d < bestDistance) {
+        bestDistance = d;
+        nearest = zone;
+      }
+    }
+    return nearest;
+  }
+
   @override
   Widget build(BuildContext context) {
     final incidents = context.watch<IncidentProvider>().sortedIncidents;
@@ -128,6 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // falling back to the district default until then.
     final effectiveCenter = _liveLocation ?? _initialCenter;
     final districtLabel = _nearestZoneName(effectiveCenter);
+    final nearestRiskZone = _nearestRiskZone(effectiveCenter);
 
     return Scaffold(
       // Uses the app's theme background (AppTheme.light/dark set
@@ -146,9 +168,33 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             if (_locationDenied) const _LocationDeniedBanner(),
             const _HeaderRow(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => SelectSafetyCircleScreen(
+                          currentRiskZone: nearestRiskZone,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.share_location_rounded),
+                  label: const Text('Share my ETA'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1F6F8B),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+            ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),

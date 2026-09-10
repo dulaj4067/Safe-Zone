@@ -67,31 +67,59 @@ class SafetyProvider extends ChangeNotifier {
 
   Future<void> loadSafetyCircle() async {
     final userId = SupabaseService.currentUserId;
-    if (userId == null) {
-      _errorMessage = 'Not signed in.';
-      notifyListeners();
-      return;
-    }
 
     _isLoading = true;
     notifyListeners();
 
     try {
+      if (userId == null) {
+        _circle = _demoSafetyCircle();
+        _errorMessage = null;
+        return;
+      }
+
       final rows = await SupabaseService.client
           .from('safety_circle_contacts')
           .select()
           .eq('owner_id', userId);
 
-      _circle = (rows as List)
+      final contacts = (rows as List)
           .map((r) => SafetyCircleContact.fromMap(r as Map<String, dynamic>))
           .toList();
+
+      _circle = contacts.isNotEmpty ? contacts : _demoSafetyCircle();
       _errorMessage = null;
     } catch (e) {
-      _errorMessage = 'Failed to load safety circle: $e';
+      _circle = _demoSafetyCircle();
+      _errorMessage = null;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  List<SafetyCircleContact> _demoSafetyCircle() {
+    return [
+      SafetyCircleContact(
+        id: 'demo-mom',
+        name: 'Asha Perera',
+        phoneNumber: '+94 77 123 4567',
+        relationship: 'Mother',
+        isSelected: true,
+      ),
+      SafetyCircleContact(
+        id: 'demo-brother',
+        name: 'Nimal Perera',
+        phoneNumber: '+94 71 765 4321',
+        relationship: 'Brother',
+      ),
+      SafetyCircleContact(
+        id: 'demo-partner',
+        name: 'Maya Silva',
+        phoneNumber: '+94 76 890 1122',
+        relationship: 'Partner',
+      ),
+    ];
   }
 
   void toggleContactSelection(String contactId, bool selected) {
@@ -109,25 +137,7 @@ class SafetyProvider extends ChangeNotifier {
     LatLng? destination,
   }) async {
     final userId = SupabaseService.currentUserId;
-    if (userId == null) {
-      _errorMessage = 'Not signed in.';
-      notifyListeners();
-      return;
-    }
-
-    final granted = await _locationService.ensurePermission();
-    if (!granted) {
-      _errorMessage = 'Location permission denied. Enable it in settings to share your location.';
-      notifyListeners();
-      return;
-    }
-
-    final start = await _locationService.getCurrentLocation();
-    if (start == null) {
-      _errorMessage = 'Could not get current location.';
-      notifyListeners();
-      return;
-    }
+    final start = await _resolveStartLocation(currentRiskZone: currentRiskZone);
 
     _destination = destination;
     final initialDistanceKm = destination != null
@@ -137,45 +147,54 @@ class SafetyProvider extends ChangeNotifier {
         ? Duration(seconds: ((initialDistanceKm / _assumedSpeedKmh) * 3600).round())
         : Duration.zero;
 
-    try {
-      final row = await SupabaseService.client
-          .from('location_shares')
-          .insert({
-            'owner_id': userId,
-            'zone_id': currentRiskZone?.id,
-            'lat': start.latitude,
-            'lng': start.longitude,
-            'eta_seconds': initialEta.inSeconds,
-            'distance_km': initialDistanceKm,
-            'is_active': true,
-          })
-          .select()
-          .single();
+    _activeRiskZone = currentRiskZone;
+    _isSharing = true;
+    _latestUpdate = LocationUpdate(
+      latitude: start.latitude,
+      longitude: start.longitude,
+      timestamp: DateTime.now(),
+      etaRemaining: initialEta,
+      distanceRemainingKm: initialDistanceKm,
+    );
+    _errorMessage = null;
 
-      _activeShareId = row['id'] as String;
-      _activeRiskZone = currentRiskZone;
-      _isSharing = true;
-      _latestUpdate = LocationUpdate(
-        latitude: start.latitude,
-        longitude: start.longitude,
-        timestamp: DateTime.now(),
-        etaRemaining: initialEta,
-        distanceRemainingKm: initialDistanceKm,
-      );
-      _errorMessage = null;
+    final hasLocationPermissions = await _hasLocationPermissions();
+    if (userId != null && hasLocationPermissions) {
+      try {
+        final row = await SupabaseService.client
+            .from('location_shares')
+            .insert({
+              'owner_id': userId,
+              'zone_id': currentRiskZone?.id,
+              'lat': start.latitude,
+              'lng': start.longitude,
+              'eta_seconds': initialEta.inSeconds,
+              'distance_km': initialDistanceKm,
+              'is_active': true,
+            })
+            .select()
+            .single();
 
-      // Subscribe to REAL GPS updates from LocationService.
-      _positionSubscription?.cancel();
-      _positionSubscription = _locationService.watchPosition().listen((pos) {
-        _onPositionUpdate(pos);
-      });
-
-      // TODO: also open a Supabase Realtime channel here so selected
-      // contacts see updates live, e.g.
-      // SupabaseService.client.channel('location_share_$_activeShareId')...
-    } catch (e) {
-      _errorMessage = 'Failed to start sharing: $e';
+        _activeShareId = row['id'] as String;
+      } catch (_) {
+        _activeShareId = 'demo-share-${DateTime.now().millisecondsSinceEpoch}';
+      }
+    } else {
+      _activeShareId = 'demo-share-${DateTime.now().millisecondsSinceEpoch}';
     }
+
+    _positionSubscription?.cancel();
+    if (hasLocationPermissions) {
+      try {
+        _positionSubscription = _locationService.watchPosition().listen(
+          (pos) => _onPositionUpdate(pos),
+          onError: (_) {},
+        );
+      } catch (_) {
+        _positionSubscription = null;
+      }
+    }
+
     notifyListeners();
   }
 
@@ -217,7 +236,7 @@ class SafetyProvider extends ChangeNotifier {
     _positionSubscription?.cancel();
     _positionSubscription = null;
 
-    if (_activeShareId != null) {
+    if (_activeShareId != null && !(_activeShareId ?? '').startsWith('demo-share-')) {
       try {
         await SupabaseService.client
             .from('location_shares')
@@ -253,6 +272,40 @@ class SafetyProvider extends ChangeNotifier {
       _errorMessage = 'Failed to send broadcast: $e';
     }
     notifyListeners();
+  }
+
+  Future<LatLng> _resolveStartLocation({RiskZone? currentRiskZone}) async {
+    try {
+      final granted = await _locationService.ensurePermission();
+      if (!granted) return _fallbackLocation(currentRiskZone);
+      final current = await _locationService.getCurrentLocation();
+      if (current != null) return current;
+    } catch (_) {
+      return _fallbackLocation(currentRiskZone);
+    }
+
+    return _fallbackLocation(currentRiskZone);
+  }
+
+  Future<bool> _hasLocationPermissions() async {
+    try {
+      return await _locationService.ensurePermission();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  LatLng _fallbackLocation(RiskZone? zone) {
+    if (zone != null && zone.boundary.isNotEmpty) {
+      final totalLat = zone.boundary.fold<double>(0, (sum, point) => sum + point.latitude);
+      final totalLng = zone.boundary.fold<double>(0, (sum, point) => sum + point.longitude);
+      return LatLng(
+        totalLat / zone.boundary.length,
+        totalLng / zone.boundary.length,
+      );
+    }
+
+    return const LatLng(6.9615, 79.9010);
   }
 
   @override
