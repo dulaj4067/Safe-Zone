@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/alert.dart';
+import '../providers/alert_provider.dart';
 import 'severity_badge.dart';
 
 /// Global warning strip — matches the SafeZone mockup exactly: solid
@@ -9,24 +11,30 @@ import 'severity_badge.dart';
 /// trailing chevron. Sits flush at the very top of the screen, no card,
 /// margin, rounding, or shadow.
 ///
-/// There's no visible close icon (the mockup doesn't have one) — swipe
-/// up to dismiss instead, which still calls [onDismiss] so callers
-/// (AppShell's global banner, LocationAlertBanner) don't need to change.
+/// Tap opens the alert detail & resident acknowledgment sheet so citizens
+/// can confirm receipt and safety.
 class AlertBanner extends StatelessWidget {
   final DisasterAlert alert;
   final VoidCallback onDismiss;
   final VoidCallback? onTap;
+  final VoidCallback? onAcknowledge;
 
   const AlertBanner({
     super.key,
     required this.alert,
     required this.onDismiss,
     this.onTap,
+    this.onAcknowledge,
   });
 
   @override
   Widget build(BuildContext context) {
     final bannerColor = severityColor(alert.severity);
+
+    // Auto-record that the alert was seen by the resident on device
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AlertProvider>().markAlertSeen(alert.id);
+    });
 
     return SafeArea(
       bottom: false,
@@ -39,7 +47,7 @@ class AlertBanner extends StatelessWidget {
         child: Material(
           color: bannerColor,
           child: InkWell(
-            onTap: onTap,
+            onTap: onTap ?? () => _showAlertDetailModal(context),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
@@ -79,6 +87,67 @@ class AlertBanner extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showAlertDetailModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                SeverityBadge(severity: alert.severity),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    alert.title,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              alert.instructions ?? 'No specific safety instructions provided.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Type: ${alert.alertType.toUpperCase()} · Radius: ${alert.radiusMeters}m',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: severityColor(alert.severity),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              icon: const Icon(Icons.check_circle_outline),
+              label: const Text('Acknowledge & Confirm Safe'),
+              onPressed: () async {
+                await context.read<AlertProvider>().acknowledgeAlert(alert.id);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Alert acknowledged. Local authorities notified.'),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
         ),
       ),
     );

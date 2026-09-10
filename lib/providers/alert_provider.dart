@@ -1,18 +1,25 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/alert.dart';
+import '../models/alert_engagement.dart';
+import '../models/zone.dart';
+import '../services/alert_engagement_service.dart';
 import '../services/alert_service.dart';
 import '../services/notification_service.dart';
+import '../services/supabase_service.dart';
 
 class AlertProvider extends ChangeNotifier {
   final AlertService _service;
   final NotificationService _notificationService;
+  final AlertEngagementService _engagementService;
 
   AlertProvider({
     AlertService? service,
     NotificationService? notificationService,
+    AlertEngagementService? engagementService,
   })  : _service = service ?? AlertService(),
-        _notificationService = notificationService ?? NotificationService();
+        _notificationService = notificationService ?? NotificationService(),
+        _engagementService = engagementService ?? AlertEngagementService();
 
   List<DisasterAlert> _activeAlerts = [];
   DisasterAlert? _bannerAlert; // most recent unread alert, shown as banner
@@ -24,6 +31,7 @@ class AlertProvider extends ChangeNotifier {
   bool get isOffline => _isOffline;
   DateTime? get lastUpdated => _lastUpdated;
   NotificationService get notificationService => _notificationService;
+  AlertEngagementService get engagementService => _engagementService;
 
   Future<void> init() async {
     await _notificationService.init();
@@ -94,6 +102,59 @@ class AlertProvider extends ChangeNotifier {
   Future<void> resolveAlert(String alertId) => _service.resolveAlert(alertId);
 
   Future<void> archiveAlert(String alertId) => _service.archiveAlert(alertId);
+
+  // ─── Engagement & Resident Reach Metrics ───────────────────────────────────
+
+  /// Fetches resident seen/acknowledged engagement analytics for an alert.
+  Future<ZoneAlertEngagement> getEngagementForAlert(
+    String alertId, {
+    String? zoneId,
+    String? zoneName,
+    List<Zone>? knownZones,
+  }) {
+    return _engagementService.getZoneEngagement(
+      alertId,
+      zoneId: zoneId,
+      zoneName: zoneName,
+      knownZones: knownZones,
+    );
+  }
+
+  /// Citizen action: acknowledge receipt and safety for an active alert.
+  Future<void> acknowledgeAlert(String alertId, {String? userId}) async {
+    final uid = userId ?? SupabaseService.currentUserId ?? 'resident_local';
+    await _engagementService.markAcknowledged(alertId, uid);
+    notifyListeners();
+  }
+
+  /// Automatically marks an alert as seen by the current citizen.
+  Future<void> markAlertSeen(String alertId, {String? userId}) async {
+    final uid = userId ?? SupabaseService.currentUserId ?? 'resident_local';
+    await _engagementService.markSeen(alertId, uid);
+    notifyListeners();
+  }
+
+  /// Checks if current citizen has acknowledged the alert.
+  Future<bool> hasAcknowledged(String alertId, {String? userId}) {
+    final uid = userId ?? SupabaseService.currentUserId ?? 'resident_local';
+    return _engagementService.hasUserAcknowledged(alertId, uid);
+  }
+
+  /// Demo/Simulation tool: adjust seen/ack percentages for testing & evaluation.
+  Future<void> simulateZoneEngagement(
+    String alertId,
+    String? zoneId, {
+    required double ackRate,
+    required double seenRate,
+  }) async {
+    await _engagementService.simulateEngagement(
+      alertId,
+      zoneId,
+      ackRate: ackRate,
+      seenRate: seenRate,
+    );
+    notifyListeners();
+  }
 
   /// Call from a manual pull-to-refresh; also useful right after
   /// reconnecting so alerts missed while offline get synced in per the
