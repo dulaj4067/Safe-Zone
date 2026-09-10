@@ -1,76 +1,55 @@
-﻿import 'dart:async';
-import 'dart:math';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:latlong2/latlong.dart';
 import '../providers/safety_provider.dart';
 import '../models/risk_zone.dart';
+import '../widgets/live_location_marker.dart';
 
 class LiveEtaSharingScreen extends StatefulWidget {
   final RiskZone? currentRiskZone;
+  /// Optional destination to compute ETA/distance against — e.g. a
+  /// selected shelter. If null, live position still shares, just without
+  /// a meaningful ETA countdown.
+  final LatLng? destination;
 
-  const LiveEtaSharingScreen({super.key, this.currentRiskZone});
+  const LiveEtaSharingScreen({super.key, this.currentRiskZone, this.destination});
 
   @override
   State<LiveEtaSharingScreen> createState() => _LiveEtaSharingScreenState();
 }
 
 class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
-  Timer? _mockGpsTimer;
-
   @override
   void initState() {
     super.initState();
-    final safety = context.read<SafetyProvider>();
-    safety.startSharingEta(
-      currentRiskZone: widget.currentRiskZone,
-      startLat: widget.currentRiskZone?.boundary.first.latitude ?? 6.9271,
-      startLng: widget.currentRiskZone?.boundary.first.longitude ?? 79.8612,
-      initialEta: const Duration(minutes: 18),
-      initialDistanceKm: 6.4,
-    );
-
-    var lat = widget.currentRiskZone?.boundary.first.latitude ?? 6.9271;
-    var lng = widget.currentRiskZone?.boundary.first.longitude ?? 79.8612;
-    var eta = const Duration(minutes: 18);
-    var km = 6.4;
-    final rand = Random();
-    _mockGpsTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      lat += (rand.nextDouble() - 0.5) * 0.001;
-      lng += (rand.nextDouble() - 0.5) * 0.001;
-      eta -= const Duration(seconds: 20);
-      km = max(0, km - 0.3);
-      context.read<SafetyProvider>().pushLocationUpdate(
-            LocationUpdate(
-              latitude: lat,
-              longitude: lng,
-              timestamp: DateTime.now(),
-              etaRemaining: eta.isNegative ? Duration.zero : eta,
-              distanceRemainingKm: km,
-            ),
-          );
-    });
+    context.read<SafetyProvider>().startSharingEta(
+          currentRiskZone: widget.currentRiskZone,
+          destination: widget.destination,
+        );
   }
 
-  String _formatEta(Duration d) => d.inMinutes.toString() + 'm ' + (d.inSeconds % 60).toString().padLeft(2, '0') + 's';
-
-  @override
-  void dispose() {
-    _mockGpsTimer?.cancel();
-    super.dispose();
-  }
+  String _formatEta(Duration d) =>
+      '${d.inMinutes}m ${(d.inSeconds % 60).toString().padLeft(2, '0')}s';
 
   @override
   Widget build(BuildContext context) {
     final safety = context.watch<SafetyProvider>();
     final update = safety.latestUpdate;
-    final eta = update?.etaRemaining ?? const Duration(minutes: 18);
-    final km = update?.distanceRemainingKm ?? 6.4;
+    final eta = update?.etaRemaining ?? Duration.zero;
+    final km = update?.distanceRemainingKm ?? 0.0;
     final zone = widget.currentRiskZone;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Live Location - Sharing')),
       body: Column(
         children: [
+          if (safety.errorMessage != null)
+            Container(
+              width: double.infinity,
+              color: Colors.red.shade50,
+              padding: const EdgeInsets.all(12),
+              child: Text(safety.errorMessage!, style: const TextStyle(color: Colors.red)),
+            ),
           Expanded(
             flex: 3,
             child: Container(
@@ -79,7 +58,8 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  const Icon(Icons.map_outlined, size: 64, color: Colors.black26),
+                  // Real "you are here" marker, matching the rest of the app's map style.
+                  const LiveLocationMarker(),
                   Positioned(
                     top: 16,
                     left: 16,
@@ -94,11 +74,14 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                         children: [
                           const Icon(Icons.circle, color: Colors.white, size: 10),
                           const SizedBox(width: 8),
-                          Text(
-                            zone != null
-                                ? 'LIVE - in ' + zone.name + ' (' + zone.label + ')'
-                                : 'LIVE - sharing your location',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                          Expanded(
+                            child: Text(
+                              zone != null
+                                  ? 'LIVE - in ${zone.name} (${zone.label})'
+                                  : 'LIVE - sharing your location',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
@@ -117,18 +100,13 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                 Expanded(
                   child: _StatTile(
                     label: 'Distance left',
-                    value: km.toStringAsFixed(1) + ' km',
+                    value: '${km.toStringAsFixed(1)} km',
                     icon: Icons.route,
                   ),
                 ),
               ],
             ),
           ),
-          if (safety.errorMessage != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(safety.errorMessage!, style: const TextStyle(color: Colors.red)),
-            ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Align(
