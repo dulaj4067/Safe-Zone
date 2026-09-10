@@ -74,6 +74,14 @@ void main() {
     expect(provider.errorMessage, isNull);
   });
 
+  test('Broadcast can be sent in demo mode when auth is unavailable', () async {
+    final provider = SafetyProvider();
+    await provider.sendImSafeBroadcast(currentRiskZone: sampleRiskZones.first);
+
+    expect(provider.lastBroadcastAt, isNotNull);
+    expect(provider.errorMessage, isNull);
+  });
+
   testWidgets('Session history is paginated manually and never auto-loads on scroll', (WidgetTester tester) async {
     final sessions = [
       SessionHistoryEntry(id: '1', title: 'Morning check-in', occurredAt: DateTime(2024, 1, 10, 9, 0)),
