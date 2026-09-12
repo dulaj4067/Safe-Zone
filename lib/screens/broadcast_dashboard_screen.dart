@@ -30,8 +30,8 @@ class _BroadcastDashboardScreenState extends State<BroadcastDashboardScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<AlertProvider>();
     final alerts = _filter == null
-        ? provider.activeAlerts
-        : provider.activeAlerts.where((a) => a.severity == _filter).toList();
+        ? provider.allAlerts
+        : provider.allAlerts.where((a) => a.severity == _filter).toList();
 
     // Highest severity first, then most recent — matches Story 4 AC.
     final sorted = [...alerts]
