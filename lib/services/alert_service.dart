@@ -8,6 +8,8 @@ import 'supabase_service.dart';
 
 class AlertService {
   static const _cacheKey = 'cached_alerts_v1';
+  static const String prefMyZoneAlertsOnly = 'pref_my_zone_alerts_only';
+  static const String prefUserZoneId = 'pref_user_zone_id';
 
   RealtimeChannel? _channel;
 
@@ -145,5 +147,43 @@ class AlertService {
     }).toList();
 
     return (alerts, ts != null ? DateTime.parse(ts) : null);
+  }
+
+  /// Retrieves the 'My Zone Alerts Only' preference. OFF by default.
+  Future<bool> getMyZoneAlertsOnly() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(prefMyZoneAlertsOnly) ?? false;
+  }
+
+  /// Persists the 'My Zone Alerts Only' preference in SharedPreferences.
+  Future<void> saveMyZoneAlertsOnly(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(prefMyZoneAlertsOnly, enabled);
+  }
+
+  /// Retrieves the persisted citizen zone ID from SharedPreferences.
+  Future<String?> getSavedZoneId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(prefUserZoneId);
+  }
+
+  /// Persists or clears the citizen zone ID in SharedPreferences.
+  Future<void> saveZoneId(String? zoneId) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (zoneId != null && zoneId.isNotEmpty) {
+      await prefs.setString(prefUserZoneId, zoneId);
+    } else {
+      await prefs.remove(prefUserZoneId);
+    }
+  }
+
+  /// Filters a list of alerts to only those affecting the given [zoneId].
+  /// If [zoneId] is null or empty, returns all alerts.
+  List<DisasterAlert> filterAlertsByZone(
+    List<DisasterAlert> alerts,
+    String? zoneId,
+  ) {
+    if (zoneId == null || zoneId.isEmpty) return alerts;
+    return alerts.where((a) => a.affectedZoneId == zoneId).toList();
   }
 }

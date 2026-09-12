@@ -58,6 +58,9 @@ class _AppShellState extends State<AppShell> {
         _zones = (zoneRows as List).map((z) => Zone.fromMap(z)).toList();
         _loadingProfile = false;
       });
+      if (mounted && _currentUser?.zoneId != null) {
+        context.read<AlertProvider>().setUserZoneId(_currentUser!.zoneId);
+      }
     } catch (_) {
       setState(() => _loadingProfile = false);
     }

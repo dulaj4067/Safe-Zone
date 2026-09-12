@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/alert.dart';
 import '../models/app_user.dart';
 import '../models/zone.dart';
+import '../providers/alert_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/incident_provider.dart';
 import '../services/notification_service.dart';
@@ -112,7 +113,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bool isAuthority,
     bool isDark,
   ) {
-    final email = SupabaseService.client.auth.currentUser?.email ?? 'Unknown account';
+    String email = 'Unknown account';
+    try {
+      email = SupabaseService.client.auth.currentUser?.email ?? 'Unknown account';
+    } catch (_) {}
     final initial = (user?.fullName.isNotEmpty ?? false)
         ? user!.fullName[0].toUpperCase()
         : 'U';
@@ -382,9 +386,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ─── Notification Settings ─────────────────────────────────────────────────
 
   Widget _buildNotificationSettingsCard(BuildContext context, bool isAuthority) {
+    final alertProvider = context.watch<AlertProvider>();
+    final myZoneOnly = alertProvider.myZoneOnly;
+    final effectiveZoneId = alertProvider.userZoneId ?? widget.currentUser?.zoneId;
+    final currentZone = widget.zones.where((z) => z.id == effectiveZoneId).firstOrNull;
+    final zoneName = currentZone?.name;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Card(
       child: Column(
         children: [
+          SwitchListTile.adaptive(
+            key: const Key('my_zone_alerts_only_switch'),
+            title: const Text('My Zone Alerts Only'),
+            subtitle: Text(
+              myZoneOnly
+                  ? (zoneName != null
+                      ? 'Only showing and notifying alerts for $zoneName'
+                      : 'Only showing and notifying alerts for your designated zone')
+                  : 'Receive disaster alerts for all monitored zones',
+            ),
+            value: myZoneOnly,
+            onChanged: (enabled) async {
+              String? targetZoneId = effectiveZoneId;
+              if (enabled && targetZoneId == null && widget.zones.isNotEmpty) {
+                targetZoneId = widget.zones.first.id;
+              }
+              await alertProvider.setMyZoneOnly(enabled, zoneId: targetZoneId);
+              if (enabled && targetZoneId != null && SupabaseService.currentUserId != null) {
+                try {
+                  await SupabaseService.client
+                      .from('profiles')
+                      .update({'zone_id': targetZoneId})
+                      .eq('id', SupabaseService.currentUserId!);
+                  widget.onProfileUpdated?.call();
+                } catch (_) {}
+              }
+            },
+          ),
+          if (myZoneOnly && widget.zones.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+              child: DropdownButtonFormField<String>(
+                key: const Key('designated_zone_dropdown'),
+                initialValue: widget.zones.any((z) => z.id == effectiveZoneId)
+                    ? effectiveZoneId
+                    : widget.zones.first.id,
+                decoration: InputDecoration(
+                  labelText: 'Designated Safety Zone',
+                  prefixIcon: const Icon(Icons.location_on, color: AppColors.riverTeal),
+                  filled: true,
+                  fillColor: isDark ? AppColors.harborSurface : AppColors.cloud,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                items: widget.zones.map((z) => DropdownMenuItem(
+                  value: z.id,
+                  child: Text(z.name),
+                )).toList(),
+                onChanged: (newZoneId) async {
+                  if (newZoneId != null) {
+                    await alertProvider.setUserZoneId(newZoneId);
+                    final userId = SupabaseService.currentUserId;
+                    if (userId != null) {
+                      try {
+                        await SupabaseService.client
+                            .from('profiles')
+                            .update({'zone_id': newZoneId})
+                            .eq('id', userId);
+                        widget.onProfileUpdated?.call();
+                      } catch (_) {}
+                    }
+                  }
+                },
+              ),
+            ),
+          ],
+          const Divider(height: 1),
           SwitchListTile.adaptive(
             title: const Text('Critical Flood Siren Override'),
             subtitle: const Text(
@@ -535,10 +613,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ─── Safety & Data Resilience ──────────────────────────────────────────────
 
   Widget _buildSafetyAndDataCard(BuildContext context) {
+    String? currentUserId;
+    try {
+      currentUserId = SupabaseService.currentUserId;
+    } catch (_) {}
+
     final myIncidentsCount = context
         .watch<IncidentProvider>()
         .incidents
-        .where((i) => i.reporterId == SupabaseService.currentUserId)
+        .where((i) => currentUserId != null && i.reporterId == currentUserId)
         .length;
 
     return Card(
