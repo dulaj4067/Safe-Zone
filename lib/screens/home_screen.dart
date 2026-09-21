@@ -19,6 +19,7 @@ import '../services/shelter_service.dart';
 import '../utils/map_tile_sources.dart';
 import '../widgets/severity_badge.dart';
 import '../widgets/app_logo_badge.dart';
+import '../widgets/heatmap_layer.dart';
 import '../widgets/live_location_marker.dart';
 import '../widgets/location_alert_banner.dart';
 import '../widgets/map_controls.dart';
@@ -46,9 +47,16 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   static const LatLng _initialCenter = LatLng(6.9615, 79.9010);
   static const Distance _distance = Distance();
+
+  /// Minimum displacement (metres) between the backgrounded position and the
+  /// current position that triggers the "Want to pick up where you left off?"
+  /// resume prompt. 500 m is large enough to ignore GPS jitter (already
+  /// filtered to 5 m in LocationService) while still being meaningful in a
+  /// disaster-response context.
+  static const double _driftThresholdMeters = 500.0;
 
   final ShelterService _shelterService = ShelterService();
   final LocationService _locationService = LocationService();
@@ -58,9 +66,17 @@ class _HomeScreenState extends State<HomeScreen> {
   LatLng? _liveLocation;
   bool _locationDenied = false;
 
+  /// The map centre saved when the app was last backgrounded, so the resume
+  /// prompt can offer to re-centre back to it after drift is detected.
+  LatLng? _lastKnownLocation;
+
+  /// Prevents the resume modal from firing more than once per foreground cycle.
+  bool _resumeModalShown = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<IncidentProvider>().load();
       // AlertProvider.init() is already called once from AppShell, so we
@@ -72,9 +88,67 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _positionSub?.cancel();
     super.dispose();
   }
+
+  // ─── App lifecycle — drift detection ──────────────────────────────────────
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      // Snapshot the current position before going to background.
+      if (_liveLocation != null) {
+        _lastKnownLocation = _liveLocation;
+        _resumeModalShown = false; // reset so the next foreground entry can fire
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      _checkForDriftAndPrompt();
+    }
+  }
+
+  /// Compares the current GPS position to [_lastKnownLocation]. If the device
+  /// has drifted more than [_driftThresholdMeters], shows the resume modal.
+  Future<void> _checkForDriftAndPrompt() async {
+    if (_resumeModalShown) return;
+    final saved = _lastKnownLocation;
+    final current = _liveLocation;
+    if (saved == null || current == null) return;
+
+    final driftM = _distance(saved, current);
+    if (driftM < _driftThresholdMeters) return;
+
+    _resumeModalShown = true;
+    if (!mounted) return;
+    _showResumeModal(savedLocation: saved);
+  }
+
+  /// Shows a one-tap-dismissible bottom modal asking the user whether they
+  /// want to re-centre the map to their last-known position after drift.
+  void _showResumeModal({required LatLng savedLocation}) {
+    showModalBottomSheet<void>(
+      context: context,
+      isDismissible: true,       // one tap on the backdrop closes it
+      enableDrag: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _ResumeSessionModal(
+        onResume: () {
+          Navigator.of(ctx).pop();
+          // Re-centre the map via the map widget's key/controller — we pass
+          // savedLocation through the _SafeZoneMap widget's resumeCenter param.
+          setState(() => _resumeCenter = savedLocation);
+        },
+        onDismiss: () => Navigator.of(ctx).pop(),
+      ),
+    );
+  }
+
+  /// When non-null the map should snap back to this centre on its next build.
+  /// Cleared immediately after consumption so it only fires once.
+  LatLng? _resumeCenter;
 
   Future<void> _loadShelters() async {
     try {
@@ -151,6 +225,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final districtLabel = _nearestZoneName(effectiveCenter);
     final nearestRiskZone = _nearestRiskZone(effectiveCenter);
 
+    // Consume the resume-centre once so the map animates to it this frame
+    // and subsequent rebuilds don't re-trigger the move.
+    final resumeTarget = _resumeCenter;
+    if (resumeTarget != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _resumeCenter = null);
+      });
+    }
+
     return Scaffold(
       // Uses the app's theme background (AppTheme.light/dark set
       // scaffoldBackgroundColor to AppColors.mist / AppColors.deepWater)
@@ -215,6 +298,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     liveLocation: _liveLocation,
                     districtLabel: districtLabel,
                     currentUser: widget.currentUser,
+                    resumeCenter: resumeTarget,
                   ),
                 ),
               ),
@@ -321,6 +405,9 @@ class _SafeZoneMap extends StatefulWidget {
   final LatLng? liveLocation;
   final String? districtLabel;
   final AppUser? currentUser;
+  /// When non-null, the map controller will move to this position
+  /// on the next frame (resume-from-drift behaviour).
+  final LatLng? resumeCenter;
 
   const _SafeZoneMap({
     required this.center,
@@ -330,6 +417,7 @@ class _SafeZoneMap extends StatefulWidget {
     required this.liveLocation,
     required this.districtLabel,
     this.currentUser,
+    this.resumeCenter,
   });
 
   @override
@@ -339,6 +427,19 @@ class _SafeZoneMap extends StatefulWidget {
 class _SafeZoneMapState extends State<_SafeZoneMap> {
   final MapController _mapController = MapController();
   BaseMapStyle _baseMapStyle = BaseMapStyle.street;
+  bool _showHeatmap = false;
+
+  @override
+  void didUpdateWidget(_SafeZoneMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // When the parent passes a fresh resumeCenter, animate the map to it.
+    if (widget.resumeCenter != null &&
+        widget.resumeCenter != oldWidget.resumeCenter) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _mapController.move(widget.resumeCenter!, _mapController.camera.zoom);
+      });
+    }
+  }
 
   ({IconData icon, Color color}) _markerStyleFor(Incident incident) {
     if (incident.isSos) {
@@ -435,6 +536,9 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
             ),
             children: [
               buildBaseTileLayer(_baseMapStyle),
+              // Heatmap layer — sits between the base tiles and the alert
+              // circles so it never obscures interactive elements.
+              if (_showHeatmap) HeatmapLayer(incidents: widget.incidents),
               CircleLayer(
                 circles: [
                   for (final alert in widget.alerts)
@@ -592,6 +696,11 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
             child: Column(
               children: [
                 MapLayerToggleButton(style: _baseMapStyle, onTap: _toggleBaseMapStyle),
+                const SizedBox(height: 8),
+                HeatmapToggleButton(
+                  active: _showHeatmap,
+                  onTap: () => setState(() => _showHeatmap = !_showHeatmap),
+                ),
                 const SizedBox(height: 12),
                 ZoomButton(icon: Icons.add, onTap: () => _zoomBy(1)),
                 const SizedBox(height: 8),
@@ -600,6 +709,141 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Resume-session bottom modal ────────────────────────────────────────────
+
+/// One-tap-dismissible bottom sheet shown when drift is detected after the
+/// app returns to the foreground.
+///
+/// Requirements met:
+///   • Triggered externally (only after drift sensing — caller's responsibility)
+///   • Question phrasing: "Want to pick up where you left off?"
+///   • Dismissible with one tap: tapping the backdrop OR the "Not now" button
+///     closes the sheet without any forced interaction.
+class _ResumeSessionModal extends StatelessWidget {
+  final VoidCallback onResume;
+  final VoidCallback onDismiss;
+
+  const _ResumeSessionModal({
+    required this.onResume,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.14),
+                  blurRadius: 24,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Drag handle
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C7C89).withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.my_location_rounded,
+                        color: Color(0xFF1C7C89),
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Want to pick up where you left off?',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.only(left: 44),
+                  child: Text(
+                    "Looks like you've moved. Your previous map view is still saved.",
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: onDismiss,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Not now'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: FilledButton.icon(
+                        onPressed: onResume,
+                        icon: const Icon(Icons.redo_rounded, size: 18),
+                        label: const Text('Go back'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF1C7C89),
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
