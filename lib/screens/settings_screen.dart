@@ -392,6 +392,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final currentZone = widget.zones.where((z) => z.id == effectiveZoneId).firstOrNull;
     final zoneName = currentZone?.name;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final multiChannelFallback = alertProvider.multiChannelFallback;
 
     return Card(
       child: Column(
@@ -482,12 +483,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(height: 1),
           SwitchListTile.adaptive(
-            title: const Text('SMS Backup Warnings'),
-            subtitle: const Text(
-              'Send SMS text alerts if data connectivity is lost during an active storm',
+            key: const Key('multi_channel_fallback_switch'),
+            title: const Text('Multi-Channel Alert Fallback'),
+            subtitle: Text(
+              multiChannelFallback
+                  ? 'Active: Alerts will automatically fall back to SMS backup and in-app alerts if push notifications fail'
+                  : 'Delivers alerts through multiple channels with automatic fallback if primary notification fails',
             ),
-            value: _smsBackup,
-            onChanged: (v) => setState(() => _smsBackup = v),
+            value: multiChannelFallback,
+            onChanged: (enabled) async {
+              setState(() => _smsBackup = enabled);
+              await alertProvider.setMultiChannelFallback(enabled);
+            },
           ),
           const Divider(height: 1),
           Padding(

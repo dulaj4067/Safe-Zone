@@ -36,6 +36,10 @@ class AlertBanner extends StatelessWidget {
       context.read<AlertProvider>().markAlertSeen(alert.id);
     });
 
+    final alertProvider = context.watch<AlertProvider>();
+    final isFallback = alertProvider.lastDeliveryResult?.alertId == alert.id &&
+        alertProvider.lastDeliveryResult?.fallbackTriggered == true;
+
     return SafeArea(
       bottom: false,
       left: false,
@@ -68,6 +72,31 @@ class AlertBanner extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (isFallback) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.alt_route, color: Colors.white, size: 12),
+                          SizedBox(width: 4),
+                          Text(
+                            'FALLBACK',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -125,6 +154,56 @@ class AlertBanner extends StatelessWidget {
             Text(
               'Type: ${alert.alertType.toUpperCase()} · Radius: ${alert.radiusMeters}m',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            Builder(
+              builder: (ctx) {
+                final prov = ctx.read<AlertProvider>();
+                final delivery = prov.deliveryHistory
+                    .where((d) => d.alertId == alert.id)
+                    .firstOrNull ?? prov.lastDeliveryResult;
+                if (delivery == null || delivery.alertId != alert.id) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: delivery.fallbackTriggered
+                          ? Colors.orange.withValues(alpha: 0.12)
+                          : Colors.green.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: delivery.fallbackTriggered
+                            ? Colors.orange.withValues(alpha: 0.4)
+                            : Colors.green.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          delivery.fallbackTriggered ? Icons.alt_route : Icons.check_circle,
+                          size: 16,
+                          color: delivery.fallbackTriggered ? Colors.orange.shade800 : Colors.green.shade800,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            delivery.fallbackTriggered
+                                ? 'Delivered via Backup Channels (SMS & In-App) after primary push failed.'
+                                : 'Delivered via Primary Channel: ${delivery.channelsUsed.map((c) => c.name.toUpperCase()).join(", ")}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: delivery.fallbackTriggered ? Colors.orange.shade900 : Colors.green.shade900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 20),
             FilledButton.icon(
