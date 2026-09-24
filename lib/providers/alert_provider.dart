@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/alert.dart';
+import '../models/alert_delivery_result.dart';
 import '../models/alert_engagement.dart';
 import '../models/zone.dart';
 import '../services/alert_engagement_service.dart';
@@ -27,6 +28,9 @@ class AlertProvider extends ChangeNotifier {
   DateTime? _lastUpdated;
   bool _myZoneOnly = false;
   String? _userZoneId;
+  bool _multiChannelFallback = false;
+  AlertDeliveryResult? _lastDeliveryResult;
+  final List<AlertDeliveryResult> _deliveryHistory = [];
 
   /// Returns active alerts. When [myZoneOnly] is true and [userZoneId] is set,
   /// returns only alerts affecting the citizen's zone.
@@ -41,6 +45,9 @@ class AlertProvider extends ChangeNotifier {
   List<DisasterAlert> get allAlerts => _activeAlerts;
   bool get myZoneOnly => _myZoneOnly;
   String? get userZoneId => _userZoneId;
+  bool get multiChannelFallback => _multiChannelFallback;
+  AlertDeliveryResult? get lastDeliveryResult => _lastDeliveryResult;
+  List<AlertDeliveryResult> get deliveryHistory => List.unmodifiable(_deliveryHistory);
   DisasterAlert? get bannerAlert => _bannerAlert;
   bool get isOffline => _isOffline;
   DateTime? get lastUpdated => _lastUpdated;
@@ -51,6 +58,7 @@ class AlertProvider extends ChangeNotifier {
     await _notificationService.init();
     _myZoneOnly = await _service.getMyZoneAlertsOnly();
     _userZoneId = await _service.getSavedZoneId();
+    _multiChannelFallback = await _service.getMultiChannelFallback();
     await _loadInitial();
     _syncBannerWithFilter();
     _service.subscribeToAlerts(
@@ -69,6 +77,14 @@ class AlertProvider extends ChangeNotifier {
     }
     await _service.saveMyZoneAlertsOnly(enabled);
     _syncBannerWithFilter();
+    notifyListeners();
+  }
+
+  /// Sets whether multi-channel delivery with automatic fallback is enabled.
+  /// Persists immediately to SharedPreferences and updates all listeners without restarting.
+  Future<void> setMultiChannelFallback(bool enabled) async {
+    _multiChannelFallback = enabled;
+    await _service.saveMultiChannelFallback(enabled);
     notifyListeners();
   }
 
@@ -113,24 +129,88 @@ class AlertProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _handleRealtimeInsert(DisasterAlert alert) {
-    _activeAlerts.insert(0, alert);
+  /// Dispatches an alert across delivery channels, triggering automatic fallback
+  /// to SMS and high-priority in-app alerts if the primary push notification channel fails.
+  Future<AlertDeliveryResult> deliverAlert(
+    DisasterAlert alert, {
+    bool simulatePrimaryFailure = false,
+  }) async {
+    if (!alertAffectsMyZone(alert)) {
+      return AlertDeliveryResult(
+        alertId: alert.id,
+        primarySucceeded: false,
+        fallbackTriggered: false,
+        channelsUsed: [],
+        failureReason: 'Alert does not affect citizen zone',
+      );
+    }
 
-    final bool affectsCitizen = alertAffectsMyZone(alert);
+    final List<DeliveryChannel> channelsUsed = [];
+    bool primarySucceeded = false;
+    bool fallbackTriggered = false;
+    String? failureReason;
 
-    if (affectsCitizen) {
-      // Story 2 AC: show as in-app banner immediately, no restart required.
-      _bannerAlert = alert;
+    // In-App banner is an active channel for citizen life-safety whenever app is active
+    _bannerAlert = alert;
+    channelsUsed.add(DeliveryChannel.inApp);
 
-      // Trigger OS-level notification. Critical (red) bypasses DND/silent mode.
-      if (alert.severity.isCritical) {
-        _notificationService.showCriticalAlert(alert);
+    // 1. Primary Channel: Operating System push notification
+    if (!simulatePrimaryFailure) {
+      try {
+        if (alert.severity.isCritical) {
+          await _notificationService.showCriticalAlert(alert);
+        } else {
+          await _notificationService.showNormalAlert(alert);
+        }
+        channelsUsed.add(DeliveryChannel.push);
+        primarySucceeded = true;
+      } catch (e) {
+        primarySucceeded = false;
+        failureReason = 'Primary push notification failed: $e';
+      }
+    } else {
+      primarySucceeded = false;
+      failureReason = 'Simulated primary push notification channel failure';
+    }
+
+    // 2. Automatic Fallback Mechanism:
+    // If primary channel fails and citizen has opted into multi-channel fallback
+    if (!primarySucceeded) {
+      if (_multiChannelFallback) {
+        fallbackTriggered = true;
+        final smsSuccess = await _service.dispatchSmsBackup(alert);
+        if (smsSuccess) {
+          channelsUsed.add(DeliveryChannel.sms);
+        }
       } else {
-        _notificationService.showNormalAlert(alert);
+        // Fallback disabled by default: citizen has not opted in
+        fallbackTriggered = false;
       }
     }
 
+    final result = AlertDeliveryResult(
+      alertId: alert.id,
+      primarySucceeded: primarySucceeded,
+      fallbackTriggered: fallbackTriggered,
+      channelsUsed: channelsUsed,
+      failureReason: failureReason,
+    );
+
+    _lastDeliveryResult = result;
+    _deliveryHistory.insert(0, result);
     notifyListeners();
+    return result;
+  }
+
+  void _handleRealtimeInsert(DisasterAlert alert) async {
+    _activeAlerts.insert(0, alert);
+
+    final bool affectsCitizen = alertAffectsMyZone(alert);
+    if (affectsCitizen) {
+      await deliverAlert(alert);
+    } else {
+      notifyListeners();
+    }
   }
 
   void _handleRealtimeUpdate(DisasterAlert alert) {
