@@ -14,6 +14,7 @@ import '../models/shelter.dart';
 import '../models/zone.dart';
 import '../providers/alert_provider.dart';
 import '../providers/incident_provider.dart';
+import '../services/activity_history_service.dart';
 import '../services/location_service.dart';
 import '../services/shelter_service.dart';
 import '../utils/map_tile_sources.dart';
@@ -23,6 +24,8 @@ import '../widgets/heatmap_layer.dart';
 import '../widgets/live_location_marker.dart';
 import '../widgets/location_alert_banner.dart';
 import '../widgets/map_controls.dart';
+import '../widgets/resume_dropdown.dart';
+import '../utils/map_tile_config.dart';
 import '../widgets/shelter_marker.dart';
 import '../widgets/incident_detail_sheet.dart';
 import '../screens/incident_detail_screen.dart';
@@ -40,8 +43,14 @@ class HomeScreen extends StatefulWidget {
   /// Omit it and the chip just won't render.
   final List<Zone> zones;
   final AppUser? currentUser;
+  final ValueChanged<ActivityEntry>? onResumeActivity;
 
-  const HomeScreen({super.key, this.zones = const [], this.currentUser});
+  const HomeScreen({
+    super.key,
+    this.zones = const [],
+    this.currentUser,
+    this.onResumeActivity,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -243,14 +252,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            LocationAlertBanner(
-              userLocation: effectiveCenter,
-              onTap: () {
-                // TODO: navigate to a full alert-detail screen.
+            const _HeaderRow(),
+            Builder(
+              builder: (context) {
+                final history = context.watch<ActivityHistoryService>();
+                final hasEmergencyAlert = activeAlerts.any((alert) => alert.severity == AlertSeverity.red);
+                return ResumeDropdown(
+                  items: history.entries,
+                  onResume: widget.onResumeActivity ?? (_) {},
+                  hasEmergencyAlert: hasEmergencyAlert,
+                );
               },
             ),
+            if (activeAlerts.isNotEmpty)
+              LocationAlertBanner(
+                userLocation: effectiveCenter,
+                onTap: () {
+                  // TODO: navigate to a full alert-detail screen.
+                },
+              ),
             if (_locationDenied) const _LocationDeniedBanner(),
-            const _HeaderRow(),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
               child: SizedBox(

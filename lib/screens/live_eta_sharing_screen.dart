@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:latlong2/latlong.dart';
 import '../providers/safety_provider.dart';
 import '../models/risk_zone.dart';
+import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
 import '../widgets/live_location_marker.dart';
 import '../widgets/session_history_list.dart';

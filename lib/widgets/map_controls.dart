@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
 
 /// Circular +/- zoom button, styled to match the map card's floating

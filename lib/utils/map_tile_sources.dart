@@ -1,32 +1,9 @@
 import 'package:flutter_map/flutter_map.dart';
 
-enum BaseMapStyle { street, topo }
+import '../services/tile_cache_service.dart';
+import 'map_tile_config.dart';
 
-const String _cartoApiKeyRaw = String.fromEnvironment('CARTO_API_KEY');
-
-/// CARTO now requires a free API key for raster basemap tiles.
-/// Get one at https://carto.com/basemaps and pass it via
-/// --dart-define-from-file=config/dev.json (see CARTO_API_KEY).
-///
-/// If no key is supplied at build time, falls back to a placeholder so the
-/// app still compiles/runs — tiles will simply fail to load (401/403) until
-/// a real key is provided.
-const String _cartoPlaceholderKey = 'YOUR_CARTO_API_KEY_HERE';
-
-String get _cartoApiKey =>
-    _cartoApiKeyRaw.isEmpty ? _cartoPlaceholderKey : _cartoApiKeyRaw;
-
-bool get isCartoApiKeyConfigured => _cartoApiKeyRaw.isNotEmpty;
-
-String get kStreetTileUrlTemplate =>
-  'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?api_key=$_cartoApiKey';
-const List<String> kStreetTileSubdomains = ['a', 'b', 'c', 'd'];
-const String kStreetAttribution = 'Map data: OpenStreetMap contributors | Tiles: CARTO';
-
-const String kTopoTileUrlTemplate = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
-const List<String> kTopoTileSubdomains = ['a', 'b', 'c'];
-const String kTopoAttribution =
-    'Map data: OpenStreetMap contributors, SRTM | Map style: OpenTopoMap (CC-BY-SA)';
+final TileCacheService safeZoneTileCache = TileCacheService();
 
 TileLayer buildBaseTileLayer(BaseMapStyle style) {
   if (style == BaseMapStyle.topo) {
@@ -35,6 +12,10 @@ TileLayer buildBaseTileLayer(BaseMapStyle style) {
       subdomains: kTopoTileSubdomains,
       userAgentPackageName: 'com.example.safezone',
       maxNativeZoom: 17,
+      tileProvider: NetworkTileProvider(
+        httpClient: safeZoneTileCache.createHttpClient(),
+        silenceExceptions: true,
+      ),
     );
   }
 
@@ -51,6 +32,10 @@ TileLayer buildBaseTileLayer(BaseMapStyle style) {
     urlTemplate: kStreetTileUrlTemplate,
     subdomains: kStreetTileSubdomains,
     userAgentPackageName: 'com.example.safezone',
+    tileProvider: NetworkTileProvider(
+      httpClient: safeZoneTileCache.createHttpClient(),
+      silenceExceptions: true,
+    ),
   );
 }
 

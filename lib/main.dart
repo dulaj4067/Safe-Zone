@@ -9,6 +9,7 @@ import 'screens/login_screen.dart';
 import 'services/supabase_service.dart';
 import 'theme/app_theme.dart';
 import 'providers/safety_provider.dart';
+import 'services/activity_history_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +35,9 @@ class DisasterApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => IncidentProvider()),
         ChangeNotifierProvider(create: (_) => AlertProvider()),
         ChangeNotifierProvider(create: (_) => SafetyProvider()),
+        ChangeNotifierProvider(
+          create: (_) => ActivityHistoryService()..load(),
+        ),
       ],
       child: MaterialApp(
         title: 'Disaster & Flood Early-Warning Network',

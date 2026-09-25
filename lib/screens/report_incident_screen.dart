@@ -13,6 +13,7 @@ import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../utils/format_utils.dart';
+import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/incident_card.dart';
