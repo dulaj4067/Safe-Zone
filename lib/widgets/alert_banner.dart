@@ -111,6 +111,63 @@ class AlertBanner extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  if (alertProvider.isAlertAcknowledged(alert.id))
+                    Container(
+                      key: ValueKey('banner_ack_done_${alert.id}'),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check, color: Colors.white, size: 12),
+                          SizedBox(width: 3),
+                          Text(
+                            'ACKNOWLEDGED',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    TextButton.icon(
+                      key: ValueKey('banner_ack_${alert.id}'),
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: bannerColor,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                      ),
+                      onPressed: () async {
+                        if (onAcknowledge != null) {
+                          onAcknowledge!();
+                        } else {
+                          await context.read<AlertProvider>().acknowledgeAlert(alert.id);
+                        }
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Alert acknowledged. Local authorities notified.'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.check, size: 13),
+                      label: const Text(
+                        'Acknowledge',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  const SizedBox(width: 4),
                   const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 22),
                 ],
               ),
