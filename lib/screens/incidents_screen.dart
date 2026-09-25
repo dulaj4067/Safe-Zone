@@ -13,6 +13,7 @@ import '../providers/incident_provider.dart';
 import '../services/location_service.dart';
 import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
 import '../widgets/incident_card.dart';
 import '../widgets/incident_detail_sheet.dart';

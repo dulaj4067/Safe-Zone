@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -13,11 +14,13 @@ import '../providers/route_provider.dart';
 import '../services/location_service.dart';
 import '../services/routing_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
 import '../widgets/live_location_marker.dart';
 import '../widgets/location_alert_banner.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/route_summary_card.dart';
+import '../widgets/cached_map_indicator.dart';
 
 /// Combines "request a route between two points" and "display the
 /// suggested route on a map" into one screen. Either point can be placed
@@ -60,6 +63,7 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
   final MapController _mapController = MapController();
   final LocationService _locationService = LocationService();
   StreamSubscription<LatLng>? _positionSub;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   BaseMapStyle _baseMapStyle = BaseMapStyle.street;
   LatLng? _liveLocation;
@@ -69,7 +73,17 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       context.read<RouteProvider>().init();
+    });
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
+      if (!mounted) return;
+      if (results.any((result) => result != ConnectivityResult.none)) {
+        final route = context.read<RouteProvider>().result;
+        if (route != null) {
+          safeZoneTileCache.prefetchRoute(route.bounds);
+        }
+      }
     });
     _startWatchingLocation();
   }
@@ -95,6 +109,7 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
   @override
   void dispose() {
     _positionSub?.cancel();
+    _connectivitySub?.cancel();
     _mapController.dispose();
     super.dispose();
   }
@@ -150,16 +165,23 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
     }
   }
 
-  Future<void> _requestRouteAndFit() async {
-    final provider = context.read<RouteProvider>();
-    final activeAlerts = context.read<AlertProvider>().activeAlerts;
+  Future<void> _requestRouteAndFit({
+    RouteProvider? providerOverride,
+    List<DisasterAlert>? activeAlertsOverride,
+  }) async {
+    final provider = providerOverride ?? context.read<RouteProvider>();
+    final activeAlerts = activeAlertsOverride ?? context.read<AlertProvider>().activeAlerts;
+
     await provider.requestRoute(activeAlerts: activeAlerts);
+    if (!mounted) return;
+
     final result = provider.result;
-    if (result != null) {
-      _mapController.fitCamera(
-        CameraFit.bounds(bounds: result.bounds, padding: const EdgeInsets.all(60)),
-      );
-    }
+    if (result == null) return;
+
+    _mapController.fitCamera(
+      CameraFit.bounds(bounds: result.bounds, padding: const EdgeInsets.all(60)),
+    );
+    safeZoneTileCache.prefetchRoute(result.bounds);
   }
 
   @override
@@ -318,6 +340,13 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
                             ],
                           ),
                         ],
+                      ),
+                      Positioned(
+                        top: 12,
+                        left: 12,
+                        child: CachedMapIndicator(
+                          showingCachedTiles: safeZoneTileCache.showingCachedTiles,
+                        ),
                       ),
                       if (provider.isLoadingShelters || provider.isLoading)
                         const Positioned(

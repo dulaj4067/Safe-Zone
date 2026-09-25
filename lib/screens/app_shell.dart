@@ -1,9 +1,13 @@
+import 'dart:async';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/app_user.dart';
 import '../models/zone.dart';
 import '../providers/alert_provider.dart';
+import '../services/activity_history_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/alert_banner.dart';
 import 'admin_broadcast_screen.dart';
@@ -23,19 +27,48 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   AppUser? _currentUser;
+
+  void _resumeActivity(ActivityEntry entry) {
+    final labels = ['Home', 'Incidents', 'Shelters', if (_currentUser?.role.isAuthority ?? false) 'Dashboard', 'Settings'];
+    final index = labels.indexOf(entry.section);
+    if (index >= 0) setState(() => _tabIndex = index);
+  }
   List<Zone> _zones = [];
   int _tabIndex = 0;
   bool _loadingProfile = true;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  late final InterruptionDetector _interruptionDetector;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _interruptionDetector = InterruptionDetector(
+      onInterruption: () => context.read<ActivityHistoryService>().markInterrupted(),
+    );
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+      (results) => _interruptionDetector.onConnectivityChanged(
+        results.every((result) => result == ConnectivityResult.none) == false,
+      ),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await context.read<AlertProvider>().init();
       await _loadProfileAndZones();
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _interruptionDetector.onLifecycleState(state);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _connectivitySubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadProfileAndZones() async {
@@ -72,7 +105,11 @@ class _AppShellState extends State<AppShell> {
     final isAuthority = _currentUser?.role.isAuthority ?? false;
 
     final tabs = <Widget>[
-      HomeScreen(zones: _zones, currentUser: _currentUser),
+      HomeScreen(
+        zones: _zones,
+        currentUser: _currentUser,
+        onResumeActivity: _resumeActivity,
+      ),
       IncidentsScreen(currentUser: _currentUser),
       const RouteScreen(),
       if (isAuthority) BroadcastDashboardScreen(zones: _zones),
@@ -120,7 +157,9 @@ class _AppShellState extends State<AppShell> {
           : null,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tabIndex >= tabs.length ? 0 : _tabIndex,
-        onDestinationSelected: (i) => setState(() => _tabIndex = i),
+        onDestinationSelected: (i) {
+          setState(() => _tabIndex = i);
+        },
         destinations: [
           const NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
           const NavigationDestination(icon: Icon(Icons.report_outlined), selectedIcon: Icon(Icons.report), label: 'Incidents'),
