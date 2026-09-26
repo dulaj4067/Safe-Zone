@@ -20,20 +20,54 @@ class AlertFormProvider extends ChangeNotifier {
   double? customLng;
   int radiusMeters = 2000;
 
+  // Broadcast Delivery Channels (enabled by default for maximum reach across all connectivity states)
+  bool dispatchPush = true;
+  bool dispatchSms = true;
+  bool dispatchSiren = true;
+
   bool _isSubmitting = false;
   String? _submitError;
   DisasterAlert? _lastCreated;
+  BroadcastDispatchResult? _lastDispatchResult;
 
   bool get isSubmitting => _isSubmitting;
   String? get submitError => _submitError;
   DisasterAlert? get lastCreated => _lastCreated;
+  BroadcastDispatchResult? get lastDispatchResult => _lastDispatchResult;
 
-  /// Story 3 AC: submission is disabled unless title, severity, and a
-  /// zone or custom center point are all present.
+  int get selectedChannelsCount =>
+      (dispatchPush ? 1 : 0) + (dispatchSms ? 1 : 0) + (dispatchSiren ? 1 : 0);
+
+  bool get hasSelectedChannel => selectedChannelsCount > 0;
+
+  /// Story 3 AC: submission is disabled unless title, severity, a
+  /// zone or custom center point, and at least one dispatch channel are present.
   bool get isValid {
     final hasLocation =
         selectedZone != null || (customLat != null && customLng != null);
-    return title.trim().isNotEmpty && hasLocation;
+    return title.trim().isNotEmpty && hasLocation && hasSelectedChannel;
+  }
+
+  void togglePush(bool value) {
+    dispatchPush = value;
+    notifyListeners();
+  }
+
+  void toggleSms(bool value) {
+    dispatchSms = value;
+    notifyListeners();
+  }
+
+  void toggleSiren(bool value) {
+    dispatchSiren = value;
+    notifyListeners();
+  }
+
+  void selectAllChannels() {
+    dispatchPush = true;
+    dispatchSms = true;
+    dispatchSiren = true;
+    notifyListeners();
   }
 
   void updateTitle(String value) {
@@ -109,6 +143,12 @@ class AlertFormProvider extends ChangeNotifier {
       );
 
       _lastCreated = await _service.createAlert(draft);
+      _lastDispatchResult = await _service.dispatchMultiChannelBroadcast(
+        alert: _lastCreated!,
+        sendPush: dispatchPush,
+        sendSms: dispatchSms,
+        triggerSiren: dispatchSiren,
+      );
       _isSubmitting = false;
       notifyListeners();
       return true;
@@ -133,8 +173,12 @@ class AlertFormProvider extends ChangeNotifier {
     customLat = null;
     customLng = null;
     radiusMeters = 2000;
+    dispatchPush = true;
+    dispatchSms = true;
+    dispatchSiren = true;
     _submitError = null;
     _lastCreated = null;
+    _lastDispatchResult = null;
     notifyListeners();
   }
 }

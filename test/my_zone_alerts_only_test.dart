@@ -39,6 +39,12 @@ class _MockNotificationService implements NotificationService {
   }
 
   @override
+  Future<void> triggerSirenAlert(DisasterAlert alert) async {
+    criticalCount++;
+    lastAlert = alert;
+  }
+
+  @override
   Future<void> cancelAlert(String alertId) async {}
 
   @override

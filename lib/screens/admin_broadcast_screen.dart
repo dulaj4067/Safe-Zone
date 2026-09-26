@@ -6,6 +6,7 @@ import '../models/alert.dart';
 import '../models/app_user.dart';
 import '../models/zone.dart';
 import '../providers/alert_form_provider.dart';
+import '../theme/app_colors.dart';
 
 /// Story 3: authority-only screen for creating a geo-targeted broadcast.
 /// Guard access to this route at the navigation layer too (e.g. only show
@@ -164,6 +165,11 @@ class _BroadcastForm extends StatelessWidget {
             onChanged: context.read<AlertFormProvider>().updateInstructions,
           ),
           const SizedBox(height: 20),
+
+          // ─── Broadcast Delivery Channels Section ─────────────────────────────
+          _buildDeliveryChannelsCard(context, form),
+          const SizedBox(height: 20),
+
           if (form.submitError != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -174,30 +180,236 @@ class _BroadcastForm extends StatelessWidget {
             ),
           SizedBox(
             width: double.infinity,
-            child: FilledButton(
+            child: FilledButton.icon(
+              key: const Key('broadcast_submit_btn'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.deepEstuary,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              icon: form.isSubmitting
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.campaign),
               // Story 3 AC: submission disabled until required fields are set.
               onPressed: (!form.isValid || form.isSubmitting)
                   ? null
                   : () async {
                       final success = await form.submit();
                       if (success && context.mounted) {
+                        final result = form.lastDispatchResult;
+                        final message = result != null
+                            ? 'Broadcast sent: ${result.summary}.'
+                            : 'Alert broadcast sent across selected channels.';
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Alert broadcast sent.')),
+                          SnackBar(
+                            content: Text(message),
+                            backgroundColor: AppColors.deepEstuary,
+                            duration: const Duration(seconds: 4),
+                          ),
                         );
                         Navigator.pop(context);
                       }
                     },
-              child: form.isSubmitting
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Broadcast alert'),
+              label: Text(
+                form.isSubmitting
+                    ? 'Dispatching broadcast...'
+                    : (form.selectedChannelsCount == 3
+                        ? 'Dispatch Broadcast (All 3 Channels)'
+                        : 'Dispatch Broadcast (${form.selectedChannelsCount} Channel${form.selectedChannelsCount == 1 ? '' : 's'})'),
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildDeliveryChannelsCard(BuildContext context, AlertFormProvider form) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.mist,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.cell_tower, size: 20, color: AppColors.deepEstuary),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Delivery Channels',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: AppColors.slateInk,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: form.selectedChannelsCount == 3
+                          ? AppColors.severityGreen.withValues(alpha: 0.15)
+                          : AppColors.riverTeal.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      form.selectedChannelsCount == 3
+                          ? 'All Channels Active'
+                          : '${form.selectedChannelsCount}/3 Active',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: form.selectedChannelsCount == 3
+                            ? AppColors.severityGreen
+                            : AppColors.riverTeal,
+                      ),
+                    ),
+                  ),
+                  if (form.selectedChannelsCount < 3) ...[
+                    const SizedBox(width: 6),
+                    TextButton(
+                      key: const Key('select_all_channels_btn'),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                      ),
+                      onPressed: () => context.read<AlertFormProvider>().selectAllChannels(),
+                      child: const Text('Select All', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Simultaneously dispatch across online, cellular, and acoustic channels to guarantee reach regardless of citizen connectivity:',
+            style: TextStyle(fontSize: 12, color: AppColors.slateMuted),
+          ),
+          const SizedBox(height: 12),
+
+          // Channel 1: Push Notification
+          _buildChannelTile(
+            context,
+            key: const Key('channel_push_tile'),
+            title: 'Push Notification',
+            subtitle: 'Instant in-app alerts and OS-level lock screen notifications',
+            icon: Icons.notifications_active_outlined,
+            iconColor: AppColors.riverTeal,
+            value: form.dispatchPush,
+            onChanged: (v) => context.read<AlertFormProvider>().togglePush(v ?? false),
+          ),
+          const SizedBox(height: 8),
+
+          // Channel 2: SMS Cellular Broadcast
+          _buildChannelTile(
+            context,
+            key: const Key('channel_sms_tile'),
+            title: 'SMS Cellular Broadcast',
+            subtitle: 'Offline fallback message sent to residents without mobile data',
+            icon: Icons.sms_outlined,
+            iconColor: AppColors.severityOrange,
+            value: form.dispatchSms,
+            onChanged: (v) => context.read<AlertFormProvider>().toggleSms(v ?? false),
+          ),
+          const SizedBox(height: 8),
+
+          // Channel 3: Siren-Trigger Channel
+          _buildChannelTile(
+            context,
+            key: const Key('channel_siren_tile'),
+            title: 'Siren-Trigger Channel',
+            subtitle: 'Acoustic sirens and high-priority DND override audio alarm',
+            icon: Icons.volume_up_outlined,
+            iconColor: AppColors.severityRed,
+            value: form.dispatchSiren,
+            onChanged: (v) => context.read<AlertFormProvider>().toggleSiren(v ?? false),
+          ),
+
+          if (!form.hasSelectedChannel)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                '⚠️ Please select at least one delivery channel to dispatch the broadcast.',
+                style: TextStyle(
+                  color: AppColors.severityRed,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChannelTile(
+    BuildContext context, {
+    required Key key,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required bool value,
+    required ValueChanged<bool?> onChanged,
+  }) {
+    return Material(
+      key: key,
+      color: value ? Colors.white : Colors.grey.shade200,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: value
+              ? AppColors.riverTeal.withValues(alpha: 0.35)
+              : Colors.grey.shade300,
+          width: value ? 1.5 : 1.0,
+        ),
+      ),
+      child: CheckboxListTile(
+        value: value,
+        onChanged: onChanged,
+        activeColor: AppColors.deepEstuary,
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        secondary: CircleAvatar(
+          radius: 18,
+          backgroundColor: iconColor.withValues(alpha: 0.12),
+          child: Icon(icon, color: iconColor, size: 20),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: value ? AppColors.slateInk : Colors.grey.shade600,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 11,
+            color: value ? AppColors.slateMuted : Colors.grey.shade500,
+          ),
+        ),
+      ),
+    );
+  }
 }
+

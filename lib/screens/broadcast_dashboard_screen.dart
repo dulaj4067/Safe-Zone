@@ -155,9 +155,35 @@ class _AlertDashboardCard extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 8),
-            Text(
-              '${alert.alertType} · radius ${alert.radiusMeters}m · ${_timeAgo(alert.createdAt)}',
-              style: AppTheme.dataText(context),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${alert.alertType} · radius ${alert.radiusMeters}m · ${_timeAgo(alert.createdAt)}',
+                  style: AppTheme.dataText(context),
+                ),
+                Row(
+                  children: [
+                    _buildChannelBadge(
+                      icon: Icons.notifications_active,
+                      label: 'Push',
+                      color: AppColors.riverTeal,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildChannelBadge(
+                      icon: Icons.sms_outlined,
+                      label: 'SMS',
+                      color: AppColors.severityOrange,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildChannelBadge(
+                      icon: Icons.volume_up,
+                      label: 'Siren',
+                      color: AppColors.severityRed,
+                    ),
+                  ],
+                ),
+              ],
             ),
             const SizedBox(height: 12),
 
@@ -233,6 +259,36 @@ class _AlertDashboardCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildChannelBadge({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: color),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }

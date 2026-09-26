@@ -194,6 +194,12 @@ class NotificationService {
     );
   }
 
+  /// Activates an audible emergency siren alert over the critical DND-bypass channel.
+  Future<void> triggerSirenAlert(DisasterAlert alert) async {
+    debugPrint('🚨 [SIREN CHANNEL] Triggering acoustic siren & DND bypass alarm for: ${alert.title}');
+    await showCriticalAlert(alert);
+  }
+
   Future<void> cancelAlert(String alertId) async {
     await _plugin.cancel(id: alertId.hashCode);
   }
