@@ -30,6 +30,7 @@ import '../widgets/shelter_marker.dart';
 import '../widgets/incident_detail_sheet.dart';
 import '../screens/incident_detail_screen.dart';
 import '../screens/select_safety_circle_screen.dart';
+import '../screens/sos_screen.dart';
 import '../services/supabase_service.dart';
 
 /// SafeZone home tab — district map with live alert-radius overlays
@@ -112,7 +113,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // Snapshot the current position before going to background.
       if (_liveLocation != null) {
         _lastKnownLocation = _liveLocation;
-        _resumeModalShown = false; // reset so the next foreground entry can fire
+        _resumeModalShown =
+            false; // reset so the next foreground entry can fire
       }
     } else if (state == AppLifecycleState.resumed) {
       _checkForDriftAndPrompt();
@@ -140,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _showResumeModal({required LatLng savedLocation}) {
     showModalBottomSheet<void>(
       context: context,
-      isDismissible: true,       // one tap on the backdrop closes it
+      isDismissible: true, // one tap on the backdrop closes it
       enableDrag: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _ResumeSessionModal(
@@ -192,10 +194,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     double? bestDistance;
     for (final zone in widget.zones) {
       if (zone.centroidLat == null || zone.centroidLng == null) continue;
-      final d = _distance(
-        center,
-        LatLng(zone.centroidLat!, zone.centroidLng!),
-      );
+      final d = _distance(center, LatLng(zone.centroidLat!, zone.centroidLng!));
       if (bestDistance == null || d < bestDistance) {
         bestDistance = d;
         nearest = zone;
@@ -256,7 +255,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             Builder(
               builder: (context) {
                 final history = context.watch<ActivityHistoryService>();
-                final hasEmergencyAlert = activeAlerts.any((alert) => alert.severity == AlertSeverity.red);
+                final hasEmergencyAlert = activeAlerts.any(
+                  (alert) => alert.severity == AlertSeverity.red,
+                );
                 return ResumeDropdown(
                   items: history.entries,
                   onResume: widget.onResumeActivity ?? (_) {},
@@ -274,54 +275,64 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             if (_locationDenied) const _LocationDeniedBanner(),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => SelectSafetyCircleScreen(
-                          currentRiskZone: nearestRiskZone,
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => SelectSafetyCircleScreen(
+                              currentRiskZone: nearestRiskZone,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.share_location_rounded),
+                      label: const Text('Share my ETA'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1F6F8B),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 14,
                         ),
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.share_location_rounded),
-                  label: const Text('Share my ETA'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1F6F8B),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SosScreen()),
+                      ),
+                      icon: const Icon(Icons.sos),
+                      label: const Text('SOS'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.error,
+                        foregroundColor: Theme.of(context).colorScheme.onError,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.10),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: _SafeZoneMap(
-                    center: effectiveCenter,
-                    incidents: incidents,
-                    alerts: activeAlerts,
-                    shelters: _shelters,
-                    liveLocation: _liveLocation,
-                    districtLabel: districtLabel,
-                    currentUser: widget.currentUser,
-                    resumeCenter: resumeTarget,
-                  ),
-                ),
+              child: _SafeZoneMap(
+                center: effectiveCenter,
+                incidents: incidents,
+                alerts: activeAlerts,
+                shelters: _shelters,
+                liveLocation: _liveLocation,
+                districtLabel: districtLabel,
+                currentUser: widget.currentUser,
+                resumeCenter: resumeTarget,
               ),
             ),
           ],
@@ -385,7 +396,11 @@ class _HeaderRow extends StatelessWidget {
               color: Colors.white,
               shape: BoxShape.circle,
               boxShadow: [
-                BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
               ],
             ),
             child: IconButton(
@@ -411,11 +426,27 @@ class _HeaderRow extends StatelessWidget {
 const bool _showSampleZonesInDebug = true;
 
 final List<({LatLng center, double radiusMeters, AlertSeverity severity})>
-    _debugSampleZones = [
-  (center: const LatLng(6.9695, 79.8975), radiusMeters: 1600, severity: AlertSeverity.yellow),
-  (center: const LatLng(6.9615, 79.9010), radiusMeters: 1400, severity: AlertSeverity.orange),
-  (center: const LatLng(6.9560, 79.9075), radiusMeters: 1200, severity: AlertSeverity.red),
-  (center: const LatLng(6.9520, 79.9140), radiusMeters: 1500, severity: AlertSeverity.yellow),
+_debugSampleZones = [
+  (
+    center: const LatLng(6.9695, 79.8975),
+    radiusMeters: 1600,
+    severity: AlertSeverity.yellow,
+  ),
+  (
+    center: const LatLng(6.9615, 79.9010),
+    radiusMeters: 1400,
+    severity: AlertSeverity.orange,
+  ),
+  (
+    center: const LatLng(6.9560, 79.9075),
+    radiusMeters: 1200,
+    severity: AlertSeverity.red,
+  ),
+  (
+    center: const LatLng(6.9520, 79.9140),
+    radiusMeters: 1500,
+    severity: AlertSeverity.yellow,
+  ),
 ];
 
 class _SafeZoneMap extends StatefulWidget {
@@ -426,6 +457,7 @@ class _SafeZoneMap extends StatefulWidget {
   final LatLng? liveLocation;
   final String? districtLabel;
   final AppUser? currentUser;
+
   /// When non-null, the map controller will move to this position
   /// on the next frame (resume-from-drift behaviour).
   final LatLng? resumeCenter;
@@ -482,7 +514,12 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
     }
   }
 
-  void _showAlertSheet(BuildContext context, {required String title, required AlertSeverity severity, String? instructions}) {
+  void _showAlertSheet(
+    BuildContext context, {
+    required String title,
+    required AlertSeverity severity,
+    String? instructions,
+  }) {
     showModalBottomSheet(
       context: context,
       builder: (_) => Padding(
@@ -512,7 +549,10 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
               ],
             ),
             const SizedBox(height: 8),
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
             if (instructions != null) ...[
               const SizedBox(height: 8),
               Text(instructions),
@@ -530,13 +570,16 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
 
   void _toggleBaseMapStyle() {
     setState(() {
-      _baseMapStyle = _baseMapStyle == BaseMapStyle.street ? BaseMapStyle.topo : BaseMapStyle.street;
+      _baseMapStyle = _baseMapStyle == BaseMapStyle.street
+          ? BaseMapStyle.topo
+          : BaseMapStyle.street;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final showDebugZones = _showSampleZonesInDebug && kDebugMode && widget.alerts.isEmpty;
+    final showDebugZones =
+        _showSampleZonesInDebug && kDebugMode && widget.alerts.isEmpty;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
@@ -620,55 +663,72 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                       point: LatLng(incident.latitude, incident.longitude),
                       width: 36,
                       height: 36,
-                      child: Builder(builder: (context) {
-                        final style = _markerStyleFor(incident);
-                        return GestureDetector(
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                              ),
-                              builder: (_) => IncidentDetailSheet(
-                                incident: incident,
-                                onViewDetails: () {
-                                  Navigator.pop(context);
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => IncidentDetailScreen(
-                                        incident: incident,
-                                        currentUser: widget.currentUser,
+                      child: Builder(
+                        builder: (context) {
+                          final style = _markerStyleFor(incident);
+                          return GestureDetector(
+                            onTap: () {
+                              showModalBottomSheet(
+                                context: context,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(16),
+                                  ),
+                                ),
+                                builder: (_) => IncidentDetailSheet(
+                                  incident: incident,
+                                  onViewDetails: () {
+                                    Navigator.pop(context);
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => IncidentDetailScreen(
+                                          incident: incident,
+                                          currentUser: widget.currentUser,
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                },
-                                onConfirm: () {
-                                  final userId = SupabaseService.currentUserId;
-                                  if (userId != null) {
-                                    context.read<IncidentProvider>().confirmIncident(
-                                          incidentId: incident.id,
-                                          memberId: userId,
-                                        );
-                                  }
-                                  Navigator.pop(context);
-                                },
+                                    );
+                                  },
+                                  onConfirm: () {
+                                    final userId =
+                                        SupabaseService.currentUserId;
+                                    if (userId != null) {
+                                      context
+                                          .read<IncidentProvider>()
+                                          .confirmIncident(
+                                            incidentId: incident.id,
+                                            memberId: userId,
+                                          );
+                                    }
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                              );
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: style.color,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 3,
+                                  ),
+                                ],
                               ),
-                            );
-                          },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: style.color,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                              boxShadow: const [
-                                BoxShadow(color: Colors.black26, blurRadius: 3),
-                              ],
+                              child: Icon(
+                                style.icon,
+                                color: Colors.white,
+                                size: 18,
+                              ),
                             ),
-                            child: Icon(style.icon, color: Colors.white, size: 18),
-                          ),
-                        );
-                      }),
+                          );
+                        },
+                      ),
                     ),
                   // The device's own live position — always shown,
                   // independent of incidents/shelters/alerts.
@@ -697,17 +757,27 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
               top: 12,
               left: 12,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: const [
-                    BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 1)),
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 4,
+                      offset: Offset(0, 1),
+                    ),
                   ],
                 ),
                 child: Text(
                   widget.districtLabel!,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ),
@@ -716,7 +786,10 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
             bottom: 12,
             child: Column(
               children: [
-                MapLayerToggleButton(style: _baseMapStyle, onTap: _toggleBaseMapStyle),
+                MapLayerToggleButton(
+                  style: _baseMapStyle,
+                  onTap: _toggleBaseMapStyle,
+                ),
                 const SizedBox(height: 8),
                 HeatmapToggleButton(
                   active: _showHeatmap,
@@ -749,10 +822,7 @@ class _ResumeSessionModal extends StatelessWidget {
   final VoidCallback onResume;
   final VoidCallback onDismiss;
 
-  const _ResumeSessionModal({
-    required this.onResume,
-    required this.onDismiss,
-  });
+  const _ResumeSessionModal({required this.onResume, required this.onDismiss});
 
   @override
   Widget build(BuildContext context) {
@@ -786,7 +856,9 @@ class _ResumeSessionModal extends StatelessWidget {
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.15),
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.15,
+                      ),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),

@@ -42,9 +42,7 @@ class RouteScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => RouteProvider(
-        service: RoutingService(),
-      ),
+      create: (_) => RouteProvider(service: RoutingService()),
       child: const _RouteScreenBody(),
     );
   }
@@ -121,7 +119,9 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
 
   void _toggleBaseMapStyle() {
     setState(() {
-      _baseMapStyle = _baseMapStyle == BaseMapStyle.street ? BaseMapStyle.topo : BaseMapStyle.street;
+      _baseMapStyle = _baseMapStyle == BaseMapStyle.street
+          ? BaseMapStyle.topo
+          : BaseMapStyle.street;
     });
   }
 
@@ -151,7 +151,8 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
   /// citizen fleeing a disaster wants "route from where I actually am,"
   /// not a manually-tapped approximation.
   Future<void> _useMyLocationAsOrigin() async {
-    final current = _liveLocation ?? await _locationService.getCurrentLocation();
+    final current =
+        _liveLocation ?? await _locationService.getCurrentLocation();
     if (current == null) {
       if (mounted) {
         setState(() => _locationDenied = true);
@@ -170,7 +171,8 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
     List<DisasterAlert>? activeAlertsOverride,
   }) async {
     final provider = providerOverride ?? context.read<RouteProvider>();
-    final activeAlerts = activeAlertsOverride ?? context.read<AlertProvider>().activeAlerts;
+    final activeAlerts =
+        activeAlertsOverride ?? context.read<AlertProvider>().activeAlerts;
 
     await provider.requestRoute(activeAlerts: activeAlerts);
     if (!mounted) return;
@@ -179,7 +181,10 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
     if (result == null) return;
 
     _mapController.fitCamera(
-      CameraFit.bounds(bounds: result.bounds, padding: const EdgeInsets.all(60)),
+      CameraFit.bounds(
+        bounds: result.bounds,
+        padding: const EdgeInsets.all(60),
+      ),
     );
     safeZoneTileCache.prefetchRoute(result.bounds);
   }
@@ -189,9 +194,12 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
     final provider = context.watch<RouteProvider>();
     final activeAlerts = context.watch<AlertProvider>().activeAlerts;
     final destination = provider.destination;
-    final destinationIsShelter = destination != null &&
+    final destinationIsShelter =
+        destination != null &&
         provider.shelters.any(
-          (s) => s.latitude == destination.latitude && s.longitude == destination.longitude,
+          (s) =>
+              s.latitude == destination.latitude &&
+              s.longitude == destination.longitude,
         );
 
     return Scaffold(
@@ -222,163 +230,148 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
           if (_locationDenied) const _LocationDeniedBanner(),
           _ModeAndStatusBar(provider: provider),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.10),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
+            child: Stack(
+              children: [
+                FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: _liveLocation ?? _initialCenter,
+                    initialZoom: 13,
+                    minZoom: 5,
+                    maxZoom: 18,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.all,
                     ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Stack(
-                    children: [
-                      FlutterMap(
-                        mapController: _mapController,
-                        options: MapOptions(
-                          initialCenter: _liveLocation ?? _initialCenter,
-                          initialZoom: 13,
-                          minZoom: 5,
-                          maxZoom: 18,
-                          interactionOptions: const InteractionOptions(
-                            flags: InteractiveFlag.all,
+                    onTap: _onMapTap,
+                  ),
+                  children: [
+                    buildBaseTileLayer(_baseMapStyle),
+                    // Drawn so it's visible *why* the chosen route
+                    // may curve away from the straight-line path —
+                    // same alert data RouteHazardScorer used to
+                    // pick the route in the first place.
+                    CircleLayer(
+                      circles: [
+                        for (final alert in activeAlerts)
+                          CircleMarker(
+                            point: LatLng(alert.centerLat, alert.centerLng),
+                            radius: alert.radiusMeters.toDouble(),
+                            useRadiusInMeter: true,
+                            color: _alertFillColor(alert.severity),
+                            borderColor: _alertBorderColor(alert.severity),
+                            borderStrokeWidth: 1.5,
                           ),
-                          onTap: _onMapTap,
-                        ),
-                        children: [
-                          buildBaseTileLayer(_baseMapStyle),
-                          // Drawn so it's visible *why* the chosen route
-                          // may curve away from the straight-line path —
-                          // same alert data RouteHazardScorer used to
-                          // pick the route in the first place.
-                          CircleLayer(
-                            circles: [
-                              for (final alert in activeAlerts)
-                                CircleMarker(
-                                  point: LatLng(alert.centerLat, alert.centerLng),
-                                  radius: alert.radiusMeters.toDouble(),
-                                  useRadiusInMeter: true,
-                                  color: _alertFillColor(alert.severity),
-                                  borderColor: _alertBorderColor(alert.severity),
-                                  borderStrokeWidth: 1.5,
-                                ),
-                            ],
-                          ),
-                          if (provider.result != null)
-                            PolylineLayer(
-                              polylines: [
-                                Polyline(
-                                  points: provider.result!.points,
-                                  strokeWidth: 5,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ],
-                            ),
-                          MarkerLayer(
-                            markers: [
-                              // Shelters remain visible/tappable as a
-                              // one-tap destination shortcut alongside
-                              // free tap-to-place.
-                              for (final shelter in provider.shelters)
-                                Marker(
-                                  point: LatLng(shelter.latitude, shelter.longitude),
-                                  width: 40,
-                                  height: 40,
-                                  child: _ShelterMarker(
-                                    shelter: shelter,
-                                    isSelected: destination != null &&
-                                        destination.latitude == shelter.latitude &&
-                                        destination.longitude == shelter.longitude,
-                                    onTap: () => _onShelterTap(shelter),
-                                  ),
-                                ),
-                              if (provider.origin != null)
-                                Marker(
-                                  point: provider.origin!,
-                                  width: 32,
-                                  height: 32,
-                                  child: const _PointMarker(
-                                    icon: Icons.trip_origin,
-                                    color: Color(0xFF1E88E5),
-                                  ),
-                                ),
-                              // A freely-tapped destination (not a
-                              // shelter) gets its own pin — shelters
-                              // already draw their own marker above.
-                              if (destination != null && !destinationIsShelter)
-                                Marker(
-                                  point: destination,
-                                  width: 32,
-                                  height: 32,
-                                  child: const _PointMarker(
-                                    icon: Icons.flag,
-                                    color: Color(0xFFD32F2F),
-                                  ),
-                                ),
-                              // Live device position — always on the map,
-                              // independent of origin/destination.
-                              if (_liveLocation != null)
-                                Marker(
-                                  point: _liveLocation!,
-                                  width: 28,
-                                  height: 28,
-                                  child: const LiveLocationMarker(),
-                                ),
-                            ],
-                          ),
-                          RichAttributionWidget(
-                            alignment: AttributionAlignment.bottomLeft,
-                            attributions: [
-                              TextSourceAttribution(attributionFor(_baseMapStyle)),
-                            ],
+                      ],
+                    ),
+                    if (provider.result != null)
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: provider.result!.points,
+                            strokeWidth: 5,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ],
                       ),
-                      Positioned(
-                        top: 12,
-                        left: 12,
-                        child: CachedMapIndicator(
-                          showingCachedTiles: safeZoneTileCache.showingCachedTiles,
-                        ),
+                    MarkerLayer(
+                      markers: [
+                        // Shelters remain visible/tappable as a
+                        // one-tap destination shortcut alongside
+                        // free tap-to-place.
+                        for (final shelter in provider.shelters)
+                          Marker(
+                            point: LatLng(shelter.latitude, shelter.longitude),
+                            width: 40,
+                            height: 40,
+                            child: _ShelterMarker(
+                              shelter: shelter,
+                              isSelected:
+                                  destination != null &&
+                                  destination.latitude == shelter.latitude &&
+                                  destination.longitude == shelter.longitude,
+                              onTap: () => _onShelterTap(shelter),
+                            ),
+                          ),
+                        if (provider.origin != null)
+                          Marker(
+                            point: provider.origin!,
+                            width: 32,
+                            height: 32,
+                            child: const _PointMarker(
+                              icon: Icons.trip_origin,
+                              color: Color(0xFF1E88E5),
+                            ),
+                          ),
+                        // A freely-tapped destination (not a
+                        // shelter) gets its own pin — shelters
+                        // already draw their own marker above.
+                        if (destination != null && !destinationIsShelter)
+                          Marker(
+                            point: destination,
+                            width: 32,
+                            height: 32,
+                            child: const _PointMarker(
+                              icon: Icons.flag,
+                              color: Color(0xFFD32F2F),
+                            ),
+                          ),
+                        // Live device position — always on the map,
+                        // independent of origin/destination.
+                        if (_liveLocation != null)
+                          Marker(
+                            point: _liveLocation!,
+                            width: 28,
+                            height: 28,
+                            child: const LiveLocationMarker(),
+                          ),
+                      ],
+                    ),
+                    RichAttributionWidget(
+                      alignment: AttributionAlignment.bottomLeft,
+                      attributions: [
+                        TextSourceAttribution(attributionFor(_baseMapStyle)),
+                      ],
+                    ),
+                  ],
+                ),
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: CachedMapIndicator(
+                    showingCachedTiles: safeZoneTileCache.showingCachedTiles,
+                  ),
+                ),
+                if (provider.isLoadingShelters || provider.isLoading)
+                  const Positioned(
+                    top: 12,
+                    left: 0,
+                    right: 0,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                if (provider.error != null)
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    right: 12,
+                    child: _ErrorBanner(message: provider.error!),
+                  ),
+                Positioned(
+                  right: 12,
+                  bottom: 12,
+                  child: Column(
+                    children: [
+                      MapLayerToggleButton(
+                        style: _baseMapStyle,
+                        onTap: _toggleBaseMapStyle,
                       ),
-                      if (provider.isLoadingShelters || provider.isLoading)
-                        const Positioned(
-                          top: 12,
-                          left: 0,
-                          right: 0,
-                          child: Center(child: CircularProgressIndicator()),
-                        ),
-                      if (provider.error != null)
-                        Positioned(
-                          top: 12,
-                          left: 12,
-                          right: 12,
-                          child: _ErrorBanner(message: provider.error!),
-                        ),
-                      Positioned(
-                        right: 12,
-                        bottom: 12,
-                        child: Column(
-                          children: [
-                            MapLayerToggleButton(style: _baseMapStyle, onTap: _toggleBaseMapStyle),
-                            const SizedBox(height: 12),
-                            ZoomButton(icon: Icons.add, onTap: () => _zoomBy(1)),
-                            const SizedBox(height: 8),
-                            ZoomButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
-                          ],
-                        ),
-                      ),
+                      const SizedBox(height: 12),
+                      ZoomButton(icon: Icons.add, onTap: () => _zoomBy(1)),
+                      const SizedBox(height: 8),
+                      ZoomButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
                     ],
                   ),
                 ),
-              ),
+              ],
             ),
           ),
           if (provider.result != null) ...[
@@ -493,9 +486,9 @@ class _RouteHazardNotice extends StatelessWidget {
             child: Text(
               result.worstHazardSeverity == AlertSeverity.red
                   ? 'Every available route crosses a red zone — this one '
-                      'minimizes the distance through it'
+                        'minimizes the distance through it'
                   : 'This is the safest route available — it still '
-                      'briefly crosses a ${result.worstHazardSeverity!.label} zone',
+                        'briefly crosses a ${result.worstHazardSeverity!.label} zone',
               style: TextStyle(fontSize: 12, color: color),
             ),
           ),
@@ -518,7 +511,9 @@ class _ShelterMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isSelected ? const Color(0xFFD32F2F) : const Color(0xFF2E7D32);
+    final color = isSelected
+        ? const Color(0xFFD32F2F)
+        : const Color(0xFF2E7D32);
     return GestureDetector(
       onTap: onTap,
       child: Tooltip(
@@ -588,8 +583,8 @@ class _ModeAndStatusBar extends StatelessWidget {
             provider.origin == null
                 ? 'Tap the map to set your start point'
                 : provider.destination == null
-                    ? 'Tap the map or a shelter to set your destination'
-                    : '',
+                ? 'Tap the map or a shelter to set your destination'
+                : '',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

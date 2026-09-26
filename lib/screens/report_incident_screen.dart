@@ -21,8 +21,13 @@ import 'incident_detail_screen.dart';
 
 class ReportIncidentScreen extends StatefulWidget {
   final LatLng? initialLocation;
+  final bool isSos;
 
-  const ReportIncidentScreen({super.key, this.initialLocation});
+  const ReportIncidentScreen({
+    super.key,
+    this.initialLocation,
+    this.isSos = false,
+  });
 
   @override
   State<ReportIncidentScreen> createState() => _ReportIncidentScreenState();
@@ -51,6 +56,8 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   @override
   void initState() {
     super.initState();
+    _isSos = widget.isSos;
+    if (_isSos) _selectedCategory = IncidentCategory.trappedPerson;
     if (widget.initialLocation != null) {
       _selectedLocation = widget.initialLocation!;
     }

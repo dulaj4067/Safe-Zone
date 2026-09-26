@@ -18,7 +18,8 @@ class ResumeDropdown extends StatefulWidget {
   State<ResumeDropdown> createState() => _ResumeDropdownState();
 }
 
-class _ResumeDropdownState extends State<ResumeDropdown> with SingleTickerProviderStateMixin {
+class _ResumeDropdownState extends State<ResumeDropdown>
+    with SingleTickerProviderStateMixin {
   bool _expanded = false;
 
   @override
@@ -28,7 +29,7 @@ class _ResumeDropdownState extends State<ResumeDropdown> with SingleTickerProvid
     }
 
     final colorScheme = Theme.of(context).colorScheme;
-    final collapsed = !widget.hasEmergencyAlert && !_expanded;
+    final collapsed = !_expanded;
 
     return AnimatedSize(
       duration: const Duration(milliseconds: 180),
@@ -38,7 +39,9 @@ class _ResumeDropdownState extends State<ResumeDropdown> with SingleTickerProvid
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+          side: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
         ),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
@@ -51,9 +54,7 @@ class _ResumeDropdownState extends State<ResumeDropdown> with SingleTickerProvid
             mainAxisSize: MainAxisSize.min,
             children: [
               InkWell(
-                onTap: widget.hasEmergencyAlert
-                    ? null
-                    : () => setState(() => _expanded = !_expanded),
+                onTap: () => setState(() => _expanded = !_expanded),
                 borderRadius: BorderRadius.circular(16),
                 child: SizedBox(
                   height: 44,
@@ -61,34 +62,43 @@ class _ResumeDropdownState extends State<ResumeDropdown> with SingleTickerProvid
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     child: Row(
                       children: [
-                        Icon(Icons.history, size: 18, color: colorScheme.primary),
+                        Icon(
+                          Icons.history,
+                          size: 18,
+                          color: colorScheme.primary,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Resume where you left off',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13.5,
-                            ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13.5,
+                                ),
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: colorScheme.primary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             '${widget.items.length}',
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: colorScheme.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
                           ),
                         ),
                         const SizedBox(width: 8),
                         AnimatedRotation(
-                          turns: widget.hasEmergencyAlert || collapsed ? 0 : 0.5,
+                          turns: collapsed ? 0 : 0.5,
                           duration: const Duration(milliseconds: 150),
                           child: const Icon(Icons.keyboard_arrow_down),
                         ),
@@ -97,7 +107,7 @@ class _ResumeDropdownState extends State<ResumeDropdown> with SingleTickerProvid
                   ),
                 ),
               ),
-              if (!widget.hasEmergencyAlert && _expanded)
+              if (_expanded)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                   child: Column(
@@ -114,7 +124,9 @@ class _ResumeDropdownState extends State<ResumeDropdown> with SingleTickerProvid
                                   width: 28,
                                   height: 28,
                                   decoration: BoxDecoration(
-                                    color: colorScheme.primary.withValues(alpha: 0.10),
+                                    color: colorScheme.primary.withValues(
+                                      alpha: 0.10,
+                                    ),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
@@ -126,22 +138,32 @@ class _ResumeDropdownState extends State<ResumeDropdown> with SingleTickerProvid
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         item.title,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        item.subtitle.isNotEmpty ? item.subtitle : _relativeTime(item.timestamp),
-                                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                          color: colorScheme.onSurfaceVariant,
-                                        ),
+                                        item.subtitle.isNotEmpty
+                                            ? item.subtitle
+                                            : _relativeTime(item.timestamp),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall
+                                            ?.copyWith(
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
                                       ),
                                     ],
                                   ),

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../models/alert.dart';
 import '../models/app_user.dart';
 import '../models/zone.dart';
 import '../providers/alert_form_provider.dart';
+import '../utils/map_tile_config.dart';
+import '../utils/map_tile_sources.dart';
 
 /// Story 3: authority-only screen for creating a geo-targeted broadcast.
 /// Guard access to this route at the navigation layer too (e.g. only show
@@ -120,25 +123,40 @@ class _BroadcastForm extends StatelessWidget {
             height: 220,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: GoogleMap(
-                initialCameraPosition: const CameraPosition(
-                  target: LatLng(7.4167, 81.8206), // defaults near Zone A
-                  zoom: 11,
+              child: FlutterMap(
+                options: MapOptions(
+                  initialCenter: const LatLng(7.4167, 81.8206),
+                  initialZoom: 11,
+                  onTap: (_, point) {
+                    context.read<AlertFormProvider>().setCustomCenter(
+                          point.latitude,
+                          point.longitude,
+                        );
+                  },
                 ),
-                onTap: (latLng) {
-                  context.read<AlertFormProvider>().setCustomCenter(
-                        latLng.latitude,
-                        latLng.longitude,
-                      );
-                },
-                markers: form.customLat != null
-                    ? {
+                children: [
+                  buildBaseTileLayer(BaseMapStyle.street),
+                  if (form.customLat != null)
+                    MarkerLayer(
+                      markers: [
                         Marker(
-                          markerId: const MarkerId('custom_center'),
-                          position: LatLng(form.customLat!, form.customLng!),
+                          point: LatLng(form.customLat!, form.customLng!),
+                          width: 40,
+                          height: 40,
+                          child: Icon(
+                            Icons.location_pin,
+                            color: Theme.of(context).colorScheme.error,
+                            size: 40,
+                          ),
                         ),
-                      }
-                    : {},
+                      ],
+                    ),
+                  RichAttributionWidget(
+                    attributions: [
+                      TextSourceAttribution(attributionFor(BaseMapStyle.street)),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),

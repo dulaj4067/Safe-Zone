@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'report_incident_screen.dart';
 
 /// SOS / Emergency Assistance tab content.
 /// Meant to be used as one entry in AppShell's `tabs` list —
@@ -39,7 +42,7 @@ class _SosScreenState extends State<SosScreen>
       duration: _holdDuration,
     )..addStatusListener((status) {
         if (status == AnimationStatus.completed) {
-          _onSosTriggered();
+          unawaited(_onSosTriggered());
         }
       });
 
@@ -68,31 +71,35 @@ class _SosScreenState extends State<SosScreen>
     _holdController.reverse();
   }
 
-  void _onSosTriggered() {
+  Future<void> _onSosTriggered() async {
     setState(() => _isHolding = false);
     _holdController.value = 0;
-
-    // TODO: Replace with your real SOS dispatch logic
-    // (e.g. call a SupabaseService method, push a location ping, etc.)
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('SOS sent to emergency services.')),
-    );
+    await _callEmergencyServices();
   }
 
   void _reportIncident() {
-    // TODO: Replace with navigation to your report-incident flow,
-    // e.g. Navigator.push(context, MaterialPageRoute(builder: (_) => ReportIncidentScreen()));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Opening incident report…')),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const ReportIncidentScreen(isSos: true),
+      ),
     );
   }
 
-  void _callEmergencyServices() {
-    // TODO: Replace with url_launcher:
-    // await launchUrl(Uri(scheme: 'tel', path: '119'));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Calling 119…')),
-    );
+  Future<void> _callEmergencyServices() async {
+    try {
+      final launched = await launchUrl(
+        Uri(scheme: 'tel', path: '119'),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) throw Exception('No phone app available');
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to open the phone app. Dial 119 directly.'),
+        ),
+      );
+    }
   }
 
   @override
@@ -117,7 +124,7 @@ class _SosScreenState extends State<SosScreen>
                 color: _kCream,
                 borderRadius: BorderRadius.circular(4),
                 border: Border(
-                  left: BorderSide(color: _kNavy.withOpacity(0.6), width: 3),
+                  left: BorderSide(color: _kNavy.withValues(alpha: 0.6), width: 3),
                 ),
               ),
               child: Column(
@@ -295,7 +302,7 @@ class _SosHoldButton extends StatelessWidget {
                     Text(
                       '3 SECONDS',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.85),
+                        color: Colors.white.withValues(alpha: 0.85),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1.0,

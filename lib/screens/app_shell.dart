@@ -16,6 +16,8 @@ import 'incidents_screen.dart';
 import 'settings_screen.dart';
 import 'shelters_screen.dart';
 import 'home_screen.dart';
+import '../modules/preparedness_hub/screens/preparedness_hub_screen.dart';
+import '../widgets/bottom_nav_bar.dart';
 
 /// Top-level shell: fetches the signed-in user's profile (for role gating),
 /// initializes the realtime alert subscription (Story 2), and overlays the
@@ -31,8 +33,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   AppUser? _currentUser;
 
   void _resumeActivity(ActivityEntry entry) {
-    final labels = ['Home', 'Incidents', 'Shelters', if (_currentUser?.role.isAuthority ?? false) 'Dashboard', 'Settings'];
-    final index = labels.indexOf(entry.section);
+    final labels = ['Home', 'Incidents', 'Shelters', 'Prep Hub', if (_currentUser?.role.isAuthority ?? false) 'Dashboard', 'Settings'];
+    final index = labels.indexOf(entry.section == 'Preparedness' ? 'Prep Hub' : entry.section);
     if (index >= 0) setState(() => _tabIndex = index);
   }
   List<Zone> _zones = [];
@@ -112,6 +114,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       ),
       IncidentsScreen(currentUser: _currentUser),
       const RouteScreen(),
+      PreparednessHubScreen(currentUser: _currentUser, zones: _zones),
       if (isAuthority) BroadcastDashboardScreen(zones: _zones),
       SettingsScreen(
         currentUser: _currentUser,
@@ -155,27 +158,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
               },
             )
           : null,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tabIndex >= tabs.length ? 0 : _tabIndex,
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: _tabIndex >= tabs.length ? 0 : _tabIndex,
+        isAuthority: isAuthority,
         onDestinationSelected: (i) {
           setState(() => _tabIndex = i);
         },
-        destinations: [
-          const NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-          const NavigationDestination(icon: Icon(Icons.report_outlined), selectedIcon: Icon(Icons.report), label: 'Incidents'),
-          const NavigationDestination(icon: Icon(Icons.alt_route_outlined), selectedIcon: Icon(Icons.alt_route), label: 'Shelters'),
-          if (isAuthority)
-            const NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard),
-              label: 'Dashboard',
-            ),
-          const NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
       ),
     );
   }
