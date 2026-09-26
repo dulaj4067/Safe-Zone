@@ -270,24 +270,38 @@ class AlertProvider extends ChangeNotifier {
     );
   }
 
+  final Set<String> _acknowledgedAlertIds = {};
+
+  /// Checks synchronously if this alert has been acknowledged in the current session.
+  bool isAlertAcknowledged(String alertId) => _acknowledgedAlertIds.contains(alertId);
+
   /// Citizen action: acknowledge receipt and safety for an active alert.
   Future<void> acknowledgeAlert(String alertId, {String? userId}) async {
     final uid = userId ?? SupabaseService.currentUserId ?? 'resident_local';
+    _acknowledgedAlertIds.add(alertId);
     await _engagementService.markAcknowledged(alertId, uid);
     notifyListeners();
   }
 
+  final Set<String> _seenAlertIds = {};
+
   /// Automatically marks an alert as seen by the current citizen.
   Future<void> markAlertSeen(String alertId, {String? userId}) async {
+    if (_seenAlertIds.contains(alertId)) return;
+    _seenAlertIds.add(alertId);
     final uid = userId ?? SupabaseService.currentUserId ?? 'resident_local';
     await _engagementService.markSeen(alertId, uid);
     notifyListeners();
   }
 
   /// Checks if current citizen has acknowledged the alert.
-  Future<bool> hasAcknowledged(String alertId, {String? userId}) {
+  Future<bool> hasAcknowledged(String alertId, {String? userId}) async {
     final uid = userId ?? SupabaseService.currentUserId ?? 'resident_local';
-    return _engagementService.hasUserAcknowledged(alertId, uid);
+    final ack = await _engagementService.hasUserAcknowledged(alertId, uid);
+    if (ack) {
+      _acknowledgedAlertIds.add(alertId);
+    }
+    return ack;
   }
 
   /// Demo/Simulation tool: adjust seen/ack percentages for testing & evaluation.

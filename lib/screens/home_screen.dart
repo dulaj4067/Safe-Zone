@@ -25,6 +25,7 @@ import '../widgets/live_location_marker.dart';
 import '../widgets/location_alert_banner.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/resume_dropdown.dart';
+import '../widgets/context_recall_card.dart';
 import '../utils/map_tile_config.dart';
 import '../widgets/shelter_marker.dart';
 import '../widgets/incident_detail_sheet.dart';
@@ -254,10 +255,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             const _HeaderRow(),
             Builder(
               builder: (context) {
-                final history = context.watch<ActivityHistoryService>();
-                final hasEmergencyAlert = activeAlerts.any(
-                  (alert) => alert.severity == AlertSeverity.red,
-                );
+                final history = Provider.of<ActivityHistoryService?>(context);
+                if (history == null) return const SizedBox.shrink();
+                final hasEmergencyAlert = activeAlerts.any((alert) => alert.severity == AlertSeverity.red);
                 return ResumeDropdown(
                   items: history.entries,
                   onResume: widget.onResumeActivity ?? (_) {},
@@ -265,13 +265,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 );
               },
             ),
-            if (activeAlerts.isNotEmpty)
+            if (activeAlerts.isNotEmpty) ...[
+              ContextRecallCard(
+                alerts: activeAlerts,
+                onAcknowledge: (alert) => context.read<AlertProvider>().acknowledgeAlert(alert.id),
+              ),
               LocationAlertBanner(
                 userLocation: effectiveCenter,
                 onTap: () {
                   // TODO: navigate to a full alert-detail screen.
                 },
               ),
+            ],
             if (_locationDenied) const _LocationDeniedBanner(),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
