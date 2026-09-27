@@ -12,17 +12,21 @@ import '../models/incident.dart';
 import '../models/risk_zone.dart';
 import '../models/shelter.dart';
 import '../models/zone.dart';
+import '../models/circle_member_location.dart';
 import '../providers/alert_provider.dart';
 import '../providers/incident_provider.dart';
+import '../providers/safety_provider.dart';
+import '../theme/app_colors.dart';
 import '../services/activity_history_service.dart';
 import '../services/location_service.dart';
 import '../services/shelter_service.dart';
 import '../utils/map_tile_sources.dart';
 import '../widgets/severity_badge.dart';
-import '../widgets/app_logo_badge.dart';
+import '../widgets/active_alerts_sheet.dart';
 import '../widgets/heatmap_layer.dart';
 import '../widgets/live_location_marker.dart';
 import '../widgets/location_alert_banner.dart';
+import '../widgets/loved_one_marker.dart';
 import '../utils/map_recenter.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/resume_dropdown.dart';
@@ -275,12 +279,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               },
             ),
             if (activeAlerts.isNotEmpty)
-              LocationAlertBanner(
-                userLocation: effectiveCenter,
-                onTap: () {
-                  // TODO: navigate to a full alert-detail screen.
-                },
-              ),
+              LocationAlertBanner(userLocation: effectiveCenter),
             if (_locationDenied) const _LocationDeniedBanner(),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
@@ -401,13 +400,9 @@ class _HeaderRow extends StatelessWidget {
             child: IconButton(
               icon: const Icon(Icons.notifications_none_rounded),
               color: const Color(0xFF2A2A2A),
-              onPressed: () {
-                // TODO: navigate to the Alerts tab/screen.
-              },
+              onPressed: () => showActiveAlertsSheet(context),
             ),
           ),
-          const SizedBox(width: 8),
-          const AppLogoBadge(),
         ],
       ),
     );
@@ -486,6 +481,78 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
         _mapController.move(widget.resumeCenter!, _mapController.camera.zoom);
       });
     }
+  }
+
+  String _initialsFor(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return '?';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
+  }
+
+  String _relativeTime(DateTime time) {
+    final diff = DateTime.now().difference(time);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
+  void _showLovedOneSheet(BuildContext context, CircleMemberLocation member) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                LovedOneMarker(
+                  initials: _initialsFor(member.name),
+                  isActive: member.isActive,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(member.name,
+                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                      Text(member.relationship,
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Icon(
+                  member.isActive ? Icons.podcasts : Icons.history,
+                  size: 16,
+                  color: member.isActive ? AppColors.severityGreen : Colors.grey.shade600,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  member.isActive
+                      ? 'Actively sharing their ETA'
+                      : member.lastSeenAt != null
+                          ? 'Last seen ${_relativeTime(member.lastSeenAt!)}'
+                          : 'Last seen location unknown',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   ({IconData icon, Color color}) _markerStyleFor(Incident incident) {
@@ -699,6 +766,23 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                           ),
                         );
                       }),
+                    ),
+                  // Safety-circle contacts' last-known locations (only
+                  // ones who are registered app users and have ever shared
+                  // a location show up here — see SafetyProvider).
+                  for (final member
+                      in context.watch<SafetyProvider>().circleLocations)
+                    Marker(
+                      point: LatLng(member.lat!, member.lng!),
+                      width: 32,
+                      height: 32,
+                      child: GestureDetector(
+                        onTap: () => _showLovedOneSheet(context, member),
+                        child: LovedOneMarker(
+                          initials: _initialsFor(member.name),
+                          isActive: member.isActive,
+                        ),
+                      ),
                     ),
                   // The device's own live position — always shown,
                   // independent of incidents/shelters/alerts.

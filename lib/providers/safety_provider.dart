@@ -1,6 +1,7 @@
 ﻿import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
+import '../models/circle_member_location.dart';
 import '../models/safety_circle_contact.dart';
 import '../models/risk_zone.dart';
 import '../services/supabase_service.dart';
@@ -25,12 +26,11 @@ class LocationUpdate {
 /// Handles live ETA/location sharing (now backed by real GPS via
 /// LocationService) and one-tap "I'm Safe" broadcasts.
 ///
-/// SCHEMA ASSUMPTIONS - check your `sql/` folder and adjust table/column
-/// names if these do not match:
-///   safety_circle_contacts(id, owner_id, name, phone_number, relationship)
-///   location_shares(id, owner_id, zone_id, lat, lng, eta_seconds,
-///                    distance_km, is_active, created_at)
-///   safety_broadcasts(id, user_id, zone_id, sent_at)
+/// Backed by safety_circle_contacts / location_shares / safety_broadcasts —
+/// see sql/safety_circle_migration.sql for the table definitions and RLS
+/// policies. Until that migration is run against your Supabase project,
+/// every call below fails and silently falls back to fake demo data, so
+/// the feature still works for a demo but nothing persists.
 ///
 /// ETA ASSUMPTION: there's no routing API wired up yet, so "distance
 /// remaining" is computed as a straight-line (haversine) distance to an
@@ -42,6 +42,7 @@ class SafetyProvider extends ChangeNotifier {
   final LocationService _locationService = LocationService();
 
   List<SafetyCircleContact> _circle = [];
+  List<CircleMemberLocation> _circleLocations = [];
   bool _isSharing = false;
   String? _activeShareId;
   LocationUpdate? _latestUpdate;
@@ -51,10 +52,17 @@ class SafetyProvider extends ChangeNotifier {
   bool _isLoading = false;
 
   StreamSubscription<LatLng>? _positionSubscription;
+  Timer? _circleLocationsRefreshTimer;
   LatLng? _destination;
   static const double _assumedSpeedKmh = 20; // rough avg travel speed estimate
 
   List<SafetyCircleContact> get circle => _circle;
+
+  /// Where each safety-circle contact who is also a registered app user
+  /// was last at — one entry per contact with `hasLocation == true` gets a
+  /// marker on the home map. Empty until sql/safety_circle_migration.sql
+  /// has been run and at least one linked contact has shared a location.
+  List<CircleMemberLocation> get circleLocations => _circleLocations;
   bool get isLoading => _isLoading;
   bool get isSharing => _isSharing;
   LocationUpdate? get latestUpdate => _latestUpdate;
@@ -96,6 +104,43 @@ class SafetyProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+
+    await fetchCircleLocations();
+    _startCircleLocationsAutoRefresh();
+  }
+
+  /// Queries the `safety_circle_last_locations` view for where each linked
+  /// circle contact was last at. Safe to call even before the migration
+  /// has been run — an unrecognised-table error just leaves the list empty
+  /// rather than throwing, same fallback pattern as the rest of this class.
+  Future<void> fetchCircleLocations() async {
+    final userId = SupabaseService.currentUserId;
+    if (userId == null) return;
+
+    try {
+      final rows = await SupabaseService.client
+          .from('safety_circle_last_locations')
+          .select()
+          .eq('owner_id', userId);
+
+      _circleLocations = (rows as List)
+          .map((r) => CircleMemberLocation.fromMap(r as Map<String, dynamic>))
+          .where((c) => c.hasLocation)
+          .toList();
+      notifyListeners();
+    } catch (_) {
+      // View/tables not migrated yet, or RLS not yet applied — leave
+      // whatever was already loaded rather than clearing it on a blip.
+    }
+  }
+
+  /// Keeps circle-member markers reasonably fresh while the home map is
+  /// open, without needing a realtime subscription for what's a
+  /// low-frequency "where are they" check.
+  void _startCircleLocationsAutoRefresh() {
+    _circleLocationsRefreshTimer?.cancel();
+    _circleLocationsRefreshTimer =
+        Timer.periodic(const Duration(seconds: 45), (_) => fetchCircleLocations());
   }
 
   List<SafetyCircleContact> _demoSafetyCircle() {
@@ -310,6 +355,7 @@ class SafetyProvider extends ChangeNotifier {
   @override
   void dispose() {
     _positionSubscription?.cancel();
+    _circleLocationsRefreshTimer?.cancel();
     super.dispose();
   }
 }

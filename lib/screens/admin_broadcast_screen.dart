@@ -6,6 +6,7 @@ import '../models/alert.dart';
 import '../models/app_user.dart';
 import '../models/zone.dart';
 import '../providers/alert_form_provider.dart';
+import '../providers/alert_provider.dart';
 
 /// Story 3: authority-only screen for creating a geo-targeted broadcast.
 /// Guard access to this route at the navigation layer too (e.g. only show
@@ -40,7 +41,10 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
     }
 
     return ChangeNotifierProvider(
-      create: (_) => AlertFormProvider(),
+      create: (context) => AlertFormProvider(
+        initialRadiusMeters:
+            context.read<AlertProvider>().defaultBroadcastRadiusMeters,
+      ),
       child: _BroadcastForm(zones: widget.zones),
     );
   }

@@ -17,14 +17,12 @@ class AlertBanner extends StatelessWidget {
   final DisasterAlert alert;
   final VoidCallback onDismiss;
   final VoidCallback? onTap;
-  final VoidCallback? onAcknowledge;
 
   const AlertBanner({
     super.key,
     required this.alert,
     required this.onDismiss,
     this.onTap,
-    this.onAcknowledge,
   });
 
   @override
@@ -51,7 +49,7 @@ class AlertBanner extends StatelessWidget {
         child: Material(
           color: bannerColor,
           child: InkWell(
-            onTap: onTap ?? () => _showAlertDetailModal(context),
+            onTap: onTap ?? () => showAlertDetailSheet(context, alert),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
@@ -110,63 +108,6 @@ class AlertBanner extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  if (alertProvider.isAlertAcknowledged(alert.id))
-                    Container(
-                      key: ValueKey('banner_ack_done_${alert.id}'),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.25),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.check, color: Colors.white, size: 12),
-                          SizedBox(width: 3),
-                          Text(
-                            'ACKNOWLEDGED',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    TextButton.icon(
-                      key: ValueKey('banner_ack_${alert.id}'),
-                      style: TextButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: bannerColor,
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                      ),
-                      onPressed: () async {
-                        if (onAcknowledge != null) {
-                          onAcknowledge!();
-                        } else {
-                          await context.read<AlertProvider>().acknowledgeAlert(alert.id);
-                        }
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Alert acknowledged. Local authorities notified.'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.check, size: 13),
-                      label: const Text(
-                        'Acknowledge',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
-                      ),
-                    ),
                   const SizedBox(width: 4),
                   const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 22),
                 ],
@@ -177,9 +118,15 @@ class AlertBanner extends StatelessWidget {
       ),
     );
   }
+}
 
-  void _showAlertDetailModal(BuildContext context) {
-    showModalBottomSheet(
+/// Shows the full alert detail & resident acknowledgment sheet for
+/// [alert] — the severity badge, title, instructions, delivery-channel
+/// status, and the "Acknowledge & Confirm Safe" action. Used both by
+/// [AlertBanner]'s own tap handler and by anything else that needs to
+/// surface a specific alert's details (e.g. an active-alerts list).
+void showAlertDetailSheet(BuildContext context, DisasterAlert alert) {
+  showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -287,5 +234,4 @@ class AlertBanner extends StatelessWidget {
         ),
       ),
     );
-  }
 }
