@@ -22,6 +22,7 @@ import '../widgets/location_alert_banner.dart';
 import '../utils/map_recenter.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/severity_badge.dart';
+import '../widgets/context_recall_card.dart';
 import 'incident_detail_screen.dart';
 import 'report_incident_screen.dart';
 
@@ -108,6 +109,8 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<IncidentProvider>();
+    final alertProvider = context.watch<AlertProvider>();
+    final isOffline = provider.isOffline || alertProvider.isOffline;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final effectiveCenter = _liveLocation ?? _initialCenter;
 
@@ -160,6 +163,26 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
           if (_locationDenied) const _LocationDeniedBanner(),
           if (provider.isOffline)
             _OfflineBanner(lastUpdated: provider.lastUpdated),
+          if (alertProvider.isOffline)
+            Builder(
+              builder: (context) {
+                final criticalAlerts = alertProvider.activeAlerts
+                    .where((a) => a.severity.isCritical)
+                    .take(ContextRecallCard.maxOfflineItems)
+                    .toList();
+                if (criticalAlerts.isEmpty) return const SizedBox.shrink();
+                return ContextRecallCard(
+                  key: const ValueKey('offline_last_known_alerts_card'),
+                  alerts: criticalAlerts,
+                  maxItems: ContextRecallCard.maxOfflineItems,
+                  title: 'Last-Known Alerts',
+                  subtitle: 'Offline critical alert recall',
+                  isOffline: true,
+                  onAcknowledge: (alert) =>
+                      context.read<AlertProvider>().acknowledgeAlert(alert.id),
+                );
+              },
+            ),
 
           // ─── Header & Filter Bar ─────────────────────────────────────────
           Container(
@@ -748,28 +771,31 @@ class _ErrorState extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 48, color: AppColors.severityRed),
-            const SizedBox(height: 12),
-            const Text(
-              'Failed to load incidents',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              errorMessage,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
-            ),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: AppColors.severityRed),
+              const SizedBox(height: 12),
+              const Text(
+                'Failed to load incidents',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                errorMessage,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try Again'),
+              ),
+            ],
+          ),
         ),
       ),
     );

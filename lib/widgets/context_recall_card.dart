@@ -17,12 +17,17 @@ import 'severity_badge.dart';
 /// - No scrolling inside the recall card.
 /// - Recall card is visually distinct from the session history list.
 class ContextRecallCard extends StatefulWidget {
-  static const int maxItems = 4;
+  static const int defaultMaxItems = 4;
+  static const int maxOfflineItems = 2;
 
   final List<DisasterAlert>? alerts;
   final ValueChanged<DisasterAlert>? onAcknowledge;
   final ValueChanged<DisasterAlert>? onTapAlert;
   final String? currentUserId;
+  final int maxItems;
+  final String? title;
+  final String? subtitle;
+  final bool? isOffline;
 
   const ContextRecallCard({
     super.key,
@@ -30,6 +35,10 @@ class ContextRecallCard extends StatefulWidget {
     this.onAcknowledge,
     this.onTapAlert,
     this.currentUserId,
+    this.maxItems = defaultMaxItems,
+    this.title,
+    this.subtitle,
+    this.isOffline,
   });
 
   @override
@@ -54,7 +63,7 @@ class _ContextRecallCardState extends State<ContextRecallCard> {
   void _checkInitialStatus() {
     final alertProvider = Provider.of<AlertProvider?>(context, listen: false);
     final list = widget.alerts ?? alertProvider?.activeAlerts ?? [];
-    for (final alert in list.take(ContextRecallCard.maxItems)) {
+    for (final alert in list.take(widget.maxItems)) {
       if (alertProvider != null && alertProvider.isAlertAcknowledged(alert.id)) {
         _acknowledgedIds.add(alert.id);
       } else if (alertProvider != null) {
@@ -93,13 +102,14 @@ class _ContextRecallCardState extends State<ContextRecallCard> {
   @override
   Widget build(BuildContext context) {
     final alertProvider = Provider.of<AlertProvider?>(context);
+    final isOffline = widget.isOffline ?? (alertProvider?.isOffline ?? false);
     final rawAlerts = widget.alerts ?? alertProvider?.activeAlerts ?? [];
     if (rawAlerts.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    // Hard maximum of 4 items
-    final items = rawAlerts.take(ContextRecallCard.maxItems).toList();
+    // Hard maximum of widget.maxItems items
+    final items = rawAlerts.take(widget.maxItems).toList();
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
@@ -144,7 +154,7 @@ class _ContextRecallCardState extends State<ContextRecallCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Context Recall',
+                        widget.title ?? (isOffline ? 'Last-Known Alerts' : 'Context Recall'),
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.2,
@@ -152,7 +162,10 @@ class _ContextRecallCardState extends State<ContextRecallCard> {
                             ),
                       ),
                       Text(
-                        'Confirm and acknowledge active warnings',
+                        widget.subtitle ??
+                            (isOffline
+                                ? 'Critical alerts preserved offline'
+                                : 'Confirm and acknowledge active warnings'),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               fontSize: 11,
                               color: Colors.amber.shade900.withValues(alpha: 0.8),
@@ -168,7 +181,7 @@ class _ContextRecallCardState extends State<ContextRecallCard> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '${items.length} ACTIVE',
+                    '${items.length} ${isOffline ? 'OFFLINE' : 'ACTIVE'}',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,

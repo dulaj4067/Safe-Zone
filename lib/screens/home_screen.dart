@@ -26,7 +26,6 @@ import '../widgets/location_alert_banner.dart';
 import '../utils/map_recenter.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/resume_dropdown.dart';
-import '../widgets/context_recall_card.dart';
 import '../utils/map_tile_config.dart';
 import '../widgets/shelter_marker.dart';
 import '../widgets/incident_detail_sheet.dart';
@@ -275,18 +274,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 );
               },
             ),
-            if (activeAlerts.isNotEmpty) ...[
-              ContextRecallCard(
-                alerts: activeAlerts,
-                onAcknowledge: (alert) => context.read<AlertProvider>().acknowledgeAlert(alert.id),
-              ),
+            if (activeAlerts.isNotEmpty)
               LocationAlertBanner(
                 userLocation: effectiveCenter,
                 onTap: () {
                   // TODO: navigate to a full alert-detail screen.
                 },
               ),
-            ],
             if (_locationDenied) const _LocationDeniedBanner(),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
