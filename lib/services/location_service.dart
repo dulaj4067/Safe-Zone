@@ -33,12 +33,28 @@ class LocationService {
   }
 
   /// One-shot fix — e.g. for a "use my location" button.
+  ///
+  /// Returns null if permission is denied or no position can be found —
+  /// falls back to the last known position when a fresh fix times out.
   Future<LatLng?> getCurrentLocation() async {
     final granted = await ensurePermission();
     if (!granted) return null;
-    final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
-    return LatLng(position.latitude, position.longitude);
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
+        ),
+      );
+      return LatLng(position.latitude, position.longitude);
+    } catch (_) {
+      try {
+        final last = await Geolocator.getLastKnownPosition();
+        if (last != null) return LatLng(last.latitude, last.longitude);
+      } catch (_) {
+        // Not supported on this platform — fall through to null.
+      }
+      return null;
+    }
   }
 }

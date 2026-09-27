@@ -15,10 +15,9 @@ class RouteProvider extends ChangeNotifier {
   final ShelterService _shelterService;
 
   RouteProvider({
-    required RoutingService service,
+    required this._service,
     ShelterService? shelterService,
-  })  : _service = service,
-        _shelterService = shelterService ?? ShelterService();
+  })  : _shelterService = shelterService ?? ShelterService();
 
   LatLng? origin;
   LatLng? destination;

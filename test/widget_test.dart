@@ -12,6 +12,7 @@ import 'package:safezone/providers/alert_provider.dart';
 import 'package:safezone/providers/incident_provider.dart';
 import 'package:safezone/providers/safety_provider.dart';
 import 'package:safezone/screens/home_screen.dart';
+import 'package:safezone/services/activity_history_service.dart';
 import 'package:safezone/widgets/session_history_list.dart';
 
 void main() {
@@ -40,6 +41,7 @@ void main() {
           ChangeNotifierProvider(create: (_) => AlertProvider()),
           ChangeNotifierProvider(create: (_) => IncidentProvider()),
           ChangeNotifierProvider(create: (_) => SafetyProvider()),
+          ChangeNotifierProvider(create: (_) => ActivityHistoryService()),
         ],
         child: MaterialApp(
           home: const HomeScreen(zones: []),

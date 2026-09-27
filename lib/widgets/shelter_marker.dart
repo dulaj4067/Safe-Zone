@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../models/shelter.dart';
+import 'shelter_detail_sheet.dart';
 
 /// Shared shelter pin, used on both the homepage map and the routing map
 /// so shelters look identical everywhere they appear.
@@ -37,40 +39,19 @@ class ShelterMarker extends StatelessWidget {
   }
 }
 
-/// Shared shelter detail bottom sheet — shows name, address, and capacity
-/// if known. Used wherever a shelter marker is tapped without a routing
-/// action attached (e.g. the homepage map).
-void showShelterDetailSheet(BuildContext context, Shelter shelter) {
-  showModalBottomSheet(
-    context: context,
-    builder: (_) => Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.night_shelter, color: Color(0xFF2E7D32)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  shelter.name,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
-          if (shelter.address != null) ...[
-            const SizedBox(height: 8),
-            Text(shelter.address!),
-          ],
-          if (shelter.capacity != null) ...[
-            const SizedBox(height: 8),
-            Text('Capacity: ${shelter.capacity}'),
-          ],
-        ],
-      ),
-    ),
+/// Shared shelter detail bottom sheet — opens the full shelter info
+/// (status, capacity/occupancy, desk phone, manager, map). Used wherever a
+/// shelter marker is tapped. See [ShelterDetailSheet].
+void showShelterDetailSheet(
+  BuildContext context,
+  Shelter shelter, {
+  LatLng? userLocation,
+  VoidCallback? onGetDirections,
+}) {
+  showShelterDetail(
+    context,
+    shelter,
+    userLocation: userLocation,
+    onGetDirections: onGetDirections,
   );
 }

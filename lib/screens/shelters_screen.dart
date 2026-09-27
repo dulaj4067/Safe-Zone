@@ -18,8 +18,10 @@ import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
 import '../widgets/live_location_marker.dart';
 import '../widgets/location_alert_banner.dart';
+import '../utils/map_recenter.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/route_summary_card.dart';
+import '../widgets/shelter_detail_sheet.dart';
 import '../widgets/cached_map_indicator.dart';
 
 /// Combines "request a route between two points" and "display the
@@ -69,6 +71,9 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
   LatLng? _liveLocation;
   bool _locationDenied = false;
 
+  /// Jump to the user's position once, when the first GPS fix arrives.
+  bool _centeredOnUser = false;
+
   @override
   void initState() {
     super.initState();
@@ -95,10 +100,14 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
       setState(() => _locationDenied = true);
       return;
     }
+    // The stream below only reports once the device moves, so ask for a
+    // one-off fix right away — otherwise the dot and the "my location"
+    // button have nothing to use until the person starts walking.
+    _locationService.getCurrentLocation().then((fix) {
+      if (fix != null) _applyFix(fix, onlyIfUnknown: true);
+    });
     _positionSub = _locationService.watchPosition().listen(
-      (position) {
-        if (mounted) setState(() => _liveLocation = position);
-      },
+      (position) => _applyFix(position),
       onError: (_) {
         // Leave whatever last-known position we have rather than
         // clearing it on a transient GPS/provider error.
@@ -117,6 +126,22 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
   void _zoomBy(double delta) {
     final camera = _mapController.camera;
     _mapController.move(camera.center, camera.zoom + delta);
+  }
+
+  void _goToMyLocation() =>
+      recenterOnUser(context, _mapController, _liveLocation);
+
+  /// Stores a new position for the blue dot and, the first time one
+  /// arrives, moves the map onto it.
+  void _applyFix(LatLng position, {bool onlyIfUnknown = false}) {
+    if (!mounted) return;
+    if (onlyIfUnknown && _liveLocation != null) return;
+    setState(() => _liveLocation = position);
+    if (!_centeredOnUser) {
+      _centeredOnUser = true;
+      final zoom = _mapController.camera.zoom;
+      _mapController.move(position, zoom < 15 ? 15 : zoom);
+    }
   }
 
   void _toggleBaseMapStyle() {
@@ -139,6 +164,29 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
 
   /// Shortcut: tapping a shelter marker sets it directly as the
   /// destination, regardless of which point was active.
+  /// Tapping a shelter marker opens its detail sheet; "Get Live Directions"
+  /// there routes to it — from the person's live position if no start point
+  /// has been set yet.
+  void _openShelterDetail(Shelter shelter) {
+    showShelterDetail(
+      context,
+      shelter,
+      userLocation: _liveLocation,
+      onGetDirections: () => _getDirectionsTo(shelter),
+    );
+  }
+
+  Future<void> _getDirectionsTo(Shelter shelter) async {
+    final provider = context.read<RouteProvider>();
+    if (provider.origin == null) {
+      final current =
+          _liveLocation ?? await _locationService.getCurrentLocation();
+      if (!mounted) return;
+      if (current != null) provider.setOriginToCurrentLocation(current);
+    }
+    await _onShelterTap(shelter);
+  }
+
   Future<void> _onShelterTap(Shelter shelter) async {
     final provider = context.read<RouteProvider>();
     provider.selectShelterAsDestination(shelter);
@@ -296,7 +344,7 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
                                     isSelected: destination != null &&
                                         destination.latitude == shelter.latitude &&
                                         destination.longitude == shelter.longitude,
-                                    onTap: () => _onShelterTap(shelter),
+                                    onTap: () => _openShelterDetail(shelter),
                                   ),
                                 ),
                               if (provider.origin != null)
@@ -367,6 +415,8 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
                         bottom: 12,
                         child: Column(
                           children: [
+                            MyLocationButton(onTap: _goToMyLocation),
+                            const SizedBox(height: 8),
                             MapLayerToggleButton(style: _baseMapStyle, onTap: _toggleBaseMapStyle),
                             const SizedBox(height: 12),
                             ZoomButton(icon: Icons.add, onTap: () => _zoomBy(1)),
@@ -583,14 +633,19 @@ class _ModeAndStatusBar extends StatelessWidget {
             onSelectionChanged: (s) =>
                 context.read<RouteProvider>().setMode(s.first),
           ),
-          const Spacer(),
-          Text(
-            provider.origin == null
-                ? 'Tap the map to set your start point'
-                : provider.destination == null
-                    ? 'Tap the map or a shelter to set your destination'
-                    : '',
-            style: Theme.of(context).textTheme.bodySmall,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              provider.origin == null
+                  ? 'Tap the map to set your start point'
+                  : provider.destination == null
+                      ? 'Tap the map or a shelter to set your destination'
+                      : '',
+              textAlign: TextAlign.end,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ),
         ],
       ),

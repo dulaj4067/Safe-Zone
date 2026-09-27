@@ -6,7 +6,6 @@ import '../models/alert_engagement.dart';
 import '../models/zone.dart';
 import '../providers/alert_provider.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_theme.dart';
 import 'severity_badge.dart';
 
 /// Authority Admin modal bottom sheet displaying in-depth resident seen and

@@ -99,8 +99,7 @@ class ActivityEntry {
 typedef ResumeItem = ActivityEntry;
 
 class ActivityHistoryService extends ChangeNotifier {
-  ActivityHistoryService({SharedPreferences? preferences})
-      : _preferences = preferences;
+  ActivityHistoryService({this._preferences});
 
   SharedPreferences? _preferences;
   final List<ActivityEntry> _entries = [];

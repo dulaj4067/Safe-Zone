@@ -19,6 +19,7 @@ import '../widgets/incident_card.dart';
 import '../widgets/incident_detail_sheet.dart';
 import '../widgets/live_location_marker.dart';
 import '../widgets/location_alert_banner.dart';
+import '../utils/map_recenter.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/severity_badge.dart';
 import 'incident_detail_screen.dart';
@@ -64,6 +65,14 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
       setState(() => _locationDenied = true);
       return;
     }
+    // The stream below only reports once the device moves, so ask for a
+    // one-off fix right away — otherwise the dot and the "my location"
+    // button have nothing to use until the person starts walking.
+    _locationService.getCurrentLocation().then((fix) {
+      if (mounted && fix != null && _liveLocation == null) {
+        setState(() => _liveLocation = fix);
+      }
+    });
     _positionSub = _locationService.watchPosition().listen(
       (position) {
         if (mounted) setState(() => _liveLocation = position);
@@ -446,6 +455,26 @@ class _IncidentsMapState extends State<_IncidentsMap> {
   final MapController _mapController = MapController();
   BaseMapStyle _baseMapStyle = BaseMapStyle.street;
 
+  /// Jump to the user's position once, when the first GPS fix arrives.
+  bool _centeredOnUser = false;
+
+  @override
+  void didUpdateWidget(_IncidentsMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_centeredOnUser && widget.liveLocation != null) {
+      _centeredOnUser = true;
+      final live = widget.liveLocation!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final zoom = _mapController.camera.zoom;
+        _mapController.move(live, zoom < 15 ? 15 : zoom);
+      });
+    }
+  }
+
+  void _goToMyLocation() =>
+      recenterOnUser(context, _mapController, widget.liveLocation);
+
   void _showAlertSheet(BuildContext context, DisasterAlert alert) {
     showModalBottomSheet(
       context: context,
@@ -608,6 +637,8 @@ class _IncidentsMapState extends State<_IncidentsMap> {
           bottom: 12,
           child: Column(
             children: [
+              MyLocationButton(onTap: _goToMyLocation),
+              const SizedBox(height: 8),
               MapLayerToggleButton(
                 style: _baseMapStyle,
                 onTap: () {
