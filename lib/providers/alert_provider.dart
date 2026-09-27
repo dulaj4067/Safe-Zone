@@ -129,6 +129,24 @@ class AlertProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Sets offline status (e.g. on network disconnection or for testing).
+  void setOffline(bool offline) {
+    if (_isOffline != offline) {
+      _isOffline = offline;
+      notifyListeners();
+    }
+  }
+
+  /// Explicitly loads alerts from local cache when offline.
+  Future<void> loadCachedAlerts() async {
+    final (cached, cachedAt) = await _service.readCache();
+    _activeAlerts = cached;
+    _isOffline = true;
+    _lastUpdated = cachedAt;
+    _syncBannerWithFilter();
+    notifyListeners();
+  }
+
   /// Dispatches an alert across delivery channels, triggering automatic fallback
   /// to SMS and high-priority in-app alerts if the primary push notification channel fails.
   Future<AlertDeliveryResult> deliverAlert(
