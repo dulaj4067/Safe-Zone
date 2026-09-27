@@ -7,9 +7,11 @@ import 'package:provider/provider.dart';
 import '../models/app_user.dart';
 import '../models/zone.dart';
 import '../providers/alert_provider.dart';
+import '../providers/safety_provider.dart';
 import '../services/activity_history_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/alert_banner.dart';
+import '../widgets/splash_screen.dart';
 import 'admin_broadcast_screen.dart';
 import 'broadcast_dashboard_screen.dart';
 import 'incidents_screen.dart';
@@ -58,6 +60,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await context.read<AlertProvider>().init();
       await _loadProfileAndZones();
+      // Loads circle-member "last known location" markers ahead of time so
+      // they're ready as soon as the citizen looks at the home map, not
+      // only after they happen to open the "I'm Safe" screen first.
+      unawaited(context.read<SafetyProvider>().loadSafetyCircle());
     });
   }
 
@@ -127,7 +133,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       body: Stack(
         children: [
           _loadingProfile
-              ? const Center(child: CircularProgressIndicator())
+              ? const SplashScreen()
               : IndexedStack(index: _tabIndex, children: tabs),
           if (alertProvider.bannerAlert != null)
             Positioned(

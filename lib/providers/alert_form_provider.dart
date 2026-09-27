@@ -8,8 +8,15 @@ import '../services/supabase_service.dart';
 class AlertFormProvider extends ChangeNotifier {
   final AlertService _service;
 
-  AlertFormProvider({AlertService? service})
-      : _service = service ?? AlertService();
+  /// Seeded from the authority's "Default Broadcast Radius" setting
+  /// (Settings & Profile > Authority Command Center) so this form doesn't
+  /// silently ignore that preference.
+  final int _initialRadiusMeters;
+
+  AlertFormProvider({AlertService? service, int initialRadiusMeters = 2000})
+      : _service = service ?? AlertService(),
+        _initialRadiusMeters = initialRadiusMeters,
+        radiusMeters = initialRadiusMeters;
 
   String title = '';
   String alertType = 'flood';
@@ -18,7 +25,7 @@ class AlertFormProvider extends ChangeNotifier {
   Zone? selectedZone;
   double? customLat;
   double? customLng;
-  int radiusMeters = 2000;
+  int radiusMeters;
 
   bool _isSubmitting = false;
   String? _submitError;
@@ -132,7 +139,7 @@ class AlertFormProvider extends ChangeNotifier {
     selectedZone = null;
     customLat = null;
     customLng = null;
-    radiusMeters = 2000;
+    radiusMeters = _initialRadiusMeters;
     _submitError = null;
     _lastCreated = null;
     notifyListeners();

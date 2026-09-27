@@ -29,6 +29,9 @@ class AlertProvider extends ChangeNotifier {
   bool _myZoneOnly = false;
   String? _userZoneId;
   bool _multiChannelFallback = false;
+  bool _sirenOverride = true;
+  bool _pushAlertsEnabled = true;
+  int _defaultBroadcastRadiusMeters = 5000;
   AlertDeliveryResult? _lastDeliveryResult;
   final List<AlertDeliveryResult> _deliveryHistory = [];
 
@@ -46,6 +49,9 @@ class AlertProvider extends ChangeNotifier {
   bool get myZoneOnly => _myZoneOnly;
   String? get userZoneId => _userZoneId;
   bool get multiChannelFallback => _multiChannelFallback;
+  bool get sirenOverride => _sirenOverride;
+  bool get pushAlertsEnabled => _pushAlertsEnabled;
+  int get defaultBroadcastRadiusMeters => _defaultBroadcastRadiusMeters;
   AlertDeliveryResult? get lastDeliveryResult => _lastDeliveryResult;
   List<AlertDeliveryResult> get deliveryHistory => List.unmodifiable(_deliveryHistory);
   DisasterAlert? get bannerAlert => _bannerAlert;
@@ -59,6 +65,9 @@ class AlertProvider extends ChangeNotifier {
     _myZoneOnly = await _service.getMyZoneAlertsOnly();
     _userZoneId = await _service.getSavedZoneId();
     _multiChannelFallback = await _service.getMultiChannelFallback();
+    _sirenOverride = await _service.getSirenOverride();
+    _pushAlertsEnabled = await _service.getPushAlertsEnabled();
+    _defaultBroadcastRadiusMeters = await _service.getDefaultBroadcastRadiusMeters();
     await _loadInitial();
     _syncBannerWithFilter();
     _service.subscribeToAlerts(
@@ -85,6 +94,32 @@ class AlertProvider extends ChangeNotifier {
   Future<void> setMultiChannelFallback(bool enabled) async {
     _multiChannelFallback = enabled;
     await _service.saveMultiChannelFallback(enabled);
+    notifyListeners();
+  }
+
+  /// Sets whether red-severity alerts bypass Do Not Disturb via the
+  /// critical siren channel. When off, [deliverAlert] routes them through
+  /// the general channel instead — a normal, non-alarm notification.
+  Future<void> setSirenOverride(bool enabled) async {
+    _sirenOverride = enabled;
+    await _service.saveSirenOverride(enabled);
+    notifyListeners();
+  }
+
+  /// Sets whether OS push notifications fire at all for new alerts. The
+  /// in-app banner always shows regardless — this only controls the
+  /// separate push channel.
+  Future<void> setPushAlertsEnabled(bool enabled) async {
+    _pushAlertsEnabled = enabled;
+    await _service.savePushAlertsEnabled(enabled);
+    notifyListeners();
+  }
+
+  /// Sets the authority's default broadcast radius, in metres. Read by
+  /// [AdminBroadcastScreen] to seed a new alert form.
+  Future<void> setDefaultBroadcastRadiusMeters(int meters) async {
+    _defaultBroadcastRadiusMeters = meters;
+    await _service.saveDefaultBroadcastRadiusMeters(meters);
     notifyListeners();
   }
 
@@ -172,10 +207,20 @@ class AlertProvider extends ChangeNotifier {
     _bannerAlert = alert;
     channelsUsed.add(DeliveryChannel.inApp);
 
-    // 1. Primary Channel: Operating System push notification
-    if (!simulatePrimaryFailure) {
+    // 1. Primary Channel: Operating System push notification — skipped
+    // entirely (no fallback either) when the citizen has turned off push
+    // alerts in Settings; that's an intentional opt-out, not a failure.
+    if (!_pushAlertsEnabled) {
+      primarySucceeded = false;
+      failureReason = 'Push alerts disabled in settings';
+    } else if (!simulatePrimaryFailure) {
       try {
-        if (alert.severity.isCritical) {
+        // Android notification channels can't change bypass-DND behaviour
+        // per-notification once created, so "siren override" is enforced
+        // here by choosing which channel a critical alert goes through —
+        // the critical channel (alarm sound, bypasses DND) only when the
+        // citizen has that override enabled, otherwise the general one.
+        if (alert.severity.isCritical && _sirenOverride) {
           await _notificationService.showCriticalAlert(alert);
         } else {
           await _notificationService.showNormalAlert(alert);
@@ -193,7 +238,7 @@ class AlertProvider extends ChangeNotifier {
 
     // 2. Automatic Fallback Mechanism:
     // If primary channel fails and citizen has opted into multi-channel fallback
-    if (!primarySucceeded) {
+    if (!primarySucceeded && _pushAlertsEnabled) {
       if (_multiChannelFallback) {
         fallbackTriggered = true;
         final smsSuccess = await _service.dispatchSmsBackup(alert);

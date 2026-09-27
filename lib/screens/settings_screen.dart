@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../models/alert.dart';
@@ -8,9 +10,12 @@ import '../providers/alert_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/incident_provider.dart';
 import '../services/notification_service.dart';
+import '../services/settings_service.dart';
 import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../utils/map_tile_config.dart';
+import '../utils/map_tile_sources.dart';
 import 'admin_broadcast_screen.dart';
 import 'admin_incident_review_screen.dart';
 import 'incidents_screen.dart';
@@ -34,16 +39,39 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  // Member preferences
-  bool _sirenOverride = true;
-  bool _pushAlerts = true;
-  bool _smsBackup = false;
-  bool _liveLocationBeacon = true;
+  final SettingsService _settingsService = SettingsService();
 
-  // Authority preferences
+  // These three have no functional consumer yet (see SettingsService's
+  // doc comment) — persisted so the toggle survives a restart, but they
+  // don't turn any real feature on or off.
+  bool _liveLocationBeacon = true;
   bool _autoEscalateSos = true;
   bool _autoRelayDispatch = false;
-  double _defaultBroadcastRadius = 5.0;
+
+  /// Local value while the broadcast-radius slider is being dragged, so it
+  /// doesn't round-trip through [AlertProvider]/SharedPreferences on every
+  /// pixel of movement — committed via [Slider.onChangeEnd].
+  double? _draftBroadcastRadiusKm;
+
+  bool _syncingCache = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUnwiredPreferences();
+  }
+
+  Future<void> _loadUnwiredPreferences() async {
+    final beacon = await _settingsService.getLiveLocationBeacon();
+    final escalate = await _settingsService.getAutoEscalateSos();
+    final relay = await _settingsService.getAutoRelayDispatch();
+    if (!mounted) return;
+    setState(() {
+      _liveLocationBeacon = beacon;
+      _autoEscalateSos = escalate;
+      _autoRelayDispatch = relay;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -193,12 +221,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                     ),
                     const SizedBox(height: 4),
-                    if (user?.phone.isNotEmpty == true)
+                    if (user?.phone.isNotEmpty == true && !_looksLikeUuid(user!.phone))
                       Text(
-                        user!.phone,
+                        user.phone,
                         style: AppTheme.dataText(context).copyWith(
                           fontSize: 12,
                           color: isDark ? AppColors.foamText : AppColors.slateMuted,
+                        ),
+                      )
+                    else if (user != null)
+                      GestureDetector(
+                        onTap: () => _showEditProfileDialog(context, user),
+                        child: Text(
+                          'Add a phone number',
+                          style: AppTheme.dataText(context).copyWith(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: AppColors.severityOrange,
+                          ),
                         ),
                       ),
                   ],
@@ -271,6 +311,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ─── Authority Panel ───────────────────────────────────────────────────────
 
   Widget _buildAuthorityPanel(BuildContext context, AppUser user) {
+    final alertProvider = context.watch<AlertProvider>();
+    final draftRadiusKm =
+        _draftBroadcastRadiusKm ?? alertProvider.defaultBroadcastRadiusMeters / 1000;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -298,7 +342,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 'Automatically flag incidents with 3+ citizen confirmations for instant review',
               ),
               value: _autoEscalateSos,
-              onChanged: (v) => setState(() => _autoEscalateSos = v),
+              onChanged: (v) {
+                setState(() => _autoEscalateSos = v);
+                _settingsService.saveAutoEscalateSos(v);
+              },
             ),
             const Divider(),
             SwitchListTile.adaptive(
@@ -308,7 +355,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 'Forward verified critical alerts to regional disaster responder units',
               ),
               value: _autoRelayDispatch,
-              onChanged: (v) => setState(() => _autoRelayDispatch = v),
+              onChanged: (v) {
+                setState(() => _autoRelayDispatch = v);
+                _settingsService.saveAutoRelayDispatch(v);
+              },
             ),
             const Divider(),
             const SizedBox(height: 6),
@@ -320,7 +370,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: TextStyle(fontWeight: FontWeight.w500),
                 ),
                 Text(
-                  '${_defaultBroadcastRadius.toStringAsFixed(1)} km',
+                  '${draftRadiusKm.toStringAsFixed(1)} km',
                   style: AppTheme.dataText(context).copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppColors.riverTeal,
@@ -332,9 +382,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               min: 1.0,
               max: 25.0,
               divisions: 24,
-              value: _defaultBroadcastRadius,
+              value: draftRadiusKm,
               activeColor: AppColors.riverTeal,
-              onChanged: (v) => setState(() => _defaultBroadcastRadius = v),
+              onChanged: (v) => setState(() => _draftBroadcastRadiusKm = v),
+              onChangeEnd: (v) {
+                setState(() => _draftBroadcastRadiusKm = null);
+                alertProvider.setDefaultBroadcastRadiusMeters((v * 1000).round());
+              },
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
@@ -466,20 +520,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(height: 1),
           SwitchListTile.adaptive(
             title: const Text('Critical Flood Siren Override'),
-            subtitle: const Text(
-              'Play audible sirens for Emergency level flood alerts even if device is on silent or Do Not Disturb',
+            subtitle: Text(
+              alertProvider.sirenOverride
+                  ? 'Emergency-level alerts play an alarm siren and bypass Do Not Disturb'
+                  : 'Emergency-level alerts arrive as a normal notification, silent mode and Do Not Disturb apply',
             ),
-            value: _sirenOverride,
-            onChanged: (v) => setState(() => _sirenOverride = v),
+            value: alertProvider.sirenOverride,
+            onChanged: (v) => alertProvider.setSirenOverride(v),
           ),
           const Divider(height: 1),
           SwitchListTile.adaptive(
             title: const Text('Early-Warning Push Alerts'),
-            subtitle: const Text(
-              'Receive real-time notifications for rising water levels in your district',
+            subtitle: Text(
+              alertProvider.pushAlertsEnabled
+                  ? 'Receiving real-time push notifications for alerts in your district'
+                  : 'Push notifications are off — you\'ll only see alerts inside the app',
             ),
-            value: _pushAlerts,
-            onChanged: (v) => setState(() => _pushAlerts = v),
+            value: alertProvider.pushAlertsEnabled,
+            onChanged: (v) => alertProvider.setPushAlertsEnabled(v),
           ),
           const Divider(height: 1),
           SwitchListTile.adaptive(
@@ -491,10 +549,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   : 'Delivers alerts through multiple channels with automatic fallback if primary notification fails',
             ),
             value: multiChannelFallback,
-            onChanged: (enabled) async {
-              setState(() => _smsBackup = enabled);
-              await alertProvider.setMultiChannelFallback(enabled);
-            },
+            onChanged: (enabled) => alertProvider.setMultiChannelFallback(enabled),
           ),
           const Divider(height: 1),
           Padding(
@@ -620,6 +675,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ─── Safety & Data Resilience ──────────────────────────────────────────────
 
   Widget _buildSafetyAndDataCard(BuildContext context) {
+    final alertProvider = context.watch<AlertProvider>();
     String? currentUserId;
     try {
       currentUserId = SupabaseService.currentUserId;
@@ -678,7 +734,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'Attach high-accuracy coordinates when submitting SOS flood reports',
             ),
             value: _liveLocationBeacon,
-            onChanged: (v) => setState(() => _liveLocationBeacon = v),
+            onChanged: (v) {
+              setState(() => _liveLocationBeacon = v);
+              _settingsService.saveLiveLocationBeacon(v);
+            },
           ),
           const Divider(height: 1),
           ListTile(
@@ -686,20 +745,74 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Offline Safe-Zone Maps Cache'),
             subtitle: const Text('Stores district flood zones and evacuation shelters offline'),
             trailing: TextButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Offline map cache refreshed successfully.'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              },
-              child: const Text('Sync Cache'),
+              onPressed: _syncingCache
+                  ? null
+                  : () => _syncOfflineCache(context, alertProvider),
+              child: _syncingCache
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Sync Cache'),
             ),
           ),
         ],
       ),
     );
+  }
+
+  /// Downloads street + topo map tiles around the citizen's designated
+  /// zone (falling back to the app's default district centre) so the map
+  /// keeps working offline, using the same [TileCacheService] the map
+  /// screens already read from.
+  Future<void> _syncOfflineCache(
+    BuildContext context,
+    AlertProvider alertProvider,
+  ) async {
+    final effectiveZoneId = alertProvider.userZoneId ?? widget.currentUser?.zoneId;
+    final zone = widget.zones.where((z) => z.id == effectiveZoneId).firstOrNull;
+    final center = (zone?.centroidLat != null && zone?.centroidLng != null)
+        ? LatLng(zone!.centroidLat!, zone.centroidLng!)
+        : const LatLng(6.9615, 79.9010); // default district centre
+
+    setState(() => _syncingCache = true);
+    try {
+      final bounds = LatLngBounds(center, center);
+      await safeZoneTileCache.prefetchRoute(
+        bounds,
+        style: BaseMapStyle.street,
+        bufferKilometres: 5,
+      );
+      await safeZoneTileCache.prefetchRoute(
+        bounds,
+        style: BaseMapStyle.topo,
+        bufferKilometres: 5,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              zone != null
+                  ? 'Offline map cache refreshed for ${zone.name}.'
+                  : 'Offline map cache refreshed for your default district.',
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to sync offline cache: $e'),
+            backgroundColor: AppColors.severityRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _syncingCache = false);
+    }
   }
 
   // ─── Emergency Hotlines ────────────────────────────────────────────────────
@@ -875,9 +988,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ─── Edit Profile Dialog ───────────────────────────────────────────────────
 
   Future<void> _showEditProfileDialog(BuildContext context, AppUser? user) async {
+    final formKey = GlobalKey<FormState>();
+    // A profile created before sign-up finished (e.g. email confirmation
+    // still pending when the account was made) can be left with a
+    // placeholder phone — the new user's own id, so `phone` still
+    // satisfies the database's NOT NULL UNIQUE constraint. Never
+    // pre-fill that back into the form as if it were real.
+    final storedPhone = user?.phone ?? '';
     final nameCtrl = TextEditingController(text: user?.fullName ?? '');
-    final phoneCtrl = TextEditingController(text: user?.phone ?? '');
+    final phoneCtrl = TextEditingController(
+      text: _looksLikeUuid(storedPhone) ? '' : storedPhone,
+    );
     bool saving = false;
+    String? submitError;
 
     await showModalBottomSheet(
       context: context,
@@ -894,86 +1017,106 @@ class _SettingsScreenState extends State<SettingsScreen> {
             top: 20,
             bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Edit Profile',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Full Name',
-                  prefixIcon: Icon(Icons.person_outline),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Edit Profile',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: phoneCtrl,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Phone Number',
-                  prefixIcon: Icon(Icons.phone_outlined),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: nameCtrl,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                  validator: _validateFullName,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                 ),
-              ),
-              const SizedBox(height: 20),
-              FilledButton(
-                onPressed: saving
-                    ? null
-                    : () async {
-                        final newName = nameCtrl.text.trim();
-                        final newPhone = phoneCtrl.text.trim();
-                        if (newName.isEmpty) return;
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone Number',
+                    hintText: '+94 77 123 4567',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                  ),
+                  validator: _validatePhoneNumber,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                ),
+                if (submitError != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    submitError!,
+                    style: const TextStyle(color: AppColors.severityRed, fontSize: 13),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          setModalState(() => submitError = null);
+                          if (!(formKey.currentState?.validate() ?? false)) return;
 
-                        setModalState(() => saving = true);
-                        try {
-                          final userId = SupabaseService.currentUserId;
-                          if (userId != null) {
-                            await SupabaseService.client
-                                .from('profiles')
-                                .update({
-                              'full_name': newName,
-                              'phone': newPhone,
-                            }).eq('id', userId);
+                          final newName = nameCtrl.text.trim();
+                          final newPhone = phoneCtrl.text.trim();
+
+                          setModalState(() => saving = true);
+                          try {
+                            final userId = SupabaseService.currentUserId;
+                            if (userId != null) {
+                              await SupabaseService.client
+                                  .from('profiles')
+                                  .update({
+                                'full_name': newName,
+                                'phone': newPhone,
+                              }).eq('id', userId);
+                            }
+                            if (context.mounted) {
+                              Navigator.pop(ctx);
+                              widget.onProfileUpdated?.call();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Profile updated successfully.'),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            // Postgres unique-violation on profiles.phone —
+                            // give a plain-English reason instead of the
+                            // raw Postgrest error text.
+                            final isDuplicatePhone =
+                                e.toString().contains('23505');
+                            setModalState(() {
+                              saving = false;
+                              submitError = isDuplicatePhone
+                                  ? 'That phone number is already registered to another account.'
+                                  : 'Failed to update profile: $e';
+                            });
                           }
-                          if (context.mounted) {
-                            Navigator.pop(ctx);
-                            widget.onProfileUpdated?.call();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Profile updated successfully.'),
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          setModalState(() => saving = false);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Failed to update profile: $e'),
-                                backgroundColor: AppColors.severityRed,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                child: saving
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Save Changes'),
-              ),
-            ],
+                        },
+                  child: saving
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Save Changes'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -981,6 +1124,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
+
+  static final RegExp _uuidPattern = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+
+  bool _looksLikeUuid(String value) => _uuidPattern.hasMatch(value.trim());
+
+  String? _validateFullName(String? value) {
+    final trimmed = (value ?? '').trim();
+    if (trimmed.isEmpty) return 'Full name is required';
+    if (trimmed.length < 2) return 'Name is too short';
+    return null;
+  }
+
+  String? _validatePhoneNumber(String? value) {
+    final trimmed = (value ?? '').trim();
+    if (trimmed.isEmpty) return 'Phone number is required';
+    if (_looksLikeUuid(trimmed)) {
+      return 'That looks like an account ID, not a phone number';
+    }
+    final digitsOnly = trimmed.replaceAll(RegExp(r'[\s-]'), '');
+    if (!RegExp(r'^\+?[0-9]{7,15}$').hasMatch(digitsOnly)) {
+      return 'Enter a valid phone number';
+    }
+    return null;
+  }
 
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(

@@ -12,6 +12,10 @@ class AlertService {
   static const String prefUserZoneId = 'pref_user_zone_id';
   static const String prefMultiChannelFallback = 'pref_multi_channel_fallback';
   static const String prefSmsBackup = 'pref_sms_backup';
+  static const String prefSirenOverride = 'pref_siren_override';
+  static const String prefPushAlertsEnabled = 'pref_push_alerts_enabled';
+  static const String prefDefaultBroadcastRadiusMeters =
+      'pref_default_broadcast_radius_meters';
 
   RealtimeChannel? _channel;
 
@@ -192,6 +196,53 @@ class AlertService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(prefMultiChannelFallback, enabled);
     await prefs.setBool(prefSmsBackup, enabled);
+  }
+
+  /// Retrieves the 'Critical Flood Siren Override' preference. ON by
+  /// default — matches the pre-existing hardcoded behaviour.
+  Future<bool> getSirenOverride() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(prefSirenOverride) ?? true;
+  }
+
+  /// Persists the 'Critical Flood Siren Override' preference. When off,
+  /// [AlertProvider.deliverAlert] routes red-severity alerts through the
+  /// general notification channel instead of the DND-bypassing critical
+  /// one (Android channel behaviour, once created, can't be changed
+  /// per-notification, so this gate lives in which channel gets used).
+  Future<void> saveSirenOverride(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(prefSirenOverride, enabled);
+  }
+
+  /// Retrieves the 'Early-Warning Push Alerts' preference. ON by default.
+  Future<bool> getPushAlertsEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(prefPushAlertsEnabled) ?? true;
+  }
+
+  /// Persists the 'Early-Warning Push Alerts' preference. When off,
+  /// [AlertProvider.deliverAlert] skips the OS push channel entirely
+  /// (the in-app banner still shows) rather than treating it as a
+  /// delivery failure that needs an SMS fallback.
+  Future<void> savePushAlertsEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(prefPushAlertsEnabled, enabled);
+  }
+
+  /// Retrieves the authority's 'Default Broadcast Radius', in metres.
+  /// 5000m (5km) by default.
+  Future<int> getDefaultBroadcastRadiusMeters() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(prefDefaultBroadcastRadiusMeters) ?? 5000;
+  }
+
+  /// Persists the authority's 'Default Broadcast Radius'. Read by
+  /// [AdminBroadcastScreen] to seed [AlertFormProvider.radiusMeters]
+  /// instead of a hardcoded 2000m every time.
+  Future<void> saveDefaultBroadcastRadiusMeters(int meters) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(prefDefaultBroadcastRadiusMeters, meters);
   }
 
   /// Dispatches an emergency SMS alert as a fallback channel when primary push fails.
