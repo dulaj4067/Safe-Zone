@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../models/app_user.dart';
 import '../../../models/zone.dart';
+import '../../../screens/volunteer_tasks_screen.dart';
 import '../models/preparedness_guide.dart';
 import '../providers/preparedness_provider.dart';
 import '../widgets/guide_markdown.dart';
@@ -103,6 +104,16 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                               builder: (_) => EvacuationMapScreen(
                                 zoneId: widget.currentUser?.zoneId ?? 'default',
                               ),
+                            ),
+                          ),
+                        ),
+                        _HubAction(
+                          icon: Icons.volunteer_activism_outlined,
+                          label: 'Volunteer',
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => VolunteerTasksScreen(zones: widget.zones),
                             ),
                           ),
                         ),

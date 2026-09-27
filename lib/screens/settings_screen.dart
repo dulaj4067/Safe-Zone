@@ -16,9 +16,12 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
+import '../widgets/feedback_sheet.dart';
 import 'admin_broadcast_screen.dart';
 import 'admin_incident_review_screen.dart';
 import 'incidents_screen.dart';
+import 'messages_screen.dart';
+import 'volunteer_tasks_screen.dart';
 
 /// Settings screen tailored for both [UserRole.member] (Citizens) and
 /// [UserRole.authority] / [UserRole.admin] / [UserRole.volunteerOrg].
@@ -110,6 +113,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSectionHeader('Safety & Offline Resilience', Icons.health_and_safety_outlined),
             const SizedBox(height: 8),
             _buildSafetyAndDataCard(context),
+            const SizedBox(height: 20),
+
+            // ─── Community & Support ───────────────────────────────────────
+            _buildSectionHeader('Community & Support', Icons.forum_outlined),
+            const SizedBox(height: 8),
+            _buildCommunityCard(context),
             const SizedBox(height: 20),
 
             // ─── Emergency Contacts / Hotlines ─────────────────────────────
@@ -813,6 +822,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } finally {
       if (mounted) setState(() => _syncingCache = false);
     }
+  }
+
+  // ─── Community & Support ───────────────────────────────────────────────────
+
+  Widget _buildCommunityCard(BuildContext context) {
+    final alertProvider = context.watch<AlertProvider>();
+    final zoneId = alertProvider.userZoneId ?? widget.currentUser?.zoneId;
+    return Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.chat_bubble_outline, color: AppColors.deepEstuary),
+            title: const Text('Messages'),
+            subtitle: const Text('Conversations with shelter managers'),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MessagesScreen()),
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.volunteer_activism_outlined, color: AppColors.deepEstuary),
+            title: const Text('Volunteer'),
+            subtitle: const Text('Sign up to help at shelters near you'),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => VolunteerTasksScreen(zones: widget.zones),
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.rate_review_outlined, color: AppColors.deepEstuary),
+            title: const Text('Send Feedback'),
+            subtitle: const Text('Rate the support you\'re getting and tell us what you need'),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            onTap: () => showFeedbackSheet(context, zoneId: zoneId),
+          ),
+        ],
+      ),
+    );
   }
 
   // ─── Emergency Hotlines ────────────────────────────────────────────────────
