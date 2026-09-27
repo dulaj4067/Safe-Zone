@@ -7,6 +7,7 @@ import 'package:safezone/models/alert.dart';
 import 'package:safezone/models/incident.dart';
 import 'package:safezone/providers/alert_provider.dart';
 import 'package:safezone/providers/incident_provider.dart';
+import 'package:safezone/providers/safety_provider.dart';
 import 'package:safezone/screens/home_screen.dart';
 import 'package:safezone/screens/incidents_screen.dart';
 import 'package:safezone/widgets/context_recall_card.dart';
@@ -184,6 +185,7 @@ void main() {
           providers: [
             ChangeNotifierProvider<AlertProvider>.value(value: alertProvider),
             ChangeNotifierProvider(create: (_) => IncidentProvider()),
+            ChangeNotifierProvider(create: (_) => SafetyProvider()),
           ],
           child: const MaterialApp(
             home: HomeScreen(zones: []),

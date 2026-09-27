@@ -4,11 +4,15 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/shelter.dart';
+import '../screens/message_thread_screen.dart';
+import '../screens/volunteer_tasks_screen.dart';
 import '../services/shelter_service.dart';
+import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
 import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
+import 'shelter_resources_card.dart';
 
 /// Opens the shelter detail sheet.
 ///
@@ -131,6 +135,8 @@ class ShelterDetailSheet extends StatelessWidget {
           _MiniMap(shelter: shelter),
           const SizedBox(height: 16),
           _InfoCard(shelter: shelter),
+          const SizedBox(height: 12),
+          ShelterResourcesCard(shelter: shelter),
           const SizedBox(height: 20),
           FilledButton(
             onPressed: onGetDirections ?? _openMaps,
@@ -146,6 +152,41 @@ class ShelterDetailSheet extends StatelessWidget {
               child: const Text('Call Shelter Desk'),
             ),
           ],
+          if (shelter.managedBy != null &&
+              shelter.managedBy != SupabaseService.currentUserId) ...[
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+              ),
+              icon: const Icon(Icons.chat_bubble_outline, size: 18),
+              label: const Text('Message Shelter Manager'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MessageThreadScreen(
+                    shelterId: shelter.id,
+                    shelterName: shelter.name,
+                    otherUserId: shelter.managedBy!,
+                  ),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 4),
+          TextButton.icon(
+            icon: const Icon(Icons.volunteer_activism_outlined, size: 18),
+            label: const Text('Volunteer at this shelter'),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => VolunteerTasksScreen(
+                  shelterId: shelter.id,
+                  shelterName: shelter.name,
+                ),
+              ),
+            ),
+          ),
           if (shelter.updatedAt != null) ...[
             const SizedBox(height: 14),
             Center(
