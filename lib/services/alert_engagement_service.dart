@@ -54,7 +54,7 @@ class AlertEngagementService {
       }
 
       final rows = await query;
-      if (rows is List && rows.isNotEmpty) {
+      if (rows.isNotEmpty) {
         memberProfiles = List<Map<String, dynamic>>.from(rows);
       }
     } catch (_) {

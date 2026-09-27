@@ -48,7 +48,7 @@ class _SelectSafetyCircleScreenState extends State<SelectSafetyCircleScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      zone.name + ' - ' + zone.label,
+                      '${zone.name} - ${zone.label}',
                       style: TextStyle(fontWeight: FontWeight.w600, color: zone.borderColor),
                     ),
                   ),
@@ -76,7 +76,7 @@ class _SelectSafetyCircleScreenState extends State<SelectSafetyCircleScreen> {
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               itemCount: safety.circle.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
+              separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final contact = safety.circle[index];
                 return CheckboxListTile(
@@ -86,7 +86,7 @@ class _SelectSafetyCircleScreenState extends State<SelectSafetyCircleScreen> {
                       .toggleContactSelection(contact.id, checked ?? false),
                   secondary: CircleAvatar(child: Text(contact.initials)),
                   title: Text(contact.name),
-                  subtitle: Text(contact.relationship + ' - ' + contact.phoneNumber),
+                  subtitle: Text('${contact.relationship} - ${contact.phoneNumber}'),
                   controlAffinity: ListTileControlAffinity.trailing,
                 );
               },
@@ -103,7 +103,7 @@ class _SelectSafetyCircleScreenState extends State<SelectSafetyCircleScreen> {
                   label: Text(
                     selectedCount == 0
                         ? 'Select at least one contact'
-                        : 'Start sharing with ' + selectedCount.toString() + ' contact' + (selectedCount == 1 ? '' : 's'),
+                        : 'Start sharing with $selectedCount contact${selectedCount == 1 ? '' : 's'}',
                   ),
                   onPressed: selectedCount == 0
                       ? null

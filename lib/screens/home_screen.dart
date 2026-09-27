@@ -23,6 +23,7 @@ import '../widgets/app_logo_badge.dart';
 import '../widgets/heatmap_layer.dart';
 import '../widgets/live_location_marker.dart';
 import '../widgets/location_alert_banner.dart';
+import '../utils/map_recenter.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/resume_dropdown.dart';
 import '../widgets/context_recall_card.dart';
@@ -177,6 +178,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       setState(() => _locationDenied = true);
       return;
     }
+    // The stream below only reports once the device moves, so ask for a
+    // one-off fix right away — otherwise the dot and the "my location"
+    // button have nothing to use until the person starts walking.
+    _locationService.getCurrentLocation().then((fix) {
+      if (mounted && fix != null && _liveLocation == null) {
+        setState(() => _liveLocation = fix);
+      }
+    });
     _positionSub = _locationService.watchPosition().listen(
       (position) {
         if (mounted) setState(() => _liveLocation = position);
@@ -457,9 +466,25 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
   BaseMapStyle _baseMapStyle = BaseMapStyle.street;
   bool _showHeatmap = false;
 
+  /// The map opens on a default district until the first GPS fix arrives;
+  /// once it does, jump to the user's position once (like Google Maps).
+  bool _centeredOnUser = false;
+
+  void _goToMyLocation() =>
+      recenterOnUser(context, _mapController, widget.liveLocation);
+
   @override
   void didUpdateWidget(_SafeZoneMap oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!_centeredOnUser && widget.liveLocation != null) {
+      _centeredOnUser = true;
+      final live = widget.liveLocation!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final zoom = _mapController.camera.zoom;
+        _mapController.move(live, zoom < 15 ? 15 : zoom);
+      });
+    }
     // When the parent passes a fresh resumeCenter, animate the map to it.
     if (widget.resumeCenter != null &&
         widget.resumeCenter != oldWidget.resumeCenter) {
@@ -619,7 +644,11 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                       height: 36,
                       child: ShelterMarker(
                         shelter: shelter,
-                        onTap: () => showShelterDetailSheet(context, shelter),
+                        onTap: () => showShelterDetailSheet(
+                          context,
+                          shelter,
+                          userLocation: widget.liveLocation,
+                        ),
                       ),
                     ),
                   for (final incident in widget.incidents)
@@ -723,6 +752,8 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
             bottom: 12,
             child: Column(
               children: [
+                MyLocationButton(onTap: _goToMyLocation),
+                const SizedBox(height: 8),
                 MapLayerToggleButton(style: _baseMapStyle, onTap: _toggleBaseMapStyle),
                 const SizedBox(height: 8),
                 HeatmapToggleButton(
