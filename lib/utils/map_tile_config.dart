@@ -9,7 +9,7 @@ String get cartoApiKey =>
 bool get isCartoApiKeyConfigured => kCartoApiKeyRaw.isNotEmpty;
 
 String get kStreetTileUrlTemplate =>
-    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?api_key=$cartoApiKey';
+    'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=$cartoApiKey';
 const List<String> kStreetTileSubdomains = ['a', 'b', 'c', 'd'];
 const String kStreetAttribution =
     'Map data: OpenStreetMap contributors | Tiles: CARTO';

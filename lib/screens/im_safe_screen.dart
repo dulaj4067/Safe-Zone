@@ -52,13 +52,13 @@ class _ImSafeScreenState extends State<ImSafeScreen> {
                 Text(safety.errorMessage!, style: const TextStyle(color: Colors.red)),
               if (safety.lastBroadcastAt != null)
                 Text(
-                  'Sent at ' + safety.lastBroadcastAt!.hour.toString().padLeft(2, '0') + ':' + safety.lastBroadcastAt!.minute.toString().padLeft(2, '0'),
+                  'Sent at ${safety.lastBroadcastAt!.hour.toString().padLeft(2, '0')}:${safety.lastBroadcastAt!.minute.toString().padLeft(2, '0')}',
                   style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.w600),
                 ),
               const SizedBox(height: 24),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Your safety circle (' + safety.circle.length.toString() + ')',
+                child: Text('Your safety circle (${safety.circle.length})',
                     style: Theme.of(context).textTheme.titleSmall),
               ),
               const SizedBox(height: 8),
@@ -67,7 +67,7 @@ class _ImSafeScreenState extends State<ImSafeScreen> {
                     ? const Center(child: CircularProgressIndicator())
                     : ListView.separated(
                         itemCount: safety.circle.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (context, i) {
                           final c = safety.circle[i];
                           return ListTile(

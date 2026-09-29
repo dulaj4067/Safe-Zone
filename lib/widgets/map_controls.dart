@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../utils/map_tile_config.dart';
-import '../utils/map_tile_sources.dart';
 
 /// Circular +/- zoom button, styled to match the map card's floating
 /// controls. Use one for zoom-in, one for zoom-out.
@@ -23,6 +22,33 @@ class ZoomButton extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Icon(icon, size: 20, color: const Color(0xFF2A2A2A)),
+        ),
+      ),
+    );
+  }
+}
+
+/// "My location" button, like the crosshair in Google Maps — recentres the
+/// map on the device's live position.
+class MyLocationButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const MyLocationButton({super.key, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'My location',
+      child: Material(
+        color: Colors.white,
+        shape: const CircleBorder(),
+        elevation: 2,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: const Padding(
+            padding: EdgeInsets.all(10),
+            child: Icon(Icons.my_location, size: 20, color: Color(0xFF1A73E8)),
+          ),
         ),
       ),
     );

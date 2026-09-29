@@ -207,7 +207,9 @@ class IncidentService {
     for (final inc in candidates) {
       if (inc.category != category) continue;
       if (inc.status != IncidentStatus.pending &&
-          inc.status != IncidentStatus.verified) continue;
+          inc.status != IncidentStatus.verified) {
+        continue;
+      }
       if (inc.createdAt.isBefore(cutoff)) continue;
 
       final dist = _haversineMetres(
