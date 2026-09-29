@@ -213,7 +213,7 @@ void main() {
       );
     });
 
-    testWidgets('AlertBanner exposes a direct one-tap acknowledgment button', (WidgetTester tester) async {
+    testWidgets('Tapping the AlertBanner opens the acknowledge & confirm-safe sheet', (WidgetTester tester) async {
       final alertProvider = AlertProvider();
       final alert = createAlert(id: 'banner_alert', title: 'Severe Storm Alert', severity: AlertSeverity.red);
 
@@ -233,18 +233,20 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Verify one-tap button on banner
-      final bannerAckButton = find.byKey(const ValueKey('banner_ack_banner_alert'));
-      expect(bannerAckButton, findsOneWidget);
-      expect(find.text('Acknowledge'), findsOneWidget);
+      // The banner strip itself stays uncluttered — no inline button.
+      expect(find.text('Acknowledge'), findsNothing);
 
-      // Tap acknowledge with 1 tap directly on banner
-      await tester.tap(bannerAckButton);
+      // Tapping it opens the detail sheet carrying the acknowledge action.
+      await tester.tap(find.text('Severe Storm Alert'));
+      await tester.pumpAndSettle();
+
+      final confirmSafe = find.text('Acknowledge & Confirm Safe');
+      expect(confirmSafe, findsOneWidget);
+
+      await tester.tap(confirmSafe);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Status updates on banner
-      expect(find.text('ACKNOWLEDGED'), findsOneWidget);
       expect(alertProvider.isAlertAcknowledged('banner_alert'), isTrue);
     });
   });

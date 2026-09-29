@@ -9,6 +9,9 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/alert_engagement_sheet.dart';
 import '../widgets/severity_badge.dart';
+import 'feedback_overview_screen.dart';
+import 'messages_screen.dart';
+import 'volunteer_tasks_screen.dart';
 
 /// Story 4 & Authority Dashboard: authority-only live view of every active/escalated broadcast,
 /// with real-time zone resident seen and acknowledged percentage analytics, action threshold
@@ -45,6 +48,7 @@ class _BroadcastDashboardScreenState extends State<BroadcastDashboardScreen> {
       appBar: AppBar(title: const Text('Broadcast Dashboard')),
       body: Column(
         children: [
+          _CoordinationShortcuts(zones: widget.zones),
           _SeverityFilterRow(
             selected: _filter,
             onSelected: (s) => setState(() => _filter = s),
@@ -72,6 +76,80 @@ class _BroadcastDashboardScreenState extends State<BroadcastDashboardScreen> {
                     ),
                   ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Entry points to the coordination tools that sit alongside broadcasts:
+/// posting/managing volunteer tasks, shelter message threads, and the
+/// citizen feedback overview.
+class _CoordinationShortcuts extends StatelessWidget {
+  final List<Zone> zones;
+
+  const _CoordinationShortcuts({required this.zones});
+
+  @override
+  Widget build(BuildContext context) {
+    void open(Widget screen) =>
+        Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: _ShortcutButton(
+              icon: Icons.volunteer_activism_outlined,
+              label: 'Volunteers',
+              onTap: () => open(VolunteerTasksScreen(zones: zones)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _ShortcutButton(
+              icon: Icons.chat_bubble_outline,
+              label: 'Messages',
+              onTap: () => open(const MessagesScreen()),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _ShortcutButton(
+              icon: Icons.reviews_outlined,
+              label: 'Feedback',
+              onTap: () => open(FeedbackOverviewScreen(zones: zones)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShortcutButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ShortcutButton({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        minimumSize: const Size(0, 56),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      onPressed: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 20),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(fontSize: 12)),
         ],
       ),
     );
