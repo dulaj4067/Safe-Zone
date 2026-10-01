@@ -15,16 +15,17 @@ class ChecklistScreen extends StatefulWidget {
 }
 
 class _ChecklistScreenState extends State<ChecklistScreen> {
-  final Map<String, dynamic> _profile = {
-    'locationType': 'low-lying',
-    'householdSize': '3-4',
-    'hasElderlyMember': false,
-    'hasDisabledMember': false,
-    'hasVehicle': true,
-  };
+  final Map<String, dynamic> _profile = {};
 
   bool _loading = true;
   String? _errorMessage;
+
+  bool get _canGenerateChecklist =>
+      _profile['locationType'] is String &&
+      _profile['householdSize'] is String &&
+      _profile['hasVehicle'] is bool &&
+      _profile['hasElderlyMember'] is String &&
+      _profile['hasDisabledMember'] is String;
 
   @override
   void initState() {
@@ -34,17 +35,34 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
 
   Future<void> _loadChecklist() async {
     final provider = context.read<PreparednessProvider>();
+    final userId = widget.currentUser?.id;
     setState(() {
       _loading = true;
       _errorMessage = null;
     });
 
+    if (userId == null) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _errorMessage = 'Sign in to save your preparedness checklist.';
+        });
+      }
+      return;
+    }
+
     try {
-      final userId = widget.currentUser?.id ?? 'guest';
       final existingProfile = await provider.getRiskProfile(userId);
       if (existingProfile.isNotEmpty) {
         _profile.clear();
-        _profile.addAll(existingProfile);
+        _profile
+          ..addAll(existingProfile)
+          ..['hasElderlyMember'] = existingProfile['hasElderlyMember'] == true
+              ? 'yes'
+              : 'no'
+          ..['hasDisabledMember'] = existingProfile['hasDisabledMember'] == true
+              ? 'yes'
+              : 'no';
       }
       await provider.loadUserChecklist(userId, profile: _profile);
     } catch (error) {
@@ -56,11 +74,17 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
 
   Future<void> _saveProfileAndRefresh() async {
     final provider = context.read<PreparednessProvider>();
-    final userId = widget.currentUser?.id ?? 'guest';
+    final userId = widget.currentUser?.id;
+    if (userId == null) return;
     try {
       setState(() => _errorMessage = null);
-      await provider.saveRiskProfile(userId, _profile);
-      await provider.loadUserChecklist(userId, profile: _profile);
+      final profile = {
+        ..._profile,
+        'hasElderlyMember': _profile['hasElderlyMember'] == 'yes',
+        'hasDisabledMember': _profile['hasDisabledMember'] == 'yes',
+      };
+      await provider.saveRiskProfile(userId, profile);
+      await provider.loadUserChecklist(userId, profile: profile);
     } catch (error) {
       if (mounted) setState(() => _errorMessage = error.toString());
     }
@@ -93,7 +117,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: _profile['locationType'] as String?,
+                      initialValue: _profile['locationType'] as String?,
                       decoration: const InputDecoration(
                         labelText: 'Location type',
                       ),
@@ -121,7 +145,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: _profile['householdSize'] as String?,
+                      initialValue: _profile['householdSize'] as String?,
                       decoration: const InputDecoration(
                         labelText: 'Household size',
                       ),
@@ -141,35 +165,50 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    CheckboxListTile(
-                      value: _profile['hasElderlyMember'] as bool? ?? false,
-                      title: const Text('Household has elderly members'),
-                      onChanged: (value) => setState(
-                        () => _profile['hasElderlyMember'] = value ?? false,
+                    DropdownButtonFormField<String>(
+                      initialValue: _profile['hasElderlyMember'] as String?,
+                      decoration: const InputDecoration(
+                        labelText: 'Household has elderly members',
                       ),
-                      contentPadding: EdgeInsets.zero,
+                      items: const [
+                        DropdownMenuItem(value: 'yes', child: Text('Yes')),
+                        DropdownMenuItem(value: 'no', child: Text('No')),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => _profile['hasElderlyMember'] = value),
                     ),
-                    CheckboxListTile(
-                      value: _profile['hasDisabledMember'] as bool? ?? false,
-                      title: const Text('Household has disabled members'),
-                      onChanged: (value) => setState(
-                        () => _profile['hasDisabledMember'] = value ?? false,
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: _profile['hasDisabledMember'] as String?,
+                      decoration: const InputDecoration(
+                        labelText: 'Household has disabled members',
                       ),
-                      contentPadding: EdgeInsets.zero,
+                      items: const [
+                        DropdownMenuItem(value: 'yes', child: Text('Yes')),
+                        DropdownMenuItem(value: 'no', child: Text('No')),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => _profile['hasDisabledMember'] = value),
                     ),
-                    CheckboxListTile(
-                      value: _profile['hasVehicle'] as bool? ?? true,
-                      title: const Text('Household has a vehicle'),
-                      onChanged: (value) => setState(
-                        () => _profile['hasVehicle'] = value ?? true,
+                    DropdownButtonFormField<bool>(
+                      initialValue: _profile['hasVehicle'] as bool?,
+                      decoration: const InputDecoration(
+                        labelText: 'Household has access to a vehicle',
                       ),
-                      contentPadding: EdgeInsets.zero,
+                      items: const [
+                        DropdownMenuItem(value: true, child: Text('Yes')),
+                        DropdownMenuItem(value: false, child: Text('No')),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => _profile['hasVehicle'] = value),
                     ),
                     const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
-                        onPressed: _saveProfileAndRefresh,
+                        onPressed: _canGenerateChecklist
+                            ? _saveProfileAndRefresh
+                            : null,
                         icon: const Icon(Icons.save_outlined),
                         label: const Text('Generate checklist'),
                       ),
@@ -223,7 +262,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                 (item) => _ChecklistTile(
                   item: item,
                   onToggle: () async {
-                    final userId = widget.currentUser?.id ?? 'guest';
+                    final userId = widget.currentUser?.id;
+                    if (userId == null) return;
                     await provider.toggleChecklistItem(
                       userId,
                       item.id,

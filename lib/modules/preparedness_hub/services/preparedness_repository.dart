@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../services/alert_service.dart';
+import '../../../services/supabase_service.dart';
 import '../models/checklist_item.dart';
 import '../models/disaster_history_record.dart';
 import '../models/evacuation_route.dart';
@@ -39,31 +39,239 @@ abstract class PreparednessRepository {
 }
 
 class LocalPreparednessRepository implements PreparednessRepository {
+  LocalPreparednessRepository({this.syncWithSupabase = false});
+
+  final bool syncWithSupabase;
+
   static const _guidesKey = 'preparedness.guides.v1';
   static const _routesKey = 'preparedness.routes.v1';
   static const _checklistItemsKey = 'preparedness.checklist.master.v1';
   static const _remindersKey = 'preparedness.reminders.v1';
   static const _riskProfilePrefix = 'preparedness.risk_profile.';
   static const _userChecklistPrefix = 'preparedness.user_checklist.';
+  static const _pendingMutationsKey = 'preparedness.pending_mutations.v1';
+  static const _demoContentIds = {
+    'guide-flood-basics',
+    'guide-family-kit',
+    'route-colombo-demo',
+    'route-default-demo',
+    'history-2024-flood',
+    'history-2023-storm',
+    'reminder-1',
+    'reminder-2',
+    'reminder-3',
+    'cnt-1',
+    'cnt-2',
+    'cnt-3',
+    'cnt-4',
+    'cnt-5',
+    'cnt-6',
+    'cnt-7',
+    'cnt-8',
+    'cnt-9',
+    'cnt-10',
+  };
 
   Future<SharedPreferences> get _preferences => SharedPreferences.getInstance();
 
+  bool get _canSync {
+    try {
+      return syncWithSupabase && SupabaseService.currentUserId != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  bool _canSyncUser(String userId) {
+    try {
+      return _canSync && SupabaseService.currentUserId == userId;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<List<T>> _readContent<T>(
+    String type,
+    String cacheKey,
+    T Function(Map<String, dynamic>) decode,
+  ) async {
+    final preferences = await _preferences;
+    if (_canSync) {
+      try {
+        await _flushPendingContentMutations();
+        final rows = await SupabaseService.client
+            .from('preparedness_content')
+            .select('payload')
+            .eq('content_type', type)
+            .order('updated_at');
+        final values = rows
+            .map((row) => Map<String, dynamic>.from(row['payload'] as Map))
+            .where((value) => !_demoContentIds.contains(value['id']))
+            .toList();
+        final merged = await _overlayPendingContent(type, values);
+        await preferences.setString(cacheKey, jsonEncode(merged));
+        return merged.map(decode).toList();
+      } catch (_) {
+        // Keep serving the last cached copy while the backend is unavailable.
+      }
+    }
+
+    final cached = preferences.getString(cacheKey);
+    if (cached == null) return [];
+    final values = (jsonDecode(cached) as List)
+        .map((value) => Map<String, dynamic>.from(value as Map))
+        .where((value) => !_demoContentIds.contains(value['id']))
+        .toList();
+    final merged = await _overlayPendingContent(type, values);
+    await preferences.setString(cacheKey, jsonEncode(merged));
+    return merged.map(decode).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _pendingMutations() async {
+    final cached = (await _preferences).getString(_pendingMutationsKey);
+    if (cached == null) return [];
+    return (jsonDecode(cached) as List)
+        .map((value) => Map<String, dynamic>.from(value as Map))
+        .toList();
+  }
+
+  Future<void> _savePendingMutations(
+    List<Map<String, dynamic>> mutations,
+  ) async {
+    final preferences = await _preferences;
+    await preferences.setString(_pendingMutationsKey, jsonEncode(mutations));
+  }
+
+  Future<void> _queueContentMutation(Map<String, dynamic> mutation) async {
+    final pending = await _pendingMutations();
+    pending.removeWhere((entry) => entry['key'] == mutation['key']);
+    pending.add(mutation);
+    await _savePendingMutations(pending);
+  }
+
+  Future<void> _removePendingMutation(String key) async {
+    final pending = await _pendingMutations();
+    pending.removeWhere((entry) => entry['key'] == key);
+    await _savePendingMutations(pending);
+  }
+
+  Future<Map<String, dynamic>?> _pendingRow(String key) async {
+    for (final mutation in await _pendingMutations()) {
+      if (mutation['key'] == key && mutation['deleted'] != true) {
+        return Map<String, dynamic>.from(mutation['row'] as Map);
+      }
+    }
+    return null;
+  }
+
+  Future<List<Map<String, dynamic>>> _overlayPendingContent(
+    String type,
+    List<Map<String, dynamic>> values,
+  ) async {
+    for (final mutation in await _pendingMutations()) {
+      if (mutation['table'] != 'preparedness_content' ||
+          mutation['contentType'] != type) {
+        continue;
+      }
+      final id = mutation['id'] as String;
+      values.removeWhere((value) => value['id'] == id);
+      if (mutation['deleted'] != true) {
+        values.add(Map<String, dynamic>.from(mutation['payload'] as Map));
+      }
+    }
+    return values;
+  }
+
+  Future<void> _flushPendingContentMutations() async {
+    final pending = await _pendingMutations();
+    final remaining = <Map<String, dynamic>>[];
+    for (final mutation in pending) {
+      try {
+        if (mutation['table'] == 'preparedness_content' &&
+            mutation['deleted'] == true) {
+          await SupabaseService.client
+              .from('preparedness_content')
+              .delete()
+              .eq('content_type', mutation['contentType'])
+              .eq('id', mutation['id']);
+        } else if (mutation['table'] == 'preparedness_content') {
+          await SupabaseService.client.from('preparedness_content').upsert({
+            'content_type': mutation['contentType'],
+            'id': mutation['id'],
+            'zone_id': mutation['zoneId'],
+            'payload': mutation['payload'],
+            'updated_by': SupabaseService.currentUserId,
+          }, onConflict: 'content_type,id');
+        } else if (mutation['table'] == 'preparedness_risk_profiles' ||
+            mutation['table'] == 'preparedness_user_checklists') {
+          await SupabaseService.client
+              .from(mutation['table'] as String)
+              .upsert(mutation['row'] as Map<String, dynamic>);
+        } else {
+          remaining.add(mutation);
+        }
+      } catch (_) {
+        remaining.add(mutation);
+      }
+    }
+    await _savePendingMutations(remaining);
+  }
+
+  Future<void> _upsertContent(
+    String type,
+    String id,
+    Map<String, dynamic> payload, {
+    String? zoneId,
+  }) async {
+    if (!_canSync) return;
+    final key = 'preparedness_content:$type:$id';
+    try {
+      await SupabaseService.client.from('preparedness_content').upsert({
+        'content_type': type,
+        'id': id,
+        'zone_id': zoneId,
+        'payload': payload,
+        'updated_by': SupabaseService.currentUserId,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'content_type,id');
+      await _removePendingMutation(key);
+    } catch (_) {
+      await _queueContentMutation({
+        'key': key,
+        'table': 'preparedness_content',
+        'contentType': type,
+        'id': id,
+        'zoneId': zoneId,
+        'payload': payload,
+        'deleted': false,
+      });
+    }
+  }
+
+  Future<void> _deleteContent(String type, String id) async {
+    if (!_canSync) return;
+    final key = 'preparedness_content:$type:$id';
+    try {
+      await SupabaseService.client
+          .from('preparedness_content')
+          .delete()
+          .eq('content_type', type)
+          .eq('id', id);
+      await _removePendingMutation(key);
+    } catch (_) {
+      await _queueContentMutation({
+        'key': key,
+        'table': 'preparedness_content',
+        'contentType': type,
+        'id': id,
+        'deleted': true,
+      });
+    }
+  }
+
   @override
   Future<List<PreparednessGuide>> getGuides() async {
-    final preferences = await _preferences;
-    final cached = preferences.getString(_guidesKey);
-    if (cached != null) {
-      return (jsonDecode(cached) as List)
-          .map(
-            (value) => PreparednessGuide.fromJson(
-              Map<String, dynamic>.from(value as Map),
-            ),
-          )
-          .toList();
-    }
-    final samples = _sampleGuides();
-    await _writeGuides(preferences, samples);
-    return samples;
+    return _readContent('guide', _guidesKey, PreparednessGuide.fromJson);
   }
 
   @override
@@ -77,6 +285,7 @@ class LocalPreparednessRepository implements PreparednessRepository {
       guides[index] = guide;
     }
     await _writeGuides(preferences, guides);
+    await _upsertContent('guide', guide.id, guide.toJson());
   }
 
   @override
@@ -89,20 +298,7 @@ class LocalPreparednessRepository implements PreparednessRepository {
 
   @override
   Future<List<EvacuationRoute>> getRoutes() async {
-    final preferences = await _preferences;
-    final cached = preferences.getString(_routesKey);
-    if (cached != null) {
-      return (jsonDecode(cached) as List)
-          .map(
-            (value) => EvacuationRoute.fromJson(
-              Map<String, dynamic>.from(value as Map),
-            ),
-          )
-          .toList();
-    }
-    final samples = _sampleRoutes();
-    await _writeRoutes(preferences, samples);
-    return samples;
+    return _readContent('route', _routesKey, EvacuationRoute.fromJson);
   }
 
   @override
@@ -116,11 +312,21 @@ class LocalPreparednessRepository implements PreparednessRepository {
       routes[index] = route;
     }
     await _writeRoutes(preferences, routes);
+    await _upsertContent(
+      'route',
+      route.id,
+      route.toJson(),
+      zoneId: route.zoneId,
+    );
   }
 
   @override
   Future<List<DisasterHistoryRecord>> getHistory(String zoneId) async =>
-      _sampleHistory().where((record) => record.zoneId == zoneId).toList();
+      (await _readContent(
+        'history',
+        'preparedness.history.v1',
+        DisasterHistoryRecord.fromJson,
+      )).where((record) => record.zoneId == zoneId).toList();
 
   @override
   Future<String?> getActiveAlertForZone(String zoneId) async {
@@ -131,9 +337,7 @@ class LocalPreparednessRepository implements PreparednessRepository {
           ? cachedAlerts
           : await service.fetchActiveAlerts();
       final filtered = active.where((alert) {
-        final matchesZone =
-            alert.affectedZoneId == zoneId ||
-            (zoneId == 'default' && alert.affectedZoneId == null);
+        final matchesZone = alert.affectedZoneId == zoneId;
         return matchesZone &&
             (alert.status.name == 'active' || alert.status.name == 'escalated');
       }).toList();
@@ -147,22 +351,11 @@ class LocalPreparednessRepository implements PreparednessRepository {
 
   @override
   Future<List<ChecklistItem>> getChecklistItems() async {
-    final preferences = await _preferences;
-    final cached = preferences.getString(_checklistItemsKey);
-    if (cached != null) {
-      return (jsonDecode(cached) as List)
-          .map(
-            (value) =>
-                ChecklistItem.fromJson(Map<String, dynamic>.from(value as Map)),
-          )
-          .toList();
-    }
-    final samples = _sampleChecklistItems();
-    await preferences.setString(
+    return _readContent(
+      'checklist_item',
       _checklistItemsKey,
-      jsonEncode(samples.map((item) => item.toJson()).toList()),
+      ChecklistItem.fromJson,
     );
-    return samples;
   }
 
   @override
@@ -179,6 +372,7 @@ class LocalPreparednessRepository implements PreparednessRepository {
       _checklistItemsKey,
       jsonEncode(items.map((entry) => entry.toJson()).toList()),
     );
+    await _upsertContent('checklist_item', item.id, item.toJson());
   }
 
   @override
@@ -190,27 +384,16 @@ class LocalPreparednessRepository implements PreparednessRepository {
       _checklistItemsKey,
       jsonEncode(filtered.map((item) => item.toJson()).toList()),
     );
+    await _deleteContent('checklist_item', itemId);
   }
 
   @override
   Future<List<PreparednessReminder>> getReminders() async {
-    final preferences = await _preferences;
-    final cached = preferences.getString(_remindersKey);
-    if (cached != null) {
-      return (jsonDecode(cached) as List)
-          .map(
-            (value) => PreparednessReminder.fromJson(
-              Map<String, dynamic>.from(value as Map),
-            ),
-          )
-          .toList();
-    }
-    final samples = _sampleReminders();
-    await preferences.setString(
+    return _readContent(
+      'reminder',
       _remindersKey,
-      jsonEncode(samples.map((reminder) => reminder.toJson()).toList()),
+      PreparednessReminder.fromJson,
     );
-    return samples;
   }
 
   @override
@@ -227,6 +410,7 @@ class LocalPreparednessRepository implements PreparednessRepository {
       _remindersKey,
       jsonEncode(reminders.map((item) => item.toJson()).toList()),
     );
+    await _upsertContent('reminder', reminder.id, reminder.toJson());
   }
 
   @override
@@ -238,6 +422,7 @@ class LocalPreparednessRepository implements PreparednessRepository {
       _remindersKey,
       jsonEncode(filtered.map((item) => item.toJson()).toList()),
     );
+    await _deleteContent('reminder', reminderId);
   }
 
   @override
@@ -255,6 +440,35 @@ class LocalPreparednessRepository implements PreparednessRepository {
   @override
   Future<Map<String, dynamic>> getRiskProfile(String userId) async {
     final preferences = await _preferences;
+    if (_canSyncUser(userId)) {
+      await _flushPendingContentMutations();
+      final pending = await _pendingRow('preparedness_risk_profiles:$userId');
+      if (pending != null) {
+        final profile = Map<String, dynamic>.from(pending['profile'] as Map);
+        await preferences.setString(
+          '$_riskProfilePrefix$userId',
+          jsonEncode(profile),
+        );
+        return profile;
+      }
+      try {
+        final row = await SupabaseService.client
+            .from('preparedness_risk_profiles')
+            .select('profile')
+            .eq('user_id', userId)
+            .maybeSingle();
+        final profile = row == null
+            ? <String, dynamic>{}
+            : Map<String, dynamic>.from(row['profile'] as Map);
+        await preferences.setString(
+          '$_riskProfilePrefix$userId',
+          jsonEncode(profile),
+        );
+        return profile;
+      } catch (_) {
+        // Use the local profile when the backend cannot be reached.
+      }
+    }
     final cached = preferences.getString('$_riskProfilePrefix$userId');
     if (cached == null) return {};
     return Map<String, dynamic>.from(jsonDecode(cached) as Map);
@@ -270,11 +484,69 @@ class LocalPreparednessRepository implements PreparednessRepository {
       '$_riskProfilePrefix$userId',
       jsonEncode(profile),
     );
+    if (_canSyncUser(userId)) {
+      final row = {'user_id': userId, 'profile': profile};
+      try {
+        await SupabaseService.client
+            .from('preparedness_risk_profiles')
+            .upsert(row);
+        await _removePendingMutation('preparedness_risk_profiles:$userId');
+      } catch (_) {
+        await _queueContentMutation({
+          'key': 'preparedness_risk_profiles:$userId',
+          'table': 'preparedness_risk_profiles',
+          'row': row,
+        });
+      }
+    }
   }
 
   @override
   Future<List<ChecklistItem>> getChecklistForUser(String userId) async {
     final preferences = await _preferences;
+    if (_canSyncUser(userId)) {
+      await _flushPendingContentMutations();
+      final pending = await _pendingRow('preparedness_user_checklists:$userId');
+      if (pending != null) {
+        final items = (pending['items'] as List)
+            .map(
+              (value) => ChecklistItem.fromJson(
+                Map<String, dynamic>.from(value as Map),
+              ),
+            )
+            .where((item) => !_demoContentIds.contains(item.id))
+            .toList();
+        await preferences.setString(
+          '$_userChecklistPrefix$userId',
+          jsonEncode(items.map((item) => item.toJson()).toList()),
+        );
+        return items;
+      }
+      try {
+        final row = await SupabaseService.client
+            .from('preparedness_user_checklists')
+            .select('items')
+            .eq('user_id', userId)
+            .maybeSingle();
+        if (row != null) {
+          final items = (row['items'] as List)
+              .map(
+                (value) => ChecklistItem.fromJson(
+                  Map<String, dynamic>.from(value as Map),
+                ),
+              )
+              .where((item) => !_demoContentIds.contains(item.id))
+              .toList();
+          await preferences.setString(
+            '$_userChecklistPrefix$userId',
+            jsonEncode(items.map((item) => item.toJson()).toList()),
+          );
+          return items;
+        }
+      } catch (_) {
+        // Use the local checklist when the backend cannot be reached.
+      }
+    }
     final cached = preferences.getString('$_userChecklistPrefix$userId');
     if (cached == null) {
       final profile = await getRiskProfile(userId);
@@ -282,12 +554,18 @@ class LocalPreparednessRepository implements PreparednessRepository {
       await saveChecklistForUser(userId, generated);
       return generated;
     }
-    return (jsonDecode(cached) as List)
+    final items = (jsonDecode(cached) as List)
         .map(
           (value) =>
               ChecklistItem.fromJson(Map<String, dynamic>.from(value as Map)),
         )
+        .where((item) => !_demoContentIds.contains(item.id))
         .toList();
+    await preferences.setString(
+      '$_userChecklistPrefix$userId',
+      jsonEncode(items.map((item) => item.toJson()).toList()),
+    );
+    return items;
   }
 
   @override
@@ -300,6 +578,24 @@ class LocalPreparednessRepository implements PreparednessRepository {
       '$_userChecklistPrefix$userId',
       jsonEncode(items.map((item) => item.toJson()).toList()),
     );
+    if (_canSyncUser(userId)) {
+      final row = {
+        'user_id': userId,
+        'items': items.map((item) => item.toJson()).toList(),
+      };
+      try {
+        await SupabaseService.client
+            .from('preparedness_user_checklists')
+            .upsert(row);
+        await _removePendingMutation('preparedness_user_checklists:$userId');
+      } catch (_) {
+        await _queueContentMutation({
+          'key': 'preparedness_user_checklists:$userId',
+          'table': 'preparedness_user_checklists',
+          'row': row,
+        });
+      }
+    }
   }
 
   @override
@@ -357,226 +653,15 @@ class LocalPreparednessRepository implements PreparednessRepository {
     final locationType = (profile['locationType'] ?? '').toString();
     if (locationType == 'riverside') tags.add('riverside');
     if (locationType == 'low-lying') tags.add('low-lying');
-    final householdSize = (profile['householdSize'] ?? '3-4').toString();
+    final householdSize = (profile['householdSize'] ?? '').toString();
     if (householdSize == '5+') tags.add('large-household');
-    if ((profile['hasElderlyMember'] as bool? ?? false))
+    if (profile['hasElderlyMember'] as bool? ?? false) {
       tags.add('elderly-household');
-    if ((profile['hasDisabledMember'] as bool? ?? false))
+    }
+    if (profile['hasDisabledMember'] as bool? ?? false) {
       tags.add('disabled-household');
-    if (!((profile['hasVehicle'] as bool? ?? true))) tags.add('no-vehicle');
+    }
+    if (profile['hasVehicle'] == false) tags.add('no-vehicle');
     return tags;
-  }
-
-  List<PreparednessGuide> _sampleGuides() {
-    final now = DateTime.now();
-    return [
-      PreparednessGuide(
-        id: 'guide-flood-basics',
-        title: 'Before the water rises',
-        category: GuideCategory.flood,
-        bodyContent:
-            '# Before a flood\n\nMove valuables and documents to a high shelf. Pack medication, water, a torch and charged power banks.\n\n## When an alert arrives\n- Switch off electricity if it is safe.\n- Follow the marked route to your nearest safe zone.\n- Never walk or drive through floodwater.',
-        coverImageUrl: '',
-        zoneTags: const [],
-        createdBy: 'SafeZone Authority',
-        createdAt: now.subtract(const Duration(days: 12)),
-        updatedAt: now,
-        isArchived: false,
-      ),
-      PreparednessGuide(
-        id: 'guide-family-kit',
-        title: 'Build a family go-bag',
-        category: GuideCategory.general,
-        bodyContent:
-            '# Keep essentials together\n\nStore a small bag near an exit. Include drinking water, shelf-stable food, first-aid supplies, copies of important documents and a written contact list.\n\nCheck the bag every six months and replace expired items.',
-        coverImageUrl: '',
-        zoneTags: const [],
-        createdBy: 'SafeZone Authority',
-        createdAt: now.subtract(const Duration(days: 5)),
-        updatedAt: now,
-        isArchived: false,
-      ),
-    ];
-  }
-
-  List<EvacuationRoute> _sampleRoutes() {
-    final now = DateTime.now();
-    return [
-      EvacuationRoute(
-        id: 'route-colombo-demo',
-        zoneId: 'zone-demo',
-        startPoint: const LatLng(6.9344, 79.8500),
-        safeZonePoint: const LatLng(6.9415, 79.8612),
-        routePolyline: const [
-          LatLng(6.9344, 79.8500),
-          LatLng(6.9372, 79.8536),
-          LatLng(6.9390, 79.8574),
-          LatLng(6.9415, 79.8612),
-        ],
-        instructions: const [
-          'Head east along the marked main road.',
-          'Turn left at the community clinic.',
-          'Continue to the elevated school safe zone.',
-        ],
-        lastUpdated: now,
-      ),
-      EvacuationRoute(
-        id: 'route-default-demo',
-        zoneId: 'default',
-        startPoint: const LatLng(6.9344, 79.8500),
-        safeZonePoint: const LatLng(6.9415, 79.8612),
-        routePolyline: const [
-          LatLng(6.9344, 79.8500),
-          LatLng(6.9372, 79.8536),
-          LatLng(6.9390, 79.8574),
-          LatLng(6.9415, 79.8612),
-        ],
-        instructions: const [
-          'Head east along the marked main road.',
-          'Turn left at the community clinic.',
-          'Continue to the elevated school safe zone.',
-        ],
-        lastUpdated: now,
-      ),
-    ];
-  }
-
-  List<DisasterHistoryRecord> _sampleHistory() {
-    final now = DateTime.now();
-    return [
-      DisasterHistoryRecord(
-        id: 'history-2024-flood',
-        zoneId: 'zone-demo',
-        disasterType: 'Urban flooding',
-        date: DateTime(now.year - 1, 10, 18),
-        severity: 'Orange',
-        summary:
-            'Heavy rainfall caused localized road flooding. Residents used the eastern school route.',
-      ),
-      DisasterHistoryRecord(
-        id: 'history-2023-storm',
-        zoneId: 'zone-demo',
-        disasterType: 'Severe storm',
-        date: DateTime(now.year - 2, 5, 7),
-        severity: 'Yellow',
-        summary:
-            'Strong winds prompted a precautionary shelter notice. No injuries were reported.',
-      ),
-    ];
-  }
-
-  List<ChecklistItem> _sampleChecklistItems() {
-    return [
-      ChecklistItem(
-        id: 'cnt-1',
-        title: 'Review flood-safe locations and emergency contacts',
-        description:
-            'Confirm where your household will go and who to call first.',
-        riskFactorTags: const ['riverside', 'low-lying', 'large-household'],
-        isDone: false,
-      ),
-      ChecklistItem(
-        id: 'cnt-2',
-        title: 'Move valuables and documents to higher shelves',
-        description:
-            'Keep passports, IDs, and key documents above likely flood lines.',
-        riskFactorTags: const ['riverside', 'low-lying'],
-        isDone: false,
-      ),
-      ChecklistItem(
-        id: 'cnt-3',
-        title: 'Plan for elderly or high-needs household members',
-        description:
-            'Agree on who will help with mobility, medications, or transport.',
-        riskFactorTags: const ['elderly-household', 'disabled-household'],
-        isDone: false,
-      ),
-      ChecklistItem(
-        id: 'cnt-4',
-        title: 'Confirm a no-vehicle evacuation backup plan',
-        description:
-            'Identify a neighbour, carpool, or community pickup route.',
-        riskFactorTags: const ['no-vehicle'],
-        isDone: false,
-      ),
-      ChecklistItem(
-        id: 'cnt-5',
-        title: 'Keep your go-bag ready and accessible',
-        description: 'Review food, water, medication, torch, radio, and cash.',
-        riskFactorTags: const [],
-        isDone: false,
-      ),
-      ChecklistItem(
-        id: 'cnt-6',
-        title: 'Charge torches, power banks, and radios',
-        description:
-            'Ensure every essential device is ready before the next rain event.',
-        riskFactorTags: const [],
-        isDone: false,
-      ),
-      ChecklistItem(
-        id: 'cnt-7',
-        title: 'Set a family reunion point',
-        description:
-            'Agree where everyone should meet if separated during an evacuation.',
-        riskFactorTags: const ['large-household', 'elderly-household'],
-        isDone: false,
-      ),
-      ChecklistItem(
-        id: 'cnt-8',
-        title: 'Check your vehicle, fuel, and safe-route plan',
-        description: 'Keep your vehicle topped up and route options confirmed.',
-        riskFactorTags: const ['large-household'],
-        isDone: false,
-      ),
-      ChecklistItem(
-        id: 'cnt-9',
-        title: 'Review health and mobility support needs',
-        description:
-            'Confirm who will assist anyone with limited movement or medical needs.',
-        riskFactorTags: const ['elderly-household', 'disabled-household'],
-        isDone: false,
-      ),
-      ChecklistItem(
-        id: 'cnt-10',
-        title: 'Check local weather and seasonal forecast alerts',
-        description: 'Keep an eye on seasonal, monsoon, or storm warnings.',
-        riskFactorTags: const ['riverside', 'low-lying'],
-        isDone: false,
-      ),
-    ];
-  }
-
-  List<PreparednessReminder> _sampleReminders() {
-    final now = DateTime.now();
-    return [
-      PreparednessReminder(
-        id: 'reminder-1',
-        title: 'Monsoon season prep',
-        message:
-            'Check your go-bag and confirm flood-safe routes before the next storm front.',
-        scheduledDate: now.add(const Duration(days: 2)),
-        recurrence: ReminderRecurrence.seasonal,
-        zoneTags: const ['zone-demo'],
-      ),
-      PreparednessReminder(
-        id: 'reminder-2',
-        title: 'Community drill reminder',
-        message:
-            'Join the neighbourhood evacuation drill and verify your plan with family members.',
-        scheduledDate: now.add(const Duration(days: 12)),
-        recurrence: ReminderRecurrence.monthly,
-        zoneTags: const ['default'],
-      ),
-      PreparednessReminder(
-        id: 'reminder-3',
-        title: 'Emergency contact refresh',
-        message:
-            'Update emergency contacts and check the household check-in plan.',
-        scheduledDate: now.add(const Duration(days: 7)),
-        recurrence: ReminderRecurrence.none,
-        zoneTags: const [],
-      ),
-    ];
   }
 }

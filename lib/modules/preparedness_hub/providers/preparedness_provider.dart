@@ -143,10 +143,15 @@ class PreparednessProvider extends ChangeNotifier {
           ? profile
           : await _repository.getRiskProfile(userId);
       _riskProfile = resolvedProfile;
-      if (resolvedProfile.isEmpty) {
-        _personalChecklist = await _repository.getChecklistForUser(userId);
-      } else {
-        _personalChecklist = await _repository.getChecklistForUser(userId);
+      _personalChecklist = await _repository.getChecklistForUser(userId);
+      if (_personalChecklist.isEmpty && resolvedProfile.isNotEmpty) {
+        final generated = await _repository.generateChecklistForProfile(
+          resolvedProfile,
+        );
+        if (generated.isNotEmpty) {
+          await _repository.saveChecklistForUser(userId, generated);
+          _personalChecklist = generated;
+        }
       }
     } finally {
       _isLoading = false;

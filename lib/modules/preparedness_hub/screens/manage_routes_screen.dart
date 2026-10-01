@@ -103,7 +103,7 @@ class _RouteEditorState extends State<_RouteEditor> {
   @override
   void initState() {
     super.initState();
-    _zoneId = widget.route?.zoneId ?? widget.zones.firstOrNull?.id ?? 'default';
+    _zoneId = widget.route?.zoneId ?? widget.zones.firstOrNull?.id;
     _points = widget.route?.routePolyline.toList() ?? [];
     _instructions = TextEditingController(
       text: widget.route?.instructions.join('\n'),
@@ -117,6 +117,16 @@ class _RouteEditorState extends State<_RouteEditor> {
     super.dispose();
   }
 
+  LatLng? get _mapCenter {
+    final existingPoint = _points.firstOrNull;
+    if (existingPoint != null) return existingPoint;
+    final zone = widget.zones.where((item) => item.id == _zoneId).firstOrNull;
+    final latitude = zone?.centroidLat;
+    final longitude = zone?.centroidLng;
+    if (latitude == null || longitude == null) return null;
+    return LatLng(latitude, longitude);
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -128,13 +138,13 @@ class _RouteEditorState extends State<_RouteEditor> {
           padding: const EdgeInsets.all(12),
           child: DropdownButtonFormField<String>(
             initialValue: _zoneId,
-            decoration: const InputDecoration(labelText: 'Zone'),
+            decoration: InputDecoration(
+              labelText: 'Zone',
+              helperText: widget.zones.isEmpty
+                  ? 'Add a zone before creating an evacuation route.'
+                  : null,
+            ),
             items: [
-              if (widget.zones.isEmpty)
-                const DropdownMenuItem(
-                  value: 'default',
-                  child: Text('Default zone'),
-                ),
               ...widget.zones.map(
                 (zone) =>
                     DropdownMenuItem(value: zone.id, child: Text(zone.name)),
@@ -145,64 +155,69 @@ class _RouteEditorState extends State<_RouteEditor> {
         ),
         Expanded(
           flex: 3,
-          child: Stack(
-            children: [
-              FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter:
-                      _points.firstOrNull ?? const LatLng(6.9344, 79.8500),
-                  initialZoom: 14,
-                  onTap: (_, point) => setState(() => _points.add(point)),
-                ),
-                children: [
-                  buildBaseTileLayer(BaseMapStyle.topo),
-                  if (_points.length > 1)
-                    PolylineLayer(
-                      polylines: [
-                        Polyline(
-                          points: _points,
-                          strokeWidth: 5,
-                          color: Theme.of(context).colorScheme.primary,
+          child: _mapCenter == null
+              ? const Center(
+                  child: Text(
+                    'Select a zone with a map center to plot a route.',
+                  ),
+                )
+              : Stack(
+                  children: [
+                    FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter: _mapCenter!,
+                        initialZoom: 14,
+                        onTap: (_, point) => setState(() => _points.add(point)),
+                      ),
+                      children: [
+                        buildBaseTileLayer(BaseMapStyle.topo),
+                        if (_points.length > 1)
+                          PolylineLayer(
+                            polylines: [
+                              Polyline(
+                                points: _points,
+                                strokeWidth: 5,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ],
+                          ),
+                        MarkerLayer(
+                          markers: [
+                            for (var index = 0; index < _points.length; index++)
+                              Marker(
+                                point: _points[index],
+                                width: 38,
+                                height: 42,
+                                child: Icon(
+                                  index == 0
+                                      ? Icons.trip_origin
+                                      : (index == _points.length - 1
+                                            ? Icons.place
+                                            : Icons.more_horiz),
+                                  color: index == _points.length - 1
+                                      ? Colors.green.shade800
+                                      : Theme.of(context).colorScheme.primary,
+                                  size: 34,
+                                ),
+                              ),
+                          ],
                         ),
                       ],
                     ),
-                  MarkerLayer(
-                    markers: [
-                      for (var index = 0; index < _points.length; index++)
-                        Marker(
-                          point: _points[index],
-                          width: 38,
-                          height: 42,
-                          child: Icon(
-                            index == 0
-                                ? Icons.trip_origin
-                                : (index == _points.length - 1
-                                      ? Icons.place
-                                      : Icons.more_horiz),
-                            color: index == _points.length - 1
-                                ? Colors.green.shade800
-                                : Theme.of(context).colorScheme.primary,
-                            size: 34,
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-              Positioned(
-                right: 10,
-                top: 10,
-                child: IconButton.filledTonal(
-                  tooltip: 'Undo last point',
-                  onPressed: _points.isEmpty
-                      ? null
-                      : () => setState(() => _points.removeLast()),
-                  icon: const Icon(Icons.undo),
+                    Positioned(
+                      right: 10,
+                      top: 10,
+                      child: IconButton.filledTonal(
+                        tooltip: 'Undo last point',
+                        onPressed: _points.isEmpty
+                            ? null
+                            : () => setState(() => _points.removeLast()),
+                        icon: const Icon(Icons.undo),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
@@ -221,7 +236,7 @@ class _RouteEditorState extends State<_RouteEditor> {
           child: SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: _points.length < 2 ? null : _save,
+              onPressed: _points.length < 2 || _zoneId == null ? null : _save,
               child: const Text('Save route'),
             ),
           ),
@@ -231,12 +246,14 @@ class _RouteEditorState extends State<_RouteEditor> {
   );
 
   void _save() {
+    final zoneId = _zoneId;
+    if (_points.length < 2 || zoneId == null) return;
     final now = DateTime.now();
     Navigator.pop(
       context,
       EvacuationRoute(
         id: widget.route?.id ?? 'route-${now.microsecondsSinceEpoch}',
-        zoneId: _zoneId ?? 'default',
+        zoneId: zoneId,
         startPoint: _points.first,
         safeZonePoint: _points.last,
         routePolyline: List.unmodifiable(_points),
