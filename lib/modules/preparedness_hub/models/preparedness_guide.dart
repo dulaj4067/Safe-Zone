@@ -38,32 +38,31 @@ class PreparednessGuide {
     List<String>? zoneTags,
     DateTime? updatedAt,
     bool? isArchived,
-  }) =>
-      PreparednessGuide(
-        id: id,
-        title: title ?? this.title,
-        category: category ?? this.category,
-        bodyContent: bodyContent ?? this.bodyContent,
-        coverImageUrl: coverImageUrl ?? this.coverImageUrl,
-        zoneTags: zoneTags ?? this.zoneTags,
-        createdBy: createdBy,
-        createdAt: createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        isArchived: isArchived ?? this.isArchived,
-      );
+  }) => PreparednessGuide(
+    id: id,
+    title: title ?? this.title,
+    category: category ?? this.category,
+    bodyContent: bodyContent ?? this.bodyContent,
+    coverImageUrl: coverImageUrl ?? this.coverImageUrl,
+    zoneTags: zoneTags ?? this.zoneTags,
+    createdBy: createdBy,
+    createdAt: createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    isArchived: isArchived ?? this.isArchived,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'category': category.name,
-        'bodyContent': bodyContent,
-        'coverImageUrl': coverImageUrl,
-        'zoneTags': zoneTags,
-        'createdBy': createdBy,
-        'createdAt': createdAt.toIso8601String(),
-        'updatedAt': updatedAt.toIso8601String(),
-        'isArchived': isArchived,
-      };
+    'id': id,
+    'title': title,
+    'category': category.name,
+    'bodyContent': bodyContent,
+    'coverImageUrl': coverImageUrl,
+    'zoneTags': zoneTags,
+    'createdBy': createdBy,
+    'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
+    'isArchived': isArchived,
+  };
 
   factory PreparednessGuide.fromJson(Map<String, dynamic> json) =>
       PreparednessGuide(

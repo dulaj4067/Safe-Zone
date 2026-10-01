@@ -22,10 +22,54 @@ void main() {
     await repository.archiveGuide(updated.id);
 
     final reopenedRepository = LocalPreparednessRepository();
-    final persistedGuide = (await reopenedRepository.getGuides())
-        .firstWhere((guide) => guide.id == updated.id);
+    final persistedGuide = (await reopenedRepository.getGuides()).firstWhere(
+      (guide) => guide.id == updated.id,
+    );
     expect(persistedGuide.title, 'Updated flood guide');
     expect(persistedGuide.isArchived, isTrue);
     expect(await reopenedRepository.getRoutes(), isNotEmpty);
+  });
+
+  test('personalized checklist matches household risk factors', () async {
+    final repository = LocalPreparednessRepository();
+    final checklist = await repository.generateChecklistForProfile({
+      'locationType': 'riverside',
+      'householdSize': '5',
+      'hasElderlyMember': true,
+      'hasDisabledMember': true,
+      'hasVehicle': false,
+    });
+
+    expect(checklist, isNotEmpty);
+    expect(
+      checklist.any((item) => item.riskFactorTags.contains('riverside')),
+      isTrue,
+    );
+    expect(
+      checklist.any(
+        (item) => item.riskFactorTags.contains('elderly-household'),
+      ),
+      isTrue,
+    );
+    expect(
+      checklist.any((item) => item.riskFactorTags.contains('no-vehicle')),
+      isTrue,
+    );
+  });
+
+  test('zone-targeted reminders are filtered for the member zone', () async {
+    final repository = LocalPreparednessRepository();
+    final reminders = await repository.getReminders();
+
+    final zoneReminders = repository.remindersForZone(reminders, 'zone-demo');
+    expect(zoneReminders, isNotEmpty);
+    expect(
+      zoneReminders.every(
+        (reminder) =>
+            reminder.zoneTags.isEmpty ||
+            reminder.zoneTags.contains('zone-demo'),
+      ),
+      isTrue,
+    );
   });
 }
