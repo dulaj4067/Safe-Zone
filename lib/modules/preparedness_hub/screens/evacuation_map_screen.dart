@@ -46,21 +46,24 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
         return;
       }
       var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied)
+      if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
+      }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         setState(() => _locationUnavailable = true);
         return;
       }
       final current = await Geolocator.getCurrentPosition();
-      if (mounted)
+      if (mounted) {
         setState(() => _location = LatLng(current.latitude, current.longitude));
+      }
       _positionSubscription = Geolocator.getPositionStream().listen((position) {
-        if (mounted)
+        if (mounted) {
           setState(
             () => _location = LatLng(position.latitude, position.longitude),
           );
+        }
       });
     } catch (_) {
       if (mounted) setState(() => _locationUnavailable = true);
@@ -79,12 +82,11 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     final provider = context.watch<PreparednessProvider>();
     final candidates = provider.routes
         .where(
-          (route) => route.zoneId == widget.zoneId || route.zoneId == 'default',
+          (route) => widget.zoneId.isNotEmpty && route.zoneId == widget.zoneId,
         )
         .toList();
     final route = _nearestRoute(candidates, _location);
-    final center =
-        _location ?? route?.startPoint ?? const LatLng(6.9344, 79.8500);
+    final center = _location ?? route?.startPoint;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Evacuation map')),
@@ -92,7 +94,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
         children: [
           if (_locationUnavailable)
             const MaterialBanner(
-              content: Text('Location unavailable. Showing the zone route.'),
+              content: Text('Current location is unavailable.'),
               actions: [SizedBox.shrink()],
             ),
           if (_activeAlert != null)
@@ -104,72 +106,81 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
             ),
           Expanded(
             flex: 3,
-            child: Stack(
-              children: [
-                FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(initialCenter: center, initialZoom: 14),
-                  children: [
-                    buildBaseTileLayer(BaseMapStyle.topo),
-                    if (route != null && route.routePolyline.length > 1)
-                      PolylineLayer(
-                        polylines: [
-                          Polyline(
-                            points: route.routePolyline,
-                            strokeWidth: 6,
-                            color: Theme.of(context).colorScheme.primary,
+            child: center == null
+                ? const Center(
+                    child: Text(
+                      'Your location and a saved route are needed to show the map.',
+                    ),
+                  )
+                : Stack(
+                    children: [
+                      FlutterMap(
+                        mapController: _mapController,
+                        options: MapOptions(
+                          initialCenter: center,
+                          initialZoom: 14,
+                        ),
+                        children: [
+                          buildBaseTileLayer(BaseMapStyle.topo),
+                          if (route != null && route.routePolyline.length > 1)
+                            PolylineLayer(
+                              polylines: [
+                                Polyline(
+                                  points: route.routePolyline,
+                                  strokeWidth: 6,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ],
+                            ),
+                          MarkerLayer(
+                            markers: [
+                              if (_location != null)
+                                Marker(
+                                  point: _location!,
+                                  width: 40,
+                                  height: 40,
+                                  child: const Icon(
+                                    Icons.my_location,
+                                    color: Colors.blue,
+                                    size: 30,
+                                  ),
+                                ),
+                              if (route != null)
+                                Marker(
+                                  point: route.safeZonePoint,
+                                  width: 44,
+                                  height: 48,
+                                  child: const Icon(
+                                    Icons.health_and_safety,
+                                    color: Colors.green,
+                                    size: 38,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          RichAttributionWidget(
+                            attributions: [
+                              TextSourceAttribution(
+                                attributionFor(BaseMapStyle.topo),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    MarkerLayer(
-                      markers: [
-                        if (_location != null)
-                          Marker(
-                            point: _location!,
-                            width: 40,
-                            height: 40,
-                            child: const Icon(
-                              Icons.my_location,
-                              color: Colors.blue,
-                              size: 30,
-                            ),
-                          ),
-                        if (route != null)
-                          Marker(
-                            point: route.safeZonePoint,
-                            width: 44,
-                            height: 48,
-                            child: const Icon(
-                              Icons.health_and_safety,
-                              color: Colors.green,
-                              size: 38,
-                            ),
-                          ),
-                      ],
-                    ),
-                    RichAttributionWidget(
-                      attributions: [
-                        TextSourceAttribution(
-                          attributionFor(BaseMapStyle.topo),
+                      Positioned(
+                        right: 12,
+                        top: 12,
+                        child: FloatingActionButton.small(
+                          heroTag: 'my-location',
+                          tooltip: 'Center on my location',
+                          onPressed: _location == null
+                              ? null
+                              : () => _mapController.move(_location!, 15),
+                          child: const Icon(Icons.my_location),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-                Positioned(
-                  right: 12,
-                  top: 12,
-                  child: FloatingActionButton.small(
-                    heroTag: 'my-location',
-                    tooltip: 'Center on my location',
-                    onPressed: _location == null
-                        ? null
-                        : () => _mapController.move(_location!, 15),
-                    child: const Icon(Icons.my_location),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
           Expanded(
             flex: 2,

@@ -121,7 +121,7 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => EvacuationMapScreen(
-                                zoneId: widget.currentUser?.zoneId ?? 'default',
+                                zoneId: widget.currentUser?.zoneId ?? '',
                               ),
                             ),
                           ),
@@ -156,8 +156,7 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => DisasterHistoryScreen(
-                                zoneId:
-                                    widget.currentUser?.zoneId ?? 'zone-demo',
+                                zoneId: widget.currentUser?.zoneId ?? '',
                               ),
                             ),
                           ),
