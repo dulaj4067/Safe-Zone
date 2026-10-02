@@ -40,10 +40,14 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
       );
     }
 
+    AlertProvider? alertProvider;
+    try {
+      alertProvider = context.read<AlertProvider>();
+    } catch (_) {}
+
     return ChangeNotifierProvider(
       create: (context) => AlertFormProvider(
-        initialRadiusMeters:
-            context.read<AlertProvider>().defaultBroadcastRadiusMeters,
+        initialRadiusMeters: alertProvider?.defaultBroadcastRadiusMeters ?? 2000,
       ),
       child: _BroadcastForm(zones: widget.zones),
     );
@@ -167,6 +171,70 @@ class _BroadcastForm extends StatelessWidget {
             maxLines: 4,
             onChanged: context.read<AlertFormProvider>().updateInstructions,
           ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Delivery Channels',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              Row(
+                children: [
+                  Text(
+                    form.selectedChannelsCount == 3
+                        ? 'All Channels Active'
+                        : '${form.selectedChannelsCount}/3 Active',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: form.selectedChannelsCount == 3
+                          ? Colors.green.shade700
+                          : Colors.orange.shade800,
+                    ),
+                  ),
+                  if (form.selectedChannelsCount < 3) ...[
+                    const SizedBox(width: 8),
+                    TextButton(
+                      key: const Key('select_all_channels_btn'),
+                      onPressed: () =>
+                          context.read<AlertFormProvider>().selectAllChannels(),
+                      child: const Text('Select All'),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          CheckboxListTile(
+            key: const Key('channel_push_tile'),
+            value: form.dispatchPush,
+            onChanged: (v) =>
+                context.read<AlertFormProvider>().togglePush(v ?? false),
+            title: const Text('Push Notification'),
+            subtitle: const Text('Mobile app & OS push notification'),
+            contentPadding: EdgeInsets.zero,
+          ),
+          CheckboxListTile(
+            key: const Key('channel_sms_tile'),
+            value: form.dispatchSms,
+            onChanged: (v) =>
+                context.read<AlertFormProvider>().toggleSms(v ?? false),
+            title: const Text('SMS Cellular Broadcast'),
+            subtitle:
+                const Text('Offline SMS alert for residents without internet'),
+            contentPadding: EdgeInsets.zero,
+          ),
+          CheckboxListTile(
+            key: const Key('channel_siren_tile'),
+            value: form.dispatchSiren,
+            onChanged: (v) =>
+                context.read<AlertFormProvider>().toggleSiren(v ?? false),
+            title: const Text('Siren-Trigger Channel'),
+            subtitle: const Text('Activates outdoor sirens & DND override'),
+            contentPadding: EdgeInsets.zero,
+          ),
           const SizedBox(height: 20),
           if (form.submitError != null)
             Padding(
@@ -197,7 +265,13 @@ class _BroadcastForm extends StatelessWidget {
                       width: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Broadcast alert'),
+                  : Text(
+                      form.selectedChannelsCount == 3
+                          ? 'Dispatch Broadcast (All 3 Channels)'
+                          : form.selectedChannelsCount == 1
+                              ? 'Dispatch Broadcast (1 Channel)'
+                              : 'Dispatch Broadcast (${form.selectedChannelsCount} Channels)',
+                    ),
             ),
           ),
         ],

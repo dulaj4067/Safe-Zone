@@ -50,6 +50,12 @@ class _MockNotificationService implements NotificationService {
 
   @override
   Future<void> cancelAll() async {}
+
+  @override
+  Future<void> scheduleReminderNotification(dynamic reminder) async {}
+
+  @override
+  Future<void> cancelReminder(String reminderId) async {}
 }
 
 class _MockAlertService extends AlertService {

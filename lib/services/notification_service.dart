@@ -191,6 +191,10 @@ class NotificationService {
     );
   }
 
+  Future<void> triggerSirenAlert(DisasterAlert alert) async {
+    await showCriticalAlert(alert);
+  }
+
   Future<void> showNormalAlert(DisasterAlert alert) async {
     const androidDetails = AndroidNotificationDetails(
       generalChannelId,
