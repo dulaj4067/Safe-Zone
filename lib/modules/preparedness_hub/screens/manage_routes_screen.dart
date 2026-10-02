@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+import '../../../models/app_user.dart';
 import '../../../models/zone.dart';
 import '../../../utils/map_tile_config.dart';
 import '../../../utils/map_tile_sources.dart';
@@ -11,11 +12,20 @@ import '../models/evacuation_route.dart';
 import '../providers/preparedness_provider.dart';
 
 class ManageRoutesScreen extends StatelessWidget {
-  const ManageRoutesScreen({super.key, required this.zones});
+  const ManageRoutesScreen({
+    super.key,
+    required this.zones,
+    required this.currentUser,
+  });
   final List<Zone> zones;
+  final AppUser? currentUser;
 
   @override
   Widget build(BuildContext context) {
+    if (currentUser?.role.isAuthority != true) {
+      return const _AccessDeniedView();
+    }
+
     final provider = context.watch<PreparednessProvider>();
     return Scaffold(
       appBar: AppBar(title: const Text('Manage evacuation routes')),
@@ -26,15 +36,27 @@ class ManageRoutesScreen extends StatelessWidget {
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: provider.routes.map((route) => Card(
-          child: ListTile(
-            leading: const Icon(Icons.alt_route),
-            title: Text(zones.where((zone) => zone.id == route.zoneId).firstOrNull?.name ?? route.zoneId),
-            subtitle: Text('Updated ${MaterialLocalizations.of(context).formatShortDate(route.lastUpdated)}'),
-            onTap: () => _edit(context, route),
-            trailing: const Icon(Icons.edit_outlined),
-          ),
-        )).toList(),
+        children: provider.routes
+            .map(
+              (route) => Card(
+                child: ListTile(
+                  leading: const Icon(Icons.alt_route),
+                  title: Text(
+                    zones
+                            .where((zone) => zone.id == route.zoneId)
+                            .firstOrNull
+                            ?.name ??
+                        route.zoneId,
+                  ),
+                  subtitle: Text(
+                    'Updated ${MaterialLocalizations.of(context).formatShortDate(route.lastUpdated)}',
+                  ),
+                  onTap: () => _edit(context, route),
+                  trailing: const Icon(Icons.edit_outlined),
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
@@ -42,12 +64,26 @@ class ManageRoutesScreen extends StatelessWidget {
   Future<void> _edit(BuildContext context, [EvacuationRoute? route]) async {
     final saved = await Navigator.push<EvacuationRoute>(
       context,
-      MaterialPageRoute(builder: (_) => _RouteEditor(route: route, zones: zones)),
+      MaterialPageRoute(
+        builder: (_) => _RouteEditor(route: route, zones: zones),
+      ),
     );
     if (saved != null && context.mounted) {
       await context.read<PreparednessProvider>().saveRoute(saved);
     }
   }
+}
+
+class _AccessDeniedView extends StatelessWidget {
+  const _AccessDeniedView();
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Access denied')),
+    body: const Center(
+      child: Text('Only authority accounts can manage routes.'),
+    ),
+  );
 }
 
 class _RouteEditor extends StatefulWidget {
@@ -68,9 +104,11 @@ class _RouteEditorState extends State<_RouteEditor> {
   @override
   void initState() {
     super.initState();
-    _zoneId = widget.route?.zoneId ?? widget.zones.firstOrNull?.id ?? 'default';
+    _zoneId = widget.route?.zoneId ?? widget.zones.firstOrNull?.id;
     _points = widget.route?.routePolyline.toList() ?? [];
-    _instructions = TextEditingController(text: widget.route?.instructions.join('\n'));
+    _instructions = TextEditingController(
+      text: widget.route?.instructions.join('\n'),
+    );
   }
 
   @override
@@ -80,107 +118,153 @@ class _RouteEditorState extends State<_RouteEditor> {
     super.dispose();
   }
 
+  LatLng? get _mapCenter {
+    final existingPoint = _points.firstOrNull;
+    if (existingPoint != null) return existingPoint;
+    final zone = widget.zones.where((item) => item.id == _zoneId).firstOrNull;
+    final latitude = zone?.centroidLat;
+    final longitude = zone?.centroidLng;
+    if (latitude == null || longitude == null) return null;
+    return LatLng(latitude, longitude);
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(widget.route == null ? 'Create route' : 'Edit route')),
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: DropdownButtonFormField<String>(
-                initialValue: _zoneId,
-                decoration: const InputDecoration(labelText: 'Zone'),
-                items: [
-                  if (widget.zones.isEmpty)
-                    const DropdownMenuItem(value: 'default', child: Text('Default zone')),
-                  ...widget.zones.map((zone) => DropdownMenuItem(value: zone.id, child: Text(zone.name))),
-                ],
-                onChanged: (value) => setState(() => _zoneId = value),
-              ),
+    appBar: AppBar(
+      title: Text(widget.route == null ? 'Create route' : 'Edit route'),
+    ),
+    body: Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: DropdownButtonFormField<String>(
+            initialValue: _zoneId,
+            decoration: InputDecoration(
+              labelText: 'Zone',
+              helperText: widget.zones.isEmpty
+                  ? 'Add a zone before creating an evacuation route.'
+                  : null,
             ),
-            Expanded(
-              flex: 3,
-              child: Stack(
-                children: [
-                  FlutterMap(
-                    mapController: _mapController,
-                    options: MapOptions(
-                      initialCenter: _points.firstOrNull ?? const LatLng(6.9344, 79.8500),
-                      initialZoom: 14,
-                      minZoom: kSriLankaMinZoom,
-                      cameraConstraint: kSriLankaCameraConstraint,
-                      onTap: (_, point) => setState(() => _points.add(point)),
-                    ),
-                    children: [
-                      buildBaseTileLayer(BaseMapStyle.topo),
-                      if (_points.length > 1)
-                        PolylineLayer(polylines: [Polyline(points: _points, strokeWidth: 5, color: Theme.of(context).colorScheme.primary)]),
-                      MarkerLayer(
-                        markers: [
-                          for (var index = 0; index < _points.length; index++)
-                            Marker(
-                              point: _points[index],
-                              width: 38,
-                              height: 42,
-                              child: Icon(
-                                index == 0 ? Icons.trip_origin : (index == _points.length - 1 ? Icons.place : Icons.more_horiz),
-                                color: index == _points.length - 1 ? Colors.green.shade800 : Theme.of(context).colorScheme.primary,
-                                size: 34,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Positioned(
-                    right: 10,
-                    top: 10,
-                    child: IconButton.filledTonal(
-                      tooltip: 'Undo last point',
-                      onPressed: _points.isEmpty ? null : () => setState(() => _points.removeLast()),
-                      icon: const Icon(Icons.undo),
-                    ),
-                  ),
-                ],
+            items: [
+              ...widget.zones.map(
+                (zone) =>
+                    DropdownMenuItem(value: zone.id, child: Text(zone.name)),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-              child: TextField(
-                controller: _instructions,
-                minLines: 3,
-                maxLines: 5,
-                decoration: const InputDecoration(
-                  labelText: 'Turn-by-turn instructions (one per line)',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _points.length < 2 ? null : _save,
-                  child: const Text('Save route'),
-                ),
-              ),
-            ),
-          ],
+            ],
+            onChanged: (value) => setState(() => _zoneId = value),
+          ),
         ),
-      );
+        Expanded(
+          flex: 3,
+          child: _mapCenter == null
+              ? const Center(
+                  child: Text(
+                    'Select a zone with a map center to plot a route.',
+                  ),
+                )
+              : Stack(
+                  children: [
+                    FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter: _mapCenter!,
+                        initialZoom: 14,
+                        minZoom: kSriLankaMinZoom,
+                        cameraConstraint: kSriLankaCameraConstraint,
+                        onTap: (_, point) => setState(() => _points.add(point)),
+                      ),
+                      children: [
+                        buildBaseTileLayer(BaseMapStyle.topo),
+                        if (_points.length > 1)
+                          PolylineLayer(
+                            polylines: [
+                              Polyline(
+                                points: _points,
+                                strokeWidth: 5,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ],
+                          ),
+                        MarkerLayer(
+                          markers: [
+                            for (var index = 0; index < _points.length; index++)
+                              Marker(
+                                point: _points[index],
+                                width: 38,
+                                height: 42,
+                                child: Icon(
+                                  index == 0
+                                      ? Icons.trip_origin
+                                      : (index == _points.length - 1
+                                            ? Icons.place
+                                            : Icons.more_horiz),
+                                  color: index == _points.length - 1
+                                      ? Colors.green.shade800
+                                      : Theme.of(context).colorScheme.primary,
+                                  size: 34,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    Positioned(
+                      right: 10,
+                      top: 10,
+                      child: IconButton.filledTonal(
+                        tooltip: 'Undo last point',
+                        onPressed: _points.isEmpty
+                            ? null
+                            : () => setState(() => _points.removeLast()),
+                        icon: const Icon(Icons.undo),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: TextField(
+            controller: _instructions,
+            minLines: 3,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              labelText: 'Turn-by-turn instructions (one per line)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _points.length < 2 || _zoneId == null ? null : _save,
+              child: const Text('Save route'),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 
   void _save() {
+    final zoneId = _zoneId;
+    if (_points.length < 2 || zoneId == null) return;
     final now = DateTime.now();
     Navigator.pop(
       context,
       EvacuationRoute(
         id: widget.route?.id ?? 'route-${now.microsecondsSinceEpoch}',
-        zoneId: _zoneId ?? 'default',
+        zoneId: zoneId,
         startPoint: _points.first,
         safeZonePoint: _points.last,
         routePolyline: List.unmodifiable(_points),
-        instructions: _instructions.text.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList(),
+        instructions: _instructions.text
+            .split('\n')
+            .map((line) => line.trim())
+            .where((line) => line.isNotEmpty)
+            .toList(),
         lastUpdated: now,
       ),
     );
