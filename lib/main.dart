@@ -9,6 +9,8 @@ import 'screens/login_screen.dart';
 import 'services/supabase_service.dart';
 import 'theme/app_theme.dart';
 import 'providers/safety_provider.dart';
+import 'providers/map_focus_provider.dart';
+import 'providers/active_route_provider.dart';
 import 'services/activity_history_service.dart';
 import 'modules/preparedness_hub/providers/preparedness_provider.dart';
 import 'modules/preparedness_hub/services/preparedness_repository.dart';
@@ -37,6 +39,8 @@ class DisasterApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => IncidentProvider()),
         ChangeNotifierProvider(create: (_) => AlertProvider()),
         ChangeNotifierProvider(create: (_) => SafetyProvider()),
+        ChangeNotifierProvider(create: (_) => MapFocusProvider()),
+        ChangeNotifierProvider(create: (_) => ActiveRouteProvider()),
         ChangeNotifierProvider(
           create: (_) => PreparednessProvider(
             repository: LocalPreparednessRepository(),

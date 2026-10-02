@@ -11,6 +11,17 @@ class ShelterService {
         .toList();
   }
 
+  /// One shelter's current row — the shelter page re-reads this on
+  /// pull-to-refresh so occupancy/status aren't stale from the list.
+  Future<Shelter?> fetchShelter(String id) async {
+    final row = await SupabaseService.client
+        .from('shelters')
+        .select()
+        .eq('id', id)
+        .maybeSingle();
+    return row == null ? null : Shelter.fromMap(row);
+  }
+
   /// Name of the person / organisation in `shelters.managed_by`, looked up
   /// in `profiles`. Returns null when the shelter has no manager or the
   /// profile can't be read — the detail sheet simply hides that row.

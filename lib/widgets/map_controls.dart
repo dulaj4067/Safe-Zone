@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
 import '../utils/map_tile_config.dart';
 
 /// Circular +/- zoom button, styled to match the map card's floating
@@ -48,45 +47,6 @@ class MyLocationButton extends StatelessWidget {
           child: const Padding(
             padding: EdgeInsets.all(10),
             child: Icon(Icons.my_location, size: 20, color: Color(0xFF1A73E8)),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Toggles the incident density heatmap overlay on the map.
-///
-/// When [active] is true the button is tinted with [AppColors.riverTeal]
-/// so the user always knows at a glance whether the layer is on or off.
-class HeatmapToggleButton extends StatelessWidget {
-  final bool active;
-  final VoidCallback onTap;
-
-  const HeatmapToggleButton({
-    super.key,
-    required this.active,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: active ? 'Hide heatmap' : 'Show incident heatmap',
-      child: Material(
-        color: active ? AppColors.riverTeal : Colors.white,
-        shape: const CircleBorder(),
-        elevation: 2,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Icon(
-              Icons.blur_on_rounded,
-              size: 20,
-              color: active ? Colors.white : const Color(0xFF2A2A2A),
-            ),
           ),
         ),
       ),
