@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../models/zone.dart';
 import '../../../utils/map_tile_config.dart';
 import '../../../utils/map_tile_sources.dart';
+import '../../../utils/sri_lanka_bounds.dart';
 import '../models/evacuation_route.dart';
 import '../providers/preparedness_provider.dart';
 
@@ -106,6 +107,8 @@ class _RouteEditorState extends State<_RouteEditor> {
                     options: MapOptions(
                       initialCenter: _points.firstOrNull ?? const LatLng(6.9344, 79.8500),
                       initialZoom: 14,
+                      minZoom: kSriLankaMinZoom,
+                      cameraConstraint: kSriLankaCameraConstraint,
                       onTap: (_, point) => setState(() => _points.add(point)),
                     ),
                     children: [

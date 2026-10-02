@@ -12,6 +12,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
+import '../utils/sri_lanka_bounds.dart';
 import '../widgets/incident_card.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/status_badge.dart';
@@ -557,7 +558,8 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
                       options: MapOptions(
                         initialCenter: _selectedLocation,
                         initialZoom: 14,
-                        minZoom: 5,
+                        minZoom: kSriLankaMinZoom,
+                        cameraConstraint: kSriLankaCameraConstraint,
                         maxZoom: 18,
                         interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
                         onTap: (tapPosition, point) {
