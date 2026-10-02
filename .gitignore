@@ -50,3 +50,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# graphify knowledge graph outputs (regenerate with /graphify)
+graphify-out/

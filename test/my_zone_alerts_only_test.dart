@@ -10,6 +10,7 @@ import 'package:safezone/providers/auth_provider.dart';
 import 'package:safezone/providers/incident_provider.dart';
 import 'package:safezone/screens/settings_screen.dart';
 import 'package:safezone/services/alert_service.dart';
+import 'package:safezone/modules/preparedness_hub/models/preparedness_reminder.dart';
 import 'package:safezone/services/notification_service.dart';
 
 class _MockNotificationService implements NotificationService {
@@ -51,7 +52,9 @@ class _MockNotificationService implements NotificationService {
   Future<void> cancelAll() async {}
 
   @override
-  Future<void> scheduleReminderNotification(dynamic reminder) async {}
+  Future<void> scheduleReminderNotification(
+    PreparednessReminder reminder,
+  ) async {}
 
   @override
   Future<void> cancelReminder(String reminderId) async {}

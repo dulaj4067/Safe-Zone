@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
 import '../utils/map_tile_config.dart';
 
 /// Circular +/- zoom button, styled to match the map card's floating
@@ -55,37 +54,86 @@ class MyLocationButton extends StatelessWidget {
   }
 }
 
-/// Toggles the incident density heatmap overlay on the map.
-///
-/// When [active] is true the button is tinted with [AppColors.riverTeal]
-/// so the user always knows at a glance whether the layer is on or off.
-class HeatmapToggleButton extends StatelessWidget {
-  final bool active;
+/// Red emergency SOS button with a pulsing glow, like a siren light, so it
+/// stands out from the plain white map controls. Larger than the others
+/// because it's the one a panicking user has to hit first time.
+class SosMapButton extends StatefulWidget {
   final VoidCallback onTap;
+  final bool busy;
+  const SosMapButton({super.key, required this.onTap, this.busy = false});
 
-  const HeatmapToggleButton({
-    super.key,
-    required this.active,
-    required this.onTap,
-  });
+  @override
+  State<SosMapButton> createState() => _SosMapButtonState();
+}
+
+class _SosMapButtonState extends State<SosMapButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Respect the OS "remove animations" accessibility setting.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _pulse.value = 0;
+      _pulse.stop();
+    } else if (!_pulse.isAnimating) {
+      _pulse.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    const red = Color(0xFFD32F2F);
     return Tooltip(
-      message: active ? 'Hide heatmap' : 'Show incident heatmap',
-      child: Material(
-        color: active ? AppColors.riverTeal : Colors.white,
-        shape: const CircleBorder(),
-        elevation: 2,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Icon(
-              Icons.blur_on_rounded,
-              size: 20,
-              color: active ? Colors.white : const Color(0xFF2A2A2A),
+      message: 'Emergency SOS',
+      child: AnimatedBuilder(
+        animation: _pulse,
+        builder: (context, child) => DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: red.withValues(alpha: 0.5 * (1 - _pulse.value)),
+                blurRadius: 4,
+                spreadRadius: 10 * _pulse.value,
+              ),
+            ],
+          ),
+          child: child,
+        ),
+        child: Material(
+          color: red,
+          shape: const CircleBorder(),
+          elevation: 3,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: widget.busy ? null : widget.onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: widget.busy
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.crisis_alert,
+                      size: 22,
+                      color: Colors.white,
+                    ),
             ),
           ),
         ),

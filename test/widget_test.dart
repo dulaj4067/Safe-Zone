@@ -44,6 +44,12 @@ void main() {
           ChangeNotifierProvider(create: (_) => ActivityHistoryService()),
         ],
         child: MaterialApp(
+          // The SOS button's siren pulse loops forever, which would stop
+          // pumpAndSettle from ever settling; it honours this flag.
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: child!,
+          ),
           home: const HomeScreen(zones: []),
         ),
       ),
@@ -52,6 +58,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Share my ETA'), findsOneWidget);
+    expect(find.byTooltip('Emergency SOS'), findsOneWidget);
 
     await tester.tap(find.text('Share my ETA'));
     await tester.pumpAndSettle();

@@ -10,6 +10,7 @@ import 'package:safezone/providers/alert_provider.dart';
 import 'package:safezone/screens/admin_broadcast_screen.dart';
 import 'package:safezone/screens/broadcast_dashboard_screen.dart';
 import 'package:safezone/services/alert_service.dart';
+import 'package:safezone/modules/preparedness_hub/models/preparedness_reminder.dart';
 import 'package:safezone/services/notification_service.dart';
 
 class _MockNotificationService implements NotificationService {
@@ -52,7 +53,9 @@ class _MockNotificationService implements NotificationService {
   Future<void> cancelAll() async {}
 
   @override
-  Future<void> scheduleReminderNotification(dynamic reminder) async {}
+  Future<void> scheduleReminderNotification(
+    PreparednessReminder reminder,
+  ) async {}
 
   @override
   Future<void> cancelReminder(String reminderId) async {}
@@ -270,11 +273,16 @@ void main() {
         centroidLng: 79.91,
       );
 
+      // AdminBroadcastScreen seeds its radius from AlertProvider's
+      // default-broadcast-radius setting, so it needs one in the tree.
       await tester.pumpWidget(
-        MaterialApp(
-          home: AdminBroadcastScreen(
-            currentUser: admin,
-            zones: [zone],
+        ChangeNotifierProvider<AlertProvider>(
+          create: (_) => AlertProvider(),
+          child: MaterialApp(
+            home: AdminBroadcastScreen(
+              currentUser: admin,
+              zones: [zone],
+            ),
           ),
         ),
       );
@@ -312,11 +320,16 @@ void main() {
         centroidLng: 79.91,
       );
 
+      // AdminBroadcastScreen seeds its radius from AlertProvider's
+      // default-broadcast-radius setting, so it needs one in the tree.
       await tester.pumpWidget(
-        MaterialApp(
-          home: AdminBroadcastScreen(
-            currentUser: admin,
-            zones: [zone],
+        ChangeNotifierProvider<AlertProvider>(
+          create: (_) => AlertProvider(),
+          child: MaterialApp(
+            home: AdminBroadcastScreen(
+              currentUser: admin,
+              zones: [zone],
+            ),
           ),
         ),
       );

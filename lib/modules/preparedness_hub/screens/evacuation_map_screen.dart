@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../../../utils/map_tile_config.dart';
 import '../../../utils/map_tile_sources.dart';
+import '../../../utils/sri_lanka_bounds.dart';
 import '../models/evacuation_route.dart';
 import '../providers/preparedness_provider.dart';
 
@@ -119,6 +120,8 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                         options: MapOptions(
                           initialCenter: center,
                           initialZoom: 14,
+                          minZoom: kSriLankaMinZoom,
+                          cameraConstraint: kSriLankaCameraConstraint,
                         ),
                         children: [
                           buildBaseTileLayer(BaseMapStyle.topo),

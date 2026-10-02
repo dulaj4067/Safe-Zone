@@ -27,6 +27,7 @@ class AlertFormProvider extends ChangeNotifier {
   double? customLng;
   int radiusMeters;
 
+  // Broadcast Delivery Channels (enabled by default for maximum reach across all connectivity states)
   bool dispatchPush = true;
   bool dispatchSms = true;
   bool dispatchSiren = true;
@@ -34,10 +35,12 @@ class AlertFormProvider extends ChangeNotifier {
   bool _isSubmitting = false;
   String? _submitError;
   DisasterAlert? _lastCreated;
+  BroadcastDispatchResult? _lastDispatchResult;
 
   bool get isSubmitting => _isSubmitting;
   String? get submitError => _submitError;
   DisasterAlert? get lastCreated => _lastCreated;
+  BroadcastDispatchResult? get lastDispatchResult => _lastDispatchResult;
 
   int get selectedChannelsCount =>
       (dispatchPush ? 1 : 0) + (dispatchSms ? 1 : 0) + (dispatchSiren ? 1 : 0);
@@ -45,7 +48,7 @@ class AlertFormProvider extends ChangeNotifier {
   bool get hasSelectedChannel => selectedChannelsCount > 0;
 
   /// Story 3 AC: submission is disabled unless title, severity, a
-  /// zone or custom center point, and at least one channel are all present.
+  /// zone or custom center point, and at least one dispatch channel are present.
   bool get isValid {
     final hasLocation =
         selectedZone != null || (customLat != null && customLng != null);
@@ -147,7 +150,7 @@ class AlertFormProvider extends ChangeNotifier {
       );
 
       _lastCreated = await _service.createAlert(draft);
-      await _service.dispatchMultiChannelBroadcast(
+      _lastDispatchResult = await _service.dispatchMultiChannelBroadcast(
         alert: _lastCreated!,
         sendPush: dispatchPush,
         sendSms: dispatchSms,
@@ -182,6 +185,7 @@ class AlertFormProvider extends ChangeNotifier {
     dispatchSiren = true;
     _submitError = null;
     _lastCreated = null;
+    _lastDispatchResult = null;
     notifyListeners();
   }
 }

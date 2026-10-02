@@ -14,7 +14,7 @@ import '../utils/format_utils.dart';
 /// withdraw; authorities and volunteer organisations also post new tasks
 /// and move them through open → in progress → completed/cancelled.
 class VolunteerTasksScreen extends StatefulWidget {
-  /// Limits the list to one shelter's tasks (opened from its detail sheet).
+  /// Limits the list to one shelter's tasks (opened from its Shelter page).
   final String? shelterId;
   final String? shelterName;
 

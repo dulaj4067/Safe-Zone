@@ -15,6 +15,7 @@ import '../theme/app_theme.dart';
 import '../utils/format_utils.dart';
 import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
+import '../utils/sri_lanka_bounds.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/incident_card.dart';
 import 'incident_detail_screen.dart';
@@ -466,18 +467,20 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             // ─── Description Multiline Field ──────────────────────────────
             TextFormField(
               controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description *',
+              decoration: InputDecoration(
+                // An SOS shouldn't be held up by typing — description is
+                // optional while the SOS switch is on.
+                labelText: _isSos ? 'Description (optional)' : 'Description *',
                 hintText: 'Explain what happened, water depth, roadblocks, or trapped individuals...',
                 alignLabelWithHint: true,
-                prefixIcon: Padding(
+                prefixIcon: const Padding(
                   padding: EdgeInsets.only(bottom: 50),
                   child: Icon(Icons.description_outlined),
                 ),
               ),
               maxLines: 3,
               validator: (val) {
-                if (val == null || val.trim().isEmpty) {
+                if (!_isSos && (val == null || val.trim().isEmpty)) {
                   return 'Please provide a short description';
                 }
                 return null;
@@ -515,7 +518,8 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                       options: MapOptions(
                         initialCenter: _selectedLocation,
                         initialZoom: 14,
-                        minZoom: 5,
+                        minZoom: kSriLankaMinZoom,
+                        cameraConstraint: kSriLankaCameraConstraint,
                         maxZoom: 18,
                         interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
                         onTap: (tapPosition, point) {

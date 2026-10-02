@@ -15,25 +15,33 @@ import '../models/zone.dart';
 import '../models/circle_member_location.dart';
 import '../providers/alert_provider.dart';
 import '../providers/incident_provider.dart';
+import '../models/route_result.dart';
+import '../providers/active_route_provider.dart';
+import '../providers/map_focus_provider.dart';
 import '../providers/safety_provider.dart';
 import '../theme/app_colors.dart';
 import '../services/activity_history_service.dart';
 import '../services/location_service.dart';
 import '../services/shelter_service.dart';
-import '../utils/map_tile_sources.dart';
 import '../widgets/severity_badge.dart';
 import '../widgets/active_alerts_sheet.dart';
+import '../widgets/active_route_banner.dart';
 import '../widgets/heatmap_layer.dart';
 import '../widgets/live_location_marker.dart';
 import '../widgets/location_alert_banner.dart';
 import '../widgets/loved_one_marker.dart';
-import '../utils/map_recenter.dart';
 import '../widgets/map_controls.dart';
+import '../widgets/map_filter_sheet.dart';
 import '../widgets/resume_dropdown.dart';
-import '../utils/map_tile_config.dart';
+import '../widgets/safe_zone_base_map.dart';
 import '../widgets/shelter_marker.dart';
+import '../widgets/shelter_preview_card.dart';
+import '../utils/format_utils.dart';
+import '../utils/map_tile_config.dart';
 import '../widgets/incident_detail_sheet.dart';
 import '../screens/incident_detail_screen.dart';
+import '../screens/shelter_detail_screen.dart';
+import '../screens/shelter_directions_screen.dart';
 import '../screens/select_safety_circle_screen.dart';
 import '../services/supabase_service.dart';
 
@@ -117,7 +125,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // Snapshot the current position before going to background.
       if (_liveLocation != null) {
         _lastKnownLocation = _liveLocation;
-        _resumeModalShown = false; // reset so the next foreground entry can fire
+        _resumeModalShown =
+            false; // reset so the next foreground entry can fire
       }
     } else if (state == AppLifecycleState.resumed) {
       _checkForDriftAndPrompt();
@@ -145,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _showResumeModal({required LatLng savedLocation}) {
     showModalBottomSheet<void>(
       context: context,
-      isDismissible: true,       // one tap on the backdrop closes it
+      isDismissible: true, // one tap on the backdrop closes it
       enableDrag: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _ResumeSessionModal(
@@ -205,10 +214,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     double? bestDistance;
     for (final zone in widget.zones) {
       if (zone.centroidLat == null || zone.centroidLng == null) continue;
-      final d = _distance(
-        center,
-        LatLng(zone.centroidLat!, zone.centroidLng!),
-      );
+      final d = _distance(center, LatLng(zone.centroidLat!, zone.centroidLng!));
       if (bestDistance == null || d < bestDistance) {
         bestDistance = d;
         nearest = zone;
@@ -217,7 +223,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return nearest?.name;
   }
 
+  /// `sampleRiskZones` is hardcoded sample data with no real backend source
+  /// (see its doc comment) — assigning a real user a "current risk zone"
+  /// from it would mean showing them a fabricated flood-risk warning, which
+  /// is actively misleading for a disaster app. Gated to debug builds only,
+  /// same as `_debugSampleZones` below, until a real zone-risk data source
+  /// exists. In release builds this always returns null, so "Share my ETA"
+  /// simply has no zone context rather than a made-up one.
   RiskZone? _nearestRiskZone(LatLng center) {
+    if (!kDebugMode) return null;
     RiskZone? nearest;
     double? bestDistance;
     for (final zone in sampleRiskZones) {
@@ -270,7 +284,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               builder: (context) {
                 final history = Provider.of<ActivityHistoryService?>(context);
                 if (history == null) return const SizedBox.shrink();
-                final hasEmergencyAlert = activeAlerts.any((alert) => alert.severity == AlertSeverity.red);
+                final hasEmergencyAlert = activeAlerts.any(
+                  (alert) => alert.severity == AlertSeverity.red,
+                );
                 return ResumeDropdown(
                   items: history.entries,
                   onResume: widget.onResumeActivity ?? (_) {},
@@ -311,7 +327,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+                    border: Border.all(
+                      color: Colors.black.withValues(alpha: 0.08),
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.10),
@@ -394,7 +412,11 @@ class _HeaderRow extends StatelessWidget {
               color: Colors.white,
               shape: BoxShape.circle,
               boxShadow: [
-                BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
               ],
             ),
             child: IconButton(
@@ -416,11 +438,27 @@ class _HeaderRow extends StatelessWidget {
 const bool _showSampleZonesInDebug = true;
 
 final List<({LatLng center, double radiusMeters, AlertSeverity severity})>
-    _debugSampleZones = [
-  (center: const LatLng(6.9695, 79.8975), radiusMeters: 1600, severity: AlertSeverity.yellow),
-  (center: const LatLng(6.9615, 79.9010), radiusMeters: 1400, severity: AlertSeverity.orange),
-  (center: const LatLng(6.9560, 79.9075), radiusMeters: 1200, severity: AlertSeverity.red),
-  (center: const LatLng(6.9520, 79.9140), radiusMeters: 1500, severity: AlertSeverity.yellow),
+_debugSampleZones = [
+  (
+    center: const LatLng(6.9695, 79.8975),
+    radiusMeters: 1600,
+    severity: AlertSeverity.yellow,
+  ),
+  (
+    center: const LatLng(6.9615, 79.9010),
+    radiusMeters: 1400,
+    severity: AlertSeverity.orange,
+  ),
+  (
+    center: const LatLng(6.9560, 79.9075),
+    radiusMeters: 1200,
+    severity: AlertSeverity.red,
+  ),
+  (
+    center: const LatLng(6.9520, 79.9140),
+    radiusMeters: 1500,
+    severity: AlertSeverity.yellow,
+  ),
 ];
 
 class _SafeZoneMap extends StatefulWidget {
@@ -431,6 +469,7 @@ class _SafeZoneMap extends StatefulWidget {
   final LatLng? liveLocation;
   final String? districtLabel;
   final AppUser? currentUser;
+
   /// When non-null, the map controller will move to this position
   /// on the next frame (resume-from-drift behaviour).
   final LatLng? resumeCenter;
@@ -451,51 +490,185 @@ class _SafeZoneMap extends StatefulWidget {
 }
 
 class _SafeZoneMapState extends State<_SafeZoneMap> {
-  final MapController _mapController = MapController();
-  BaseMapStyle _baseMapStyle = BaseMapStyle.street;
   bool _showHeatmap = false;
+  BaseMapStyle _baseMapStyle = BaseMapStyle.street;
+  MapFilters _filters = const MapFilters();
 
-  /// The map opens on a default district until the first GPS fix arrives;
-  /// once it does, jump to the user's position once (like Google Maps).
-  bool _centeredOnUser = false;
+  /// Shelter whose preview card is showing over the map, if any.
+  Shelter? _selectedShelter;
 
-  void _goToMyLocation() =>
-      recenterOnUser(context, _mapController, widget.liveLocation);
+  final MapController _mapController = MapController();
+  MapFocusProvider? _mapFocus;
+  ActiveRouteProvider? _activeRoute;
+  RouteResult? _framedRoute;
 
   @override
-  void didUpdateWidget(_SafeZoneMap oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!_centeredOnUser && widget.liveLocation != null) {
-      _centeredOnUser = true;
-      final live = widget.liveLocation!;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final zoom = _mapController.camera.zoom;
-        _mapController.move(live, zoom < 15 ? 15 : zoom);
-      });
-    }
-    // When the parent passes a fresh resumeCenter, animate the map to it.
-    if (widget.resumeCenter != null &&
-        widget.resumeCenter != oldWidget.resumeCenter) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _mapController.move(widget.resumeCenter!, _mapController.camera.zoom);
-      });
-    }
+  void initState() {
+    super.initState();
+    _mapFocus = Provider.of<MapFocusProvider?>(context, listen: false)
+      ?..addListener(_onMapFocus);
+    _activeRoute = Provider.of<ActiveRouteProvider?>(context, listen: false)
+      ?..addListener(_onRouteChanged);
   }
 
-  String _initialsFor(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty || parts.first.isEmpty) return '?';
-    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
+  @override
+  void dispose() {
+    _mapFocus?.removeListener(_onMapFocus);
+    _activeRoute?.removeListener(_onRouteChanged);
+    _mapController.dispose();
+    super.dispose();
   }
 
-  String _relativeTime(DateTime time) {
-    final diff = DateTime.now().difference(time);
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
+  /// Frame each newly computed route once, so coming back to Home after
+  /// working one out shows the whole thing rather than wherever the map
+  /// was last left.
+  void _onRouteChanged() {
+    final route = _activeRoute?.route;
+    if (route == null || identical(route.result, _framedRoute)) return;
+    _framedRoute = route.result;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _fitRoute(route);
+    });
+  }
+
+  void _fitRoute(ActiveRoute route) => _mapController.fitCamera(
+    CameraFit.bounds(
+      bounds: route.result.bounds,
+      padding: const EdgeInsets.fromLTRB(40, 90, 70, 40),
+    ),
+  );
+
+  void _openDirections(Shelter shelter) {
+    setState(() => _selectedShelter = null);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ShelterDirectionsScreen(destination: shelter),
+      ),
+    );
+  }
+
+  /// A "show on map" request (e.g. tapping the Shelter page's mini map):
+  /// fly to the shelter and open its preview card. If the current filters
+  /// would hide it, relax just the shelter filters so the card can show.
+  void _onMapFocus() {
+    final shelter = _mapFocus?.shelter;
+    if (shelter == null || !mounted) return;
+    setState(() {
+      _selectedShelter = shelter;
+      if (_filters.visibleShelters([shelter]).isEmpty) {
+        _filters = _filters.copyWith(shelters: true, openSheltersOnly: false);
+      }
+    });
+    // After the tab switch has laid the map out.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final zoom = _mapController.camera.zoom;
+      _mapController.move(
+        LatLng(shelter.latitude, shelter.longitude),
+        zoom < 15 ? 15 : zoom,
+      );
+    });
+  }
+
+  void _openFilters() => showMapFilterSheet(
+    context,
+    current: _filters,
+    onChanged: (next) => setState(() => _filters = next),
+    style: _baseMapStyle,
+    onStyleChanged: (s) => setState(() => _baseMapStyle = s),
+    heatmap: _showHeatmap,
+    onHeatmapChanged: (v) => setState(() => _showHeatmap = v),
+  );
+
+  bool _sendingSos = false;
+
+  /// One-tap "I'm trapped" report from the map: no form and no description,
+  /// just a Trapped Person SOS pinned at the device's live GPS position.
+  /// Asks once first, since a stray tap would page rescuers for nothing.
+  Future<void> _sendSos() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final location = widget.liveLocation;
+    if (location == null) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Waiting for your GPS location — turn on location to send an SOS.',
+          ),
+          backgroundColor: AppColors.severityRed,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(
+          Icons.crisis_alert,
+          color: AppColors.severityRed,
+          size: 36,
+        ),
+        title: const Text('Send Emergency SOS?'),
+        content: const Text(
+          'Rescuers will get a high-priority "Trapped Person" report at your '
+          'current location. No description needed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.severityRed,
+              minimumSize: const Size(0, 40),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('SEND SOS'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _sendingSos = true);
+    final provider = context.read<IncidentProvider>();
+    final success = await provider.submitIncident(
+      category: IncidentCategory.trappedPerson,
+      description: '',
+      latitude: location.latitude,
+      longitude: location.longitude,
+      isSos: true,
+    );
+    if (!mounted) return;
+    setState(() => _sendingSos = false);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Emergency SOS sent from your location. Help is being alerted.'
+              : provider.errorMessage ?? 'Could not send SOS. Try again.',
+        ),
+        backgroundColor: success
+            ? AppColors.severityRed
+            : AppColors.deepEstuary,
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
+  void _openShelter(Shelter shelter) {
+    setState(() => _selectedShelter = null);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ShelterDetailScreen(
+          shelter: shelter,
+          currentUser: widget.currentUser,
+        ),
+      ),
+    );
   }
 
   void _showLovedOneSheet(BuildContext context, CircleMemberLocation member) {
@@ -513,7 +686,7 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
             Row(
               children: [
                 LovedOneMarker(
-                  initials: _initialsFor(member.name),
+                  initials: member.initials,
                   isActive: member.isActive,
                 ),
                 const SizedBox(width: 12),
@@ -521,10 +694,20 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(member.name,
-                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                      Text(member.relationship,
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                      Text(
+                        member.name,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        member.relationship,
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 13,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -536,15 +719,17 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                 Icon(
                   member.isActive ? Icons.podcasts : Icons.history,
                   size: 16,
-                  color: member.isActive ? AppColors.severityGreen : Colors.grey.shade600,
+                  color: member.isActive
+                      ? AppColors.severityGreen
+                      : Colors.grey.shade600,
                 ),
                 const SizedBox(width: 6),
                 Text(
                   member.isActive
                       ? 'Actively sharing their ETA'
                       : member.lastSeenAt != null
-                          ? 'Last seen ${_relativeTime(member.lastSeenAt!)}'
-                          : 'Last seen location unknown',
+                      ? 'Last seen ${timeAgo(member.lastSeenAt!)}'
+                      : 'Last seen location unknown',
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
                 ),
               ],
@@ -575,7 +760,12 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
     }
   }
 
-  void _showAlertSheet(BuildContext context, {required String title, required AlertSeverity severity, String? instructions}) {
+  void _showAlertSheet(
+    BuildContext context, {
+    required String title,
+    required AlertSeverity severity,
+    String? instructions,
+  }) {
     showModalBottomSheet(
       context: context,
       builder: (_) => Padding(
@@ -605,7 +795,10 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
               ],
             ),
             const SizedBox(height: 8),
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
             if (instructions != null) ...[
               const SizedBox(height: 8),
               Text(instructions),
@@ -616,46 +809,87 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
     );
   }
 
-  void _zoomBy(double delta) {
-    final camera = _mapController.camera;
-    _mapController.move(camera.center, camera.zoom + delta);
-  }
-
-  void _toggleBaseMapStyle() {
-    setState(() {
-      _baseMapStyle = _baseMapStyle == BaseMapStyle.street ? BaseMapStyle.topo : BaseMapStyle.street;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    final showDebugZones = _showSampleZonesInDebug && kDebugMode && widget.alerts.isEmpty;
+    final showDebugZones =
+        _showSampleZonesInDebug && kDebugMode && widget.alerts.isEmpty;
+    final alerts = _filters.visibleAlerts(widget.alerts);
+    final incidents = _filters.visibleIncidents(widget.incidents);
+    final shelters = _filters.visibleShelters(widget.shelters);
+    final family = _filters.family
+        ? context.watch<SafetyProvider>().circleLocations
+        : const <CircleMemberLocation>[];
+    // Drop the preview if a filter has since hidden that shelter. Prefer
+    // the map's own copy; fall back to the selected object itself in case
+    // the home list hasn't loaded it yet (e.g. arriving from "View on map").
+    final pending = _selectedShelter;
+    final selected =
+        shelters.where((s) => s.id == pending?.id).firstOrNull ??
+        (pending != null && _filters.visibleShelters([pending]).isNotEmpty
+            ? pending
+            : null);
+    final activeRoute = context.watch<ActiveRouteProvider?>()?.route;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: Stack(
         children: [
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: widget.center,
-              initialZoom: 13,
-              minZoom: 5,
-              maxZoom: 18,
-              // Explicit: drag-to-pan, pinch-to-zoom, double-tap zoom,
-              // two-finger rotate, and mouse-wheel/trackpad zoom on web/desktop.
-              interactionOptions: const InteractionOptions(
-                flags: InteractiveFlag.all,
+          SafeZoneBaseMap(
+            // Tapping empty map dismisses the shelter preview.
+            onTap: (_, _) {
+              if (_selectedShelter != null) {
+                setState(() => _selectedShelter = null);
+              }
+            },
+            controller: _mapController,
+            initialCenter: widget.center,
+            liveLocation: widget.liveLocation,
+            resumeCenter: widget.resumeCenter,
+            // The route banner takes the top of the map while active.
+            topLeftOverlay: widget.districtLabel != null && activeRoute == null
+                ? Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 4,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      widget.districtLabel!,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  )
+                : null,
+            // Style, heatmap and filters all live behind one button.
+            baseMapStyle: _baseMapStyle,
+            leadingControls: [
+              SosMapButton(onTap: _sendSos, busy: _sendingSos),
+            ],
+            extraControls: [
+              MapFilterButton(
+                changedCount: _filters.changedCount,
+                onTap: _openFilters,
               ),
-            ),
-            children: [
-              buildBaseTileLayer(_baseMapStyle),
+            ],
+            overlayLayers: [
               // Heatmap layer — sits between the base tiles and the alert
               // circles so it never obscures interactive elements.
-              if (_showHeatmap) HeatmapLayer(incidents: widget.incidents),
+              if (_showHeatmap) HeatmapLayer(incidents: incidents),
               CircleLayer(
                 circles: [
-                  for (final alert in widget.alerts)
+                  for (final alert in alerts)
                     CircleMarker(
                       point: LatLng(alert.centerLat, alert.centerLng),
                       radius: alert.radiusMeters.toDouble(),
@@ -676,12 +910,36 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                       ),
                 ],
               ),
+              if (activeRoute != null)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: activeRoute.result.points,
+                      strokeWidth: 5,
+                      color: AppColors.deepEstuary,
+                    ),
+                  ],
+                ),
               MarkerLayer(
                 markers: [
+                  // A route to a tapped point (not a shelter) gets a flag;
+                  // shelters already have their own pin.
+                  if (activeRoute != null && activeRoute.shelter == null)
+                    Marker(
+                      point: activeRoute.destination,
+                      width: 32,
+                      height: 32,
+                      alignment: Alignment.topCenter,
+                      child: const Icon(
+                        Icons.flag,
+                        color: AppColors.severityRed,
+                        size: 32,
+                      ),
+                    ),
                   // Tap targets over each alert circle's center — flutter_map's
                   // CircleLayer has no built-in tap handling, so this gives
                   // each circle a fixed-size interactive hotspot.
-                  for (final alert in widget.alerts)
+                  for (final alert in alerts)
                     Marker(
                       point: LatLng(alert.centerLat, alert.centerLng),
                       width: 28,
@@ -696,82 +954,94 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                         child: const SizedBox.expand(),
                       ),
                     ),
-                  // Shelters — same ShelterMarker/detail sheet used on the
-                  // routing map, so they look identical everywhere.
-                  for (final shelter in widget.shelters)
+                  // Shelters — tap opens that shelter's full Shelter page.
+                  for (final shelter in shelters)
                     Marker(
                       point: LatLng(shelter.latitude, shelter.longitude),
                       width: 36,
                       height: 36,
                       child: ShelterMarker(
                         shelter: shelter,
-                        onTap: () => showShelterDetailSheet(
-                          context,
-                          shelter,
-                          userLocation: widget.liveLocation,
-                        ),
+                        isSelected: shelter.id == selected?.id,
+                        onTap: () => setState(() => _selectedShelter = shelter),
                       ),
                     ),
-                  for (final incident in widget.incidents)
+                  for (final incident in incidents)
                     Marker(
                       point: LatLng(incident.latitude, incident.longitude),
                       width: 36,
                       height: 36,
-                      child: Builder(builder: (context) {
-                        final style = _markerStyleFor(incident);
-                        return GestureDetector(
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                              ),
-                              builder: (_) => IncidentDetailSheet(
-                                incident: incident,
-                                onViewDetails: () {
-                                  Navigator.pop(context);
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => IncidentDetailScreen(
-                                        incident: incident,
-                                        currentUser: widget.currentUser,
+                      child: Builder(
+                        builder: (context) {
+                          final style = _markerStyleFor(incident);
+                          return GestureDetector(
+                            onTap: () {
+                              showModalBottomSheet(
+                                context: context,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(16),
+                                  ),
+                                ),
+                                builder: (_) => IncidentDetailSheet(
+                                  incident: incident,
+                                  onViewDetails: () {
+                                    Navigator.pop(context);
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => IncidentDetailScreen(
+                                          incident: incident,
+                                          currentUser: widget.currentUser,
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                },
-                                onConfirm: () {
-                                  final userId = SupabaseService.currentUserId;
-                                  if (userId != null) {
-                                    context.read<IncidentProvider>().confirmIncident(
-                                          incidentId: incident.id,
-                                          memberId: userId,
-                                        );
-                                  }
-                                  Navigator.pop(context);
-                                },
+                                    );
+                                  },
+                                  onConfirm: () {
+                                    final userId =
+                                        SupabaseService.currentUserId;
+                                    if (userId != null) {
+                                      context
+                                          .read<IncidentProvider>()
+                                          .confirmIncident(
+                                            incidentId: incident.id,
+                                            memberId: userId,
+                                          );
+                                    }
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                              );
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: style.color,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 3,
+                                  ),
+                                ],
                               ),
-                            );
-                          },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: style.color,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                              boxShadow: const [
-                                BoxShadow(color: Colors.black26, blurRadius: 3),
-                              ],
+                              child: Icon(
+                                style.icon,
+                                color: Colors.white,
+                                size: 18,
+                              ),
                             ),
-                            child: Icon(style.icon, color: Colors.white, size: 18),
-                          ),
-                        );
-                      }),
+                          );
+                        },
+                      ),
                     ),
                   // Safety-circle contacts' last-known locations (only
                   // ones who are registered app users and have ever shared
                   // a location show up here — see SafetyProvider).
-                  for (final member
-                      in context.watch<SafetyProvider>().circleLocations)
+                  for (final member in family)
                     Marker(
                       point: LatLng(member.lat!, member.lng!),
                       width: 32,
@@ -779,7 +1049,7 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                       child: GestureDetector(
                         onTap: () => _showLovedOneSheet(context, member),
                         child: LovedOneMarker(
-                          initials: _initialsFor(member.name),
+                          initials: member.initials,
                           isActive: member.isActive,
                         ),
                       ),
@@ -795,56 +1065,36 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                     ),
                 ],
               ),
-              // Required by OpenTopoMap's (and CartoDB's) usage policy.
-              // Shown for both styles so it's always visible regardless
-              // of which base layer is active.
-              RichAttributionWidget(
-                alignment: AttributionAlignment.bottomLeft,
-                attributions: [
-                  TextSourceAttribution(attributionFor(_baseMapStyle)),
-                ],
-              ),
             ],
           ),
-          if (widget.districtLabel != null)
+          if (selected != null)
+            Positioned(
+              left: 12,
+              // Leaves the right-hand button column uncovered.
+              right: 68,
+              bottom: 12,
+              child: ShelterPreviewCard(
+                shelter: selected,
+                userLocation: widget.liveLocation,
+                onOpen: () => _openShelter(selected),
+                onRoute: () => _openDirections(selected),
+                onClose: () => setState(() => _selectedShelter = null),
+              ),
+            ),
+          if (activeRoute != null)
             Positioned(
               top: 12,
               left: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 1)),
-                  ],
-                ),
-                child: Text(
-                  widget.districtLabel!,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
+              right: 12,
+              child: ActiveRouteBanner(
+                route: activeRoute,
+                onTap: () => _fitRoute(activeRoute),
+                onOpenDirections: activeRoute.shelter == null
+                    ? null
+                    : () => _openDirections(activeRoute.shelter!),
+                onClear: () => _activeRoute?.clear(),
               ),
             ),
-          Positioned(
-            right: 12,
-            bottom: 12,
-            child: Column(
-              children: [
-                MyLocationButton(onTap: _goToMyLocation),
-                const SizedBox(height: 8),
-                MapLayerToggleButton(style: _baseMapStyle, onTap: _toggleBaseMapStyle),
-                const SizedBox(height: 8),
-                HeatmapToggleButton(
-                  active: _showHeatmap,
-                  onTap: () => setState(() => _showHeatmap = !_showHeatmap),
-                ),
-                const SizedBox(height: 12),
-                ZoomButton(icon: Icons.add, onTap: () => _zoomBy(1)),
-                const SizedBox(height: 8),
-                ZoomButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -865,10 +1115,7 @@ class _ResumeSessionModal extends StatelessWidget {
   final VoidCallback onResume;
   final VoidCallback onDismiss;
 
-  const _ResumeSessionModal({
-    required this.onResume,
-    required this.onDismiss,
-  });
+  const _ResumeSessionModal({required this.onResume, required this.onDismiss});
 
   @override
   Widget build(BuildContext context) {
@@ -902,7 +1149,9 @@ class _ResumeSessionModal extends StatelessWidget {
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.15),
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.15,
+                      ),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),

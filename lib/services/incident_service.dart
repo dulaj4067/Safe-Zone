@@ -7,6 +7,16 @@ import 'dart:convert';
 import '../models/incident.dart';
 import 'supabase_service.dart';
 
+/// Thrown when a delete is rejected (e.g. by RLS), with a message that's
+/// safe to show the user as-is.
+class IncidentDeleteException implements Exception {
+  final String message;
+  const IncidentDeleteException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 /// Handles fetching incidents from Supabase and local caching for the
 /// offline-first fallback described in Story 1's AC.
 class IncidentService {
@@ -177,11 +187,22 @@ class IncidentService {
   }
 
   /// Deletes an incident record from Supabase (authorities or the original reporter).
+  ///
+  /// RLS doesn't raise an error when it blocks a delete — the row just
+  /// isn't deleted — so ask for the deleted ids back and treat "nothing
+  /// deleted" as a failure instead of reporting a false success.
   Future<void> deleteIncident(String incidentId) async {
-    await SupabaseService.client
+    final deleted = await SupabaseService.client
         .from('incidents')
         .delete()
-        .eq('id', incidentId);
+        .eq('id', incidentId)
+        .select('id');
+    if (deleted.isEmpty) {
+      throw const IncidentDeleteException(
+        'This report could not be deleted. You can only delete reports '
+        'you submitted yourself.',
+      );
+    }
   }
 
   /// Scans [candidates] for an active incident that is likely a duplicate of

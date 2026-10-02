@@ -11,6 +11,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
+import '../utils/sri_lanka_bounds.dart';
 import '../widgets/incident_card.dart';
 import '../widgets/status_badge.dart';
 import 'edit_incident_screen.dart';
@@ -290,7 +291,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
           children: [
             Icon(Icons.delete_outline, color: AppColors.severityRed),
             SizedBox(width: 8),
-            Text('Delete Incident Report?'),
+            Expanded(child: Text('Delete Incident Report?')),
           ],
         ),
         content: const Text(
@@ -304,6 +305,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.severityRed,
+              minimumSize: const Size(0, 40),
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Delete Report'),
@@ -357,7 +359,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
             children: [
               Icon(Icons.gavel, color: AppColors.severityRed),
               SizedBox(width: 8),
-              Text('Moderate / Delete Report'),
+              Expanded(child: Text('Moderate / Delete Report')),
             ],
           ),
           content: Column(
@@ -402,6 +404,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
             FilledButton.icon(
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.severityRed,
+                minimumSize: const Size(0, 40),
               ),
               icon: const Icon(Icons.delete_forever, size: 16),
               onPressed: () => Navigator.pop(ctx, true),
@@ -683,6 +686,8 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                       options: MapOptions(
                         initialCenter: LatLng(_incident.latitude, _incident.longitude),
                         initialZoom: 14,
+                        minZoom: kSriLankaMinZoom,
+                        cameraConstraint: kSriLankaCameraConstraint,
                         interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
                       ),
                       children: [

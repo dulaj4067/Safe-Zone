@@ -7,10 +7,12 @@ import 'package:provider/provider.dart';
 import '../models/app_user.dart';
 import '../models/zone.dart';
 import '../providers/alert_provider.dart';
+import '../providers/map_focus_provider.dart';
 import '../providers/safety_provider.dart';
 import '../services/activity_history_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/alert_banner.dart';
+import '../widgets/safety_circle_request_banner.dart';
 import '../widgets/splash_screen.dart';
 import 'admin_broadcast_screen.dart';
 import 'broadcast_dashboard_screen.dart';
@@ -44,10 +46,18 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   bool _loadingProfile = true;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   late final InterruptionDetector _interruptionDetector;
+  MapFocusProvider? _mapFocus;
+
+  /// "Show on map" from anywhere → jump to the Home tab (index 0).
+  void _onMapFocus() {
+    if (mounted && _tabIndex != 0) setState(() => _tabIndex = 0);
+  }
 
   @override
   void initState() {
     super.initState();
+    _mapFocus = Provider.of<MapFocusProvider?>(context, listen: false)
+      ?..addListener(_onMapFocus);
     WidgetsBinding.instance.addObserver(this);
     _interruptionDetector = InterruptionDetector(
       onInterruption: () => context.read<ActivityHistoryService>().markInterrupted(),
@@ -64,6 +74,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       // they're ready as soon as the citizen looks at the home map, not
       // only after they happen to open the "I'm Safe" screen first.
       unawaited(context.read<SafetyProvider>().loadSafetyCircle());
+      unawaited(context.read<SafetyProvider>().loadPendingRequests());
     });
   }
 
@@ -75,6 +86,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _mapFocus?.removeListener(_onMapFocus);
     _connectivitySubscription?.cancel();
     super.dispose();
   }
@@ -119,7 +131,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         onResumeActivity: _resumeActivity,
       ),
       IncidentsScreen(currentUser: _currentUser),
-      const RouteScreen(),
+      SheltersScreen(currentUser: _currentUser),
       PreparednessHubScreen(currentUser: _currentUser, zones: _zones),
       if (isAuthority) BroadcastDashboardScreen(zones: _zones),
       SettingsScreen(
@@ -144,6 +156,13 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                 alert: alertProvider.bannerAlert!,
                 onDismiss: () => context.read<AlertProvider>().dismissBanner(),
               ),
+            ),
+          if (!_loadingProfile)
+            const Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: SafetyCircleRequestBanner(),
             ),
         ],
       ),
