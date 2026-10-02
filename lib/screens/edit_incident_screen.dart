@@ -262,7 +262,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
           children: [
             Icon(Icons.delete_outline, color: AppColors.severityRed),
             SizedBox(width: 8),
-            Text('Delete Incident Report?'),
+            Expanded(child: Text('Delete Incident Report?')),
           ],
         ),
         content: const Text(
@@ -276,6 +276,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.severityRed,
+              minimumSize: const Size(0, 40),
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Delete Permanently'),
@@ -509,18 +510,19 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
             // ─── Description Multiline Field ──────────────────────────────
             TextFormField(
               controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description *',
+              decoration: InputDecoration(
+                // Optional for SOS reports, matching the report form.
+                labelText: _isSos ? 'Description (optional)' : 'Description *',
                 hintText: 'Update conditions, water depth, roadblocks, or assistance required...',
                 alignLabelWithHint: true,
-                prefixIcon: Padding(
+                prefixIcon: const Padding(
                   padding: EdgeInsets.only(bottom: 50),
                   child: Icon(Icons.description_outlined),
                 ),
               ),
               maxLines: 3,
               validator: (val) {
-                if (val == null || val.trim().isEmpty) {
+                if (!_isSos && (val == null || val.trim().isEmpty)) {
                   return 'Please provide a short description';
                 }
                 return null;
