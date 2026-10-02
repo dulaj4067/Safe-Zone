@@ -30,6 +30,7 @@ import '../widgets/heatmap_layer.dart';
 import '../widgets/live_location_marker.dart';
 import '../widgets/location_alert_banner.dart';
 import '../widgets/loved_one_marker.dart';
+import '../widgets/map_controls.dart';
 import '../widgets/map_filter_sheet.dart';
 import '../widgets/resume_dropdown.dart';
 import '../widgets/safe_zone_base_map.dart';
@@ -580,6 +581,83 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
     onHeatmapChanged: (v) => setState(() => _showHeatmap = v),
   );
 
+  bool _sendingSos = false;
+
+  /// One-tap "I'm trapped" report from the map: no form and no description,
+  /// just a Trapped Person SOS pinned at the device's live GPS position.
+  /// Asks once first, since a stray tap would page rescuers for nothing.
+  Future<void> _sendSos() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final location = widget.liveLocation;
+    if (location == null) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Waiting for your GPS location — turn on location to send an SOS.',
+          ),
+          backgroundColor: AppColors.severityRed,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(
+          Icons.crisis_alert,
+          color: AppColors.severityRed,
+          size: 36,
+        ),
+        title: const Text('Send Emergency SOS?'),
+        content: const Text(
+          'Rescuers will get a high-priority "Trapped Person" report at your '
+          'current location. No description needed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.severityRed,
+              minimumSize: const Size(0, 40),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('SEND SOS'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _sendingSos = true);
+    final provider = context.read<IncidentProvider>();
+    final success = await provider.submitIncident(
+      category: IncidentCategory.trappedPerson,
+      description: '',
+      latitude: location.latitude,
+      longitude: location.longitude,
+      isSos: true,
+    );
+    if (!mounted) return;
+    setState(() => _sendingSos = false);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Emergency SOS sent from your location. Help is being alerted.'
+              : provider.errorMessage ?? 'Could not send SOS. Try again.',
+        ),
+        backgroundColor: success
+            ? AppColors.severityRed
+            : AppColors.deepEstuary,
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
   void _openShelter(Shelter shelter) {
     setState(() => _selectedShelter = null);
     Navigator.push(
@@ -796,6 +874,9 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                 : null,
             // Style, heatmap and filters all live behind one button.
             baseMapStyle: _baseMapStyle,
+            leadingControls: [
+              SosMapButton(onTap: _sendSos, busy: _sendingSos),
+            ],
             extraControls: [
               MapFilterButton(
                 changedCount: _filters.changedCount,

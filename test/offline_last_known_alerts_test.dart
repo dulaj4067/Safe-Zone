@@ -187,8 +187,14 @@ void main() {
             ChangeNotifierProvider(create: (_) => IncidentProvider()),
             ChangeNotifierProvider(create: (_) => SafetyProvider()),
           ],
-          child: const MaterialApp(
-            home: HomeScreen(zones: []),
+          child: MaterialApp(
+            // Stops the SOS button's looping siren pulse so pumpAndSettle
+            // can settle.
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(disableAnimations: true),
+              child: child!,
+            ),
+            home: const HomeScreen(zones: []),
           ),
         ),
       );
