@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/alert.dart';
+import '../models/broadcast_audit_entry.dart';
+import 'broadcast_audit_service.dart';
 import 'notification_service.dart';
 import 'supabase_service.dart';
 
@@ -45,6 +47,7 @@ class AlertService {
       'pref_default_broadcast_radius_meters';
 
   RealtimeChannel? _channel;
+  final BroadcastAuditService _auditService = BroadcastAuditService();
 
   Future<List<DisasterAlert>> fetchActiveAlerts() async {
     final rows = await SupabaseService.client
@@ -108,7 +111,18 @@ class AlertService {
         .select()
         .single();
 
-    return DisasterAlert.fromMap(inserted);
+    final created = DisasterAlert.fromMap(inserted);
+    await _auditService.logAction(
+      alertId: created.id,
+      alertTitle: created.title,
+      action: BroadcastAuditAction.created,
+      severity: created.severity,
+      zoneName: created.affectedZoneId,
+      details:
+          'Broadcast alert created in command center. Type: ${created.alertType}, Radius: ${created.radiusMeters}m.',
+    );
+
+    return created;
   }
 
   /// Dispatches the emergency broadcast across Push, SMS, and Siren channels simultaneously
@@ -150,30 +164,67 @@ class AlertService {
     }
 
     final int count = (pushOk ? 1 : 0) + (smsOk ? 1 : 0) + (sirenOk ? 1 : 0);
-    return BroadcastDispatchResult(
+    final result = BroadcastDispatchResult(
       pushSent: pushOk,
       smsDispatched: smsOk,
       sirenTriggered: sirenOk,
       channelsCount: count,
       dispatchedAt: DateTime.now(),
     );
+
+    await _auditService.logAction(
+      alertId: alert.id,
+      alertTitle: alert.title,
+      action: BroadcastAuditAction.dispatched,
+      severity: alert.severity,
+      zoneName: alert.affectedZoneId,
+      details: result.summary,
+    );
+
+    return result;
   }
 
   /// Story 4: mark an alert resolved. RLS "Authority can update alerts"
   /// is the real enforcement — this will throw if the caller isn't
   /// authority.
-  Future<void> resolveAlert(String alertId) async {
-    await SupabaseService.client.from('alerts').update({
-      'status': 'de_escalated',
-      'resolved_at': DateTime.now().toIso8601String(),
-    }).eq('id', alertId);
+  Future<void> resolveAlert(String alertId, {String? title, AlertSeverity? severity, String? zoneName}) async {
+    try {
+      await SupabaseService.client.from('alerts').update({
+        'status': 'de_escalated',
+        'resolved_at': DateTime.now().toIso8601String(),
+      }).eq('id', alertId);
+    } catch (e) {
+      debugPrint('Supabase resolve update: $e');
+    }
+
+    await _auditService.logAction(
+      alertId: alertId,
+      alertTitle: title ?? 'Alert $alertId',
+      action: BroadcastAuditAction.resolved,
+      severity: severity,
+      zoneName: zoneName,
+      details: 'Broadcast alert marked resolved and de-escalated by authority.',
+    );
   }
 
   /// Story 4: archive an alert so it drops off the live dashboard.
-  Future<void> archiveAlert(String alertId) async {
-    await SupabaseService.client
-        .from('alerts')
-        .update({'status': 'archived'}).eq('id', alertId);
+  Future<void> archiveAlert(String alertId, {String? title, AlertSeverity? severity, String? zoneName}) async {
+    try {
+      await SupabaseService.client
+          .from('alerts')
+          .update({'status': 'archived'}).eq('id', alertId);
+    } catch (e) {
+      debugPrint('Supabase archive update: $e');
+    }
+
+    await _auditService.logAction(
+      alertId: alertId,
+      alertTitle: title ?? 'Alert $alertId',
+      action: BroadcastAuditAction.archived,
+      severity: severity,
+      zoneName: zoneName,
+      details: 'Broadcast alert archived from active dashboard.',
+    );
   }
 
   Future<void> _writeCache(List<DisasterAlert> alerts) async {

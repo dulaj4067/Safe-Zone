@@ -312,9 +312,31 @@ class AlertProvider extends ChangeNotifier {
   /// change, so we don't optimistically mutate local state here — it
   /// keeps a single source of truth and avoids the list flickering if
   /// the update is rejected by RLS.
-  Future<void> resolveAlert(String alertId) => _service.resolveAlert(alertId);
+  Future<void> resolveAlert(String alertId) async {
+    final alert = _activeAlerts.cast<DisasterAlert?>().firstWhere(
+          (a) => a?.id == alertId,
+          orElse: () => null,
+        );
+    await _service.resolveAlert(
+      alertId,
+      title: alert?.title,
+      severity: alert?.severity,
+      zoneName: alert?.affectedZoneId,
+    );
+  }
 
-  Future<void> archiveAlert(String alertId) => _service.archiveAlert(alertId);
+  Future<void> archiveAlert(String alertId) async {
+    final alert = _activeAlerts.cast<DisasterAlert?>().firstWhere(
+          (a) => a?.id == alertId,
+          orElse: () => null,
+        );
+    await _service.archiveAlert(
+      alertId,
+      title: alert?.title,
+      severity: alert?.severity,
+      zoneName: alert?.affectedZoneId,
+    );
+  }
 
   // ─── Engagement & Resident Reach Metrics ───────────────────────────────────
 

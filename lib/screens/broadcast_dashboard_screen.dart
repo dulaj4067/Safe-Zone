@@ -9,6 +9,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/alert_engagement_sheet.dart';
 import '../widgets/severity_badge.dart';
+import 'broadcast_audit_log_screen.dart';
 import 'feedback_overview_screen.dart';
 import 'messages_screen.dart';
 import 'volunteer_tasks_screen.dart';
@@ -45,7 +46,21 @@ class _BroadcastDashboardScreenState extends State<BroadcastDashboardScreen> {
       });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Broadcast Dashboard')),
+      appBar: AppBar(
+        title: const Text('Broadcast Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.receipt_long_outlined),
+            tooltip: 'Audit Log',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const BroadcastAuditLogScreen(),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           _CoordinationShortcuts(zones: widget.zones),
