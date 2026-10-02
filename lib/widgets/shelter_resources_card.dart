@@ -6,7 +6,7 @@ import '../services/shelter_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
 
-/// "Supplies" section of the shelter detail sheet, backed by
+/// "Supplies" section of the Shelter page, backed by
 /// `shelter_resources`. Everyone sees current stock; the shelter's manager
 /// (or an authority) also gets edit / add / remove controls.
 class ShelterResourcesCard extends StatefulWidget {

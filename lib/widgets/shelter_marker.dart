@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:latlong2/latlong.dart';
 
 import '../models/shelter.dart';
-import 'shelter_detail_sheet.dart';
 
 /// Shared shelter pin, used on both the homepage map and the routing map
 /// so shelters look identical everywhere they appear.
@@ -37,21 +35,4 @@ class ShelterMarker extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Shared shelter detail bottom sheet — opens the full shelter info
-/// (status, capacity/occupancy, desk phone, manager, map). Used wherever a
-/// shelter marker is tapped. See [ShelterDetailSheet].
-void showShelterDetailSheet(
-  BuildContext context,
-  Shelter shelter, {
-  LatLng? userLocation,
-  VoidCallback? onGetDirections,
-}) {
-  showShelterDetail(
-    context,
-    shelter,
-    userLocation: userLocation,
-    onGetDirections: onGetDirections,
-  );
 }
