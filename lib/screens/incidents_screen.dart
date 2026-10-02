@@ -104,14 +104,9 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        // No refresh button — the list (and its empty state) already
+        // supports pull-to-refresh.
         title: const Text('Incidents'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh incidents',
-            onPressed: () => context.read<IncidentProvider>().refresh(),
-          ),
-        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openReportScreen,
