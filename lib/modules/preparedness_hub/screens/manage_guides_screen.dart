@@ -2,16 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../../models/app_user.dart';
 import '../../../models/zone.dart';
 import '../models/preparedness_guide.dart';
 import '../providers/preparedness_provider.dart';
 
 class ManageGuidesScreen extends StatelessWidget {
-  const ManageGuidesScreen({super.key, required this.zones});
+  const ManageGuidesScreen({
+    super.key,
+    required this.zones,
+    required this.currentUser,
+  });
   final List<Zone> zones;
+  final AppUser? currentUser;
 
   @override
   Widget build(BuildContext context) {
+    if (currentUser?.role.isAuthority != true) {
+      return const _AccessDeniedView();
+    }
+
     final provider = context.watch<PreparednessProvider>();
     return Scaffold(
       appBar: AppBar(title: const Text('Manage guides')),
@@ -22,32 +32,48 @@ class ManageGuidesScreen extends StatelessWidget {
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: provider.guides.map((guide) => Card(
-          child: ListTile(
-            title: Text(guide.title),
-            subtitle: Text('${guide.category.name}  -  ${guide.isArchived ? 'Archived' : 'Published'}'),
-            leading: Icon(guide.isArchived ? Icons.inventory_2_outlined : Icons.menu_book_outlined),
-            onTap: () => _editGuide(context, guide),
-            trailing: PopupMenuButton<String>(
-              onSelected: (value) async {
-                if (value == 'edit') await _editGuide(context, guide);
-                if (value == 'archive') {
-                  await provider.archiveGuide(guide.id);
-                }
-              },
-              itemBuilder: (_) => [
-                const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                if (!guide.isArchived)
-                  const PopupMenuItem(value: 'archive', child: Text('Archive')),
-              ],
-            ),
-          ),
-        )).toList(),
+        children: provider.guides
+            .map(
+              (guide) => Card(
+                child: ListTile(
+                  title: Text(guide.title),
+                  subtitle: Text(
+                    '${guide.category.name}  -  ${guide.isArchived ? 'Archived' : 'Published'}',
+                  ),
+                  leading: Icon(
+                    guide.isArchived
+                        ? Icons.inventory_2_outlined
+                        : Icons.menu_book_outlined,
+                  ),
+                  onTap: () => _editGuide(context, guide),
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (value) async {
+                      if (value == 'edit') await _editGuide(context, guide);
+                      if (value == 'archive') {
+                        await provider.archiveGuide(guide.id);
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      if (!guide.isArchived)
+                        const PopupMenuItem(
+                          value: 'archive',
+                          child: Text('Archive'),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
 
-  Future<void> _editGuide(BuildContext context, [PreparednessGuide? guide]) async {
+  Future<void> _editGuide(
+    BuildContext context, [
+    PreparednessGuide? guide,
+  ]) async {
     final provider = context.read<PreparednessProvider>();
     final saved = await showModalBottomSheet<PreparednessGuide>(
       context: context,
@@ -57,6 +83,18 @@ class ManageGuidesScreen extends StatelessWidget {
     if (!context.mounted || saved == null) return;
     await provider.saveGuide(saved);
   }
+}
+
+class _AccessDeniedView extends StatelessWidget {
+  const _AccessDeniedView();
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Access denied')),
+    body: const Center(
+      child: Text('Only authority accounts can manage guides.'),
+    ),
+  );
 }
 
 class _GuideEditor extends StatefulWidget {
@@ -97,74 +135,94 @@ class _GuideEditorState extends State<_GuideEditor> {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.viewInsetsOf(context).bottom + 20),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(widget.guide == null ? 'Create guide' : 'Edit guide',
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _title,
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(labelText: 'Title'),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<GuideCategory>(
-                initialValue: _category,
-                decoration: const InputDecoration(labelText: 'Category'),
-                items: GuideCategory.values.map((value) => DropdownMenuItem(
-                  value: value,
-                  child: Text(value.name[0].toUpperCase() + value.name.substring(1)),
-                )).toList(),
-                onChanged: (value) => setState(() => _category = value ?? _category),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _image,
-                decoration: InputDecoration(
-                  labelText: 'Cover image URL or local path',
-                  suffixIcon: IconButton(
-                    tooltip: 'Choose image',
-                    icon: const Icon(Icons.photo_library_outlined),
-                    onPressed: () async {
-                      final image = await ImagePicker().pickImage(source: ImageSource.gallery);
-                      if (image != null) setState(() => _image.text = image.path);
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _selectZones,
-                icon: const Icon(Icons.location_on_outlined),
-                label: Text(_zoneTags.isEmpty ? 'All zones' : '${_zoneTags.length} zones selected'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _body,
-                minLines: 8,
-                maxLines: 14,
-                decoration: const InputDecoration(
-                  labelText: 'Guide content (Markdown)',
-                  alignLabelWithHint: true,
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _saving || _title.text.trim().isEmpty ? null : _save,
-                  child: Text(_saving ? 'Saving...' : 'Save guide'),
-                ),
-              ),
-            ],
+    padding: EdgeInsets.fromLTRB(
+      20,
+      20,
+      20,
+      MediaQuery.viewInsetsOf(context).bottom + 20,
+    ),
+    child: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.guide == null ? 'Create guide' : 'Edit guide',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-        ),
-      );
+          const SizedBox(height: 16),
+          TextField(
+            controller: _title,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(labelText: 'Title'),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<GuideCategory>(
+            initialValue: _category,
+            decoration: const InputDecoration(labelText: 'Category'),
+            items: GuideCategory.values
+                .map(
+                  (value) => DropdownMenuItem(
+                    value: value,
+                    child: Text(
+                      value.name[0].toUpperCase() + value.name.substring(1),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) =>
+                setState(() => _category = value ?? _category),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _image,
+            decoration: InputDecoration(
+              labelText: 'Cover image URL or local path',
+              suffixIcon: IconButton(
+                tooltip: 'Choose image',
+                icon: const Icon(Icons.photo_library_outlined),
+                onPressed: () async {
+                  final image = await ImagePicker().pickImage(
+                    source: ImageSource.gallery,
+                  );
+                  if (image != null) setState(() => _image.text = image.path);
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _selectZones,
+            icon: const Icon(Icons.location_on_outlined),
+            label: Text(
+              _zoneTags.isEmpty
+                  ? 'All zones'
+                  : '${_zoneTags.length} zones selected',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _body,
+            minLines: 8,
+            maxLines: 14,
+            decoration: const InputDecoration(
+              labelText: 'Guide content (Markdown)',
+              alignLabelWithHint: true,
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _saving || _title.text.trim().isEmpty ? null : _save,
+              child: Text(_saving ? 'Saving...' : 'Save guide'),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 
   Future<void> _selectZones() async {
     final selected = Set<String>.from(_zoneTags);
@@ -183,23 +241,31 @@ class _GuideEditorState extends State<_GuideEditor> {
                   title: const Text('All zones'),
                   onChanged: (_) => setDialogState(() => selected.clear()),
                 ),
-                ...widget.zones.map((zone) => CheckboxListTile(
-                  value: selected.contains(zone.id),
-                  title: Text(zone.name),
-                  onChanged: (value) => setDialogState(() {
-                    if (value == true) {
-                      selected.add(zone.id);
-                    } else {
-                      selected.remove(zone.id);
-                    }
-                  }),
-                )),
+                ...widget.zones.map(
+                  (zone) => CheckboxListTile(
+                    value: selected.contains(zone.id),
+                    title: Text(zone.name),
+                    onChanged: (value) => setDialogState(() {
+                      if (value == true) {
+                        selected.add(zone.id);
+                      } else {
+                        selected.remove(zone.id);
+                      }
+                    }),
+                  ),
+                ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(context, selected), child: const Text('Done')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, selected),
+              child: const Text('Done'),
+            ),
           ],
         ),
       ),

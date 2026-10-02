@@ -1,15 +1,19 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 import '../models/alert.dart';
+import '../modules/preparedness_hub/models/preparedness_reminder.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
 
   static const String criticalChannelId = 'sz_critical_alerts';
@@ -25,7 +29,9 @@ class NotificationService {
   Future<void> init() async {
     if (_isInitialized) return;
 
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const darwinSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -51,13 +57,22 @@ class NotificationService {
   }
 
   Future<void> _setupAndroidChannels() async {
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
 
     if (android == null) return;
 
     // Critical Channel with DND bypass and alarm audio attributes
-    final criticalVibration = Int64List.fromList([0, 1000, 500, 1000, 500, 1000]);
+    final criticalVibration = Int64List.fromList([
+      0,
+      1000,
+      500,
+      1000,
+      500,
+      1000,
+    ]);
     final criticalChannel = AndroidNotificationChannel(
       criticalChannelId,
       criticalChannelName,
@@ -86,15 +101,19 @@ class NotificationService {
 
   Future<bool> requestPermissions() async {
     if (Platform.isAndroid) {
-      final android = _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       if (android != null) {
         final granted = await android.requestNotificationsPermission();
         return granted ?? false;
       }
     } else if (Platform.isIOS) {
-      final ios = _plugin.resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin>();
+      final ios = _plugin
+          .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin
+          >();
       if (ios != null) {
         final granted = await ios.requestPermissions(
           alert: true,
@@ -112,8 +131,10 @@ class NotificationService {
   Future<void> requestNotificationPolicyAccess() async {
     if (!Platform.isAndroid) return;
     try {
-      final android = _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       if (android != null) {
         await (android as dynamic).requestNotificationPolicyAccess();
       }
@@ -123,7 +144,14 @@ class NotificationService {
   }
 
   Future<void> showCriticalAlert(DisasterAlert alert) async {
-    final criticalVibration = Int64List.fromList([0, 1000, 500, 1000, 500, 1000]);
+    final criticalVibration = Int64List.fromList([
+      0,
+      1000,
+      500,
+      1000,
+      500,
+      1000,
+    ]);
 
     final androidDetails = AndroidNotificationDetails(
       criticalChannelId,
@@ -155,7 +183,9 @@ class NotificationService {
     await _plugin.show(
       id: alert.id.hashCode,
       title: '🚨 CRITICAL ALERT: ${alert.title}',
-      body: alert.instructions ?? 'Immediate safety action required. Tap for details.',
+      body:
+          alert.instructions ??
+          'Immediate safety action required. Tap for details.',
       notificationDetails: details,
       payload: alert.id,
     );
@@ -194,14 +224,52 @@ class NotificationService {
     );
   }
 
-  /// Activates an audible emergency siren alert over the critical DND-bypass channel.
-  Future<void> triggerSirenAlert(DisasterAlert alert) async {
-    debugPrint('🚨 [SIREN CHANNEL] Triggering acoustic siren & DND bypass alarm for: ${alert.title}');
-    await showCriticalAlert(alert);
+  Future<void> scheduleReminderNotification(
+    PreparednessReminder reminder,
+  ) async {
+    await init();
+    tz.initializeTimeZones();
+    final scheduled = tz.TZDateTime.from(reminder.scheduledDate, tz.local);
+    final details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        generalChannelId,
+        generalChannelName,
+        channelDescription: generalChannelDescription,
+        importance: Importance.high,
+        priority: Priority.high,
+        playSound: true,
+        enableVibration: true,
+      ),
+      iOS: const DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
+    );
+
+    await _plugin.zonedSchedule(
+      id: reminder.id.hashCode,
+      title: reminder.title,
+      body: reminder.message,
+      scheduledDate: scheduled,
+      notificationDetails: details,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      payload: reminder.id,
+      matchDateTimeComponents: switch (reminder.recurrence) {
+        ReminderRecurrence.none => null,
+        ReminderRecurrence.monthly => DateTimeComponents.dayOfMonthAndTime,
+        ReminderRecurrence.seasonal => DateTimeComponents.dateAndTime,
+      },
+    );
   }
 
   Future<void> cancelAlert(String alertId) async {
     await _plugin.cancel(id: alertId.hashCode);
+  }
+
+  Future<void> cancelReminder(String reminderId) async {
+    await init();
+    await _plugin.cancel(id: reminderId.hashCode);
   }
 
   Future<void> cancelAll() async {
