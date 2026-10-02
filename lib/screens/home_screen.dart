@@ -217,7 +217,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return nearest?.name;
   }
 
+  /// `sampleRiskZones` is hardcoded sample data with no real backend source
+  /// (see its doc comment) — assigning a real user a "current risk zone"
+  /// from it would mean showing them a fabricated flood-risk warning, which
+  /// is actively misleading for a disaster app. Gated to debug builds only,
+  /// same as `_debugSampleZones` below, until a real zone-risk data source
+  /// exists. In release builds this always returns null, so "Share my ETA"
+  /// simply has no zone context rather than a made-up one.
   RiskZone? _nearestRiskZone(LatLng center) {
+    if (!kDebugMode) return null;
     RiskZone? nearest;
     double? bestDistance;
     for (final zone in sampleRiskZones) {

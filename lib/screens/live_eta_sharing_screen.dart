@@ -3,10 +3,15 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:provider/provider.dart';
 import 'package:latlong2/latlong.dart';
 import '../providers/safety_provider.dart';
+import '../models/circle_member_location.dart';
 import '../models/risk_zone.dart';
+import '../theme/app_colors.dart';
 import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
+import '../utils/sri_lanka_bounds.dart';
+import '../utils/format_utils.dart';
 import '../widgets/live_location_marker.dart';
+import '../widgets/loved_one_marker.dart';
 import '../widgets/session_history_list.dart';
 
 class LiveEtaSharingScreen extends StatefulWidget {
@@ -76,6 +81,73 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
   String _formatEta(Duration d) =>
       '${d.inMinutes}m ${(d.inSeconds % 60).toString().padLeft(2, '0')}s';
 
+  /// A contact you're sharing with only ever appears here if they've ALSO
+  /// added you to their own circle and confirmed it — the server-side
+  /// privacy model is "I added them, so they can see me," so seeing *their*
+  /// location back requires the reverse link too. That mutual-consent
+  /// requirement is exactly right for "this is probably a family member
+  /// pinging back" rather than a one-way watch list.
+  CircleMemberLocation? _locationFor(String contactId, List<CircleMemberLocation> locations) {
+    for (final loc in locations) {
+      if (loc.contactId == contactId && loc.hasLocation) return loc;
+    }
+    return null;
+  }
+
+  void _showContactLocationSheet(BuildContext context, CircleMemberLocation member) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                LovedOneMarker(initials: member.initials, isActive: member.isActive),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(member.name,
+                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                      Text(member.relationship,
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Icon(
+                  member.isActive ? Icons.podcasts : Icons.history,
+                  size: 16,
+                  color: member.isActive ? AppColors.severityGreen : Colors.grey.shade600,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  member.isActive
+                      ? 'Actively sharing their ETA'
+                      : member.lastSeenAt != null
+                          ? 'Last seen ${timeAgo(member.lastSeenAt!)}'
+                          : 'Last seen location unknown',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final safety = context.watch<SafetyProvider>();
@@ -86,6 +158,11 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
     final mapCenter = update == null
       ? _zoneCenter(zone) ?? const LatLng(6.9615, 79.9010)
       : LatLng(update.latitude, update.longitude);
+    // Only contacts you're actively sharing *with* on this screen, and only
+    // where the location is actually visible to you (see _locationFor).
+    final sharedContactLocations = [
+      for (final c in safety.selectedContacts) ?_locationFor(c.id, safety.circleLocations),
+    ];
 
     return Scaffold(
       appBar: AppBar(title: const Text('Live Location - Sharing')),
@@ -107,7 +184,8 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                   options: MapOptions(
                     initialCenter: mapCenter,
                     initialZoom: 14,
-                    minZoom: 5,
+                    minZoom: kSriLankaMinZoom,
+                    cameraConstraint: kSriLankaCameraConstraint,
                     maxZoom: 18,
                     interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
                   ),
@@ -128,6 +206,24 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                       ),
                     MarkerLayer(
                       markers: [
+                        // Family/circle contacts you're sharing with, where
+                        // they've also shared back with you (see
+                        // _locationFor) — pinged live alongside your own
+                        // position so you can see each other on this screen,
+                        // not just on the Home map.
+                        for (final member in sharedContactLocations)
+                          Marker(
+                            point: LatLng(member.lat!, member.lng!),
+                            width: 32,
+                            height: 32,
+                            child: GestureDetector(
+                              onTap: () => _showContactLocationSheet(context, member),
+                              child: LovedOneMarker(
+                                initials: member.initials,
+                                isActive: member.isActive,
+                              ),
+                            ),
+                          ),
                         Marker(
                           point: mapCenter,
                           width: 40,
@@ -192,21 +288,63 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
             ),
           ),
           SizedBox(
-            height: 72,
+            // A touch taller than the avatar+label actually need, so a
+            // larger system text-scale setting can't push this into
+            // overflow the way the old fixed 72px did.
+            height: 80,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               itemCount: safety.selectedContacts.length,
               itemBuilder: (context, i) {
                 final c = safety.selectedContacts[i];
+                final loc = _locationFor(c.id, safety.circleLocations);
                 return Padding(
                   padding: const EdgeInsets.only(right: 16),
-                  child: Column(
-                    children: [
-                      CircleAvatar(child: Text(c.initials)),
-                      const SizedBox(height: 4),
-                      Text(c.name.split(' ').first, style: const TextStyle(fontSize: 11)),
-                    ],
+                  child: GestureDetector(
+                    onTap: loc == null ? null : () => _showContactLocationSheet(context, loc),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            CircleAvatar(radius: 18, child: Text(c.initials)),
+                            // A small status dot: green while they're
+                            // actively sharing back, grey if we only have an
+                            // older last-known fix, nothing if they haven't
+                            // shared with you at all (see _locationFor).
+                            if (loc != null)
+                              Positioned(
+                                right: -1,
+                                bottom: -1,
+                                child: Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: loc.isActive
+                                        ? AppColors.severityGreen
+                                        : Colors.grey.shade500,
+                                    border: Border.all(color: Colors.white, width: 1.5),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        SizedBox(
+                          width: 48,
+                          child: Text(
+                            c.name.split(' ').first,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
