@@ -727,7 +727,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () {
               context.read<IncidentProvider>().clearFilters();
               context.read<IncidentProvider>().setMyReportsFilter(true);
-              context.read<IncidentProvider>().setViewMode(IncidentViewMode.list);
               Navigator.push(
                 context,
                 MaterialPageRoute(

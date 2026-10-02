@@ -6,14 +6,9 @@ import '../models/incident.dart';
 import '../services/incident_service.dart';
 import '../services/supabase_service.dart';
 
-/// Which view IncidentsScreen is currently showing. Lives here (rather
-/// than as screen-local state) so the choice survives screen rebuilds
-/// and so other screens could read/drive it later if needed.
-enum IncidentViewMode { map, list }
-
 /// Owns incident state for the app: offline-first load (cache first,
-/// then Supabase), pull-to-refresh, and the sort order the map/list
-/// screens render incidents in.
+/// then Supabase), pull-to-refresh, and the sort order the home map and
+/// the incidents list render incidents in.
 class IncidentProvider extends ChangeNotifier {
   final IncidentService _service = IncidentService();
 
@@ -24,7 +19,6 @@ class IncidentProvider extends ChangeNotifier {
   String? _errorMessage;
   DateTime? _lastUpdated;
   bool _hasLoadedOnce = false;
-  IncidentViewMode _viewMode = IncidentViewMode.map;
 
   // Filtering state
   IncidentStatus? _statusFilter;
@@ -35,7 +29,6 @@ class IncidentProvider extends ChangeNotifier {
   List<Incident> get incidents => List.unmodifiable(_incidents);
   bool get isLoading => _isLoading;
   bool get isSubmitting => _isSubmitting;
-  IncidentViewMode get viewMode => _viewMode;
   IncidentStatus? get statusFilter => _statusFilter;
   IncidentCategory? get categoryFilter => _categoryFilter;
   bool get sosFilter => _sosFilter;
@@ -157,15 +150,6 @@ class IncidentProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
-  }
-
-  /// Switches IncidentsScreen between its map and list views. No-op if
-  /// [mode] is already the current mode, so this won't trigger a
-  /// pointless rebuild if a caller sets it redundantly.
-  void setViewMode(IncidentViewMode mode) {
-    if (_viewMode == mode) return;
-    _viewMode = mode;
-    notifyListeners();
   }
 
   // ─── Duplicate Detection ───────────────────────────────────────────────────

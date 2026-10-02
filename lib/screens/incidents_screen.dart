@@ -1,27 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
-import '../models/alert.dart';
 import '../models/app_user.dart';
 import '../models/incident.dart';
 import '../providers/alert_provider.dart';
 import '../providers/incident_provider.dart';
 import '../services/location_service.dart';
-import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
-import '../utils/map_tile_config.dart';
-import '../utils/map_tile_sources.dart';
 import '../widgets/incident_card.dart';
-import '../widgets/incident_detail_sheet.dart';
-import '../widgets/live_location_marker.dart';
 import '../widgets/location_alert_banner.dart';
-import '../utils/map_recenter.dart';
-import '../widgets/map_controls.dart';
-import '../widgets/severity_badge.dart';
 import '../widgets/context_recall_card.dart';
 import 'incident_detail_screen.dart';
 import 'report_incident_screen.dart';
@@ -88,9 +78,7 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
   void _openReportScreen() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const ReportIncidentScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const ReportIncidentScreen()),
     );
   }
 
@@ -119,38 +107,19 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
         title: const Text('Incidents'),
         actions: [
           IconButton(
-            icon: Icon(
-              provider.viewMode == IncidentViewMode.map
-                  ? Icons.list_alt_rounded
-                  : Icons.map_outlined,
-            ),
-            tooltip: provider.viewMode == IncidentViewMode.map
-                ? 'Switch to list view'
-                : 'Switch to map view',
-            onPressed: () {
-              context.read<IncidentProvider>().setViewMode(
-                    provider.viewMode == IncidentViewMode.map
-                        ? IncidentViewMode.list
-                        : IncidentViewMode.map,
-                  );
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh incidents',
             onPressed: () => context.read<IncidentProvider>().refresh(),
           ),
         ],
       ),
-      floatingActionButton: provider.viewMode == IncidentViewMode.list
-          ? FloatingActionButton.extended(
-              onPressed: _openReportScreen,
-              icon: const Icon(Icons.add),
-              label: const Text('Report Incident'),
-              backgroundColor: AppColors.deepEstuary,
-              foregroundColor: Colors.white,
-            )
-          : null,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openReportScreen,
+        icon: const Icon(Icons.add),
+        label: const Text('Report Incident'),
+        backgroundColor: AppColors.deepEstuary,
+        foregroundColor: Colors.white,
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -212,47 +181,20 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
           ),
           const Divider(height: 1),
 
-          // ─── Body Content: Map vs List ───────────────────────────────────
           Expanded(
             child: provider.isLoading && provider.incidents.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : provider.errorMessage != null && provider.incidents.isEmpty
-                    ? _ErrorState(
-                        errorMessage: provider.errorMessage!,
-                        onRetry: () => provider.refresh(),
-                      )
-                    : provider.viewMode == IncidentViewMode.map
-                        ? Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.08),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: ClipRRect(
-                                borderRadius: const BorderRadius.all(Radius.circular(20)),
-                                child: _IncidentsMap(
-                                  incidents: provider.filteredIncidents,
-                                  onIncidentTap: _openIncidentDetail,
-                                  center: effectiveCenter,
-                                  liveLocation: _liveLocation,
-                                ),
-                              ),
-                            ),
-                          )
-                        : _IncidentList(
-                            incidents: provider.filteredIncidents,
-                            onIncidentTap: _openIncidentDetail,
-                            onReportTap: _openReportScreen,
-                            onRefresh: () => provider.refresh(),
-                          ),
+                ? _ErrorState(
+                    errorMessage: provider.errorMessage!,
+                    onRetry: () => provider.refresh(),
+                  )
+                : _IncidentList(
+                    incidents: provider.filteredIncidents,
+                    onIncidentTap: _openIncidentDetail,
+                    onReportTap: _openReportScreen,
+                    onRefresh: () => provider.refresh(),
+                  ),
           ),
         ],
       ),
@@ -321,14 +263,22 @@ class _FilterBar extends StatelessWidget {
           // All chip
           FilterChip(
             label: const Text('All'),
-            selected: selectedStatus == null && selectedCategory == null && !sosOnly && !myReportsOnly,
+            selected:
+                selectedStatus == null &&
+                selectedCategory == null &&
+                !sosOnly &&
+                !myReportsOnly,
             onSelected: (_) => onClearAll(),
           ),
           const SizedBox(width: 6),
 
           // My Reports Filter
           FilterChip(
-            avatar: const Icon(Icons.person_pin_circle_outlined, size: 16, color: AppColors.deepEstuary),
+            avatar: const Icon(
+              Icons.person_pin_circle_outlined,
+              size: 16,
+              color: AppColors.deepEstuary,
+            ),
             label: const Text('My Reports'),
             selected: myReportsOnly,
             selectedColor: AppColors.deepEstuary.withValues(alpha: 0.15),
@@ -338,7 +288,11 @@ class _FilterBar extends StatelessWidget {
 
           // SOS Emergency Filter
           FilterChip(
-            avatar: const Icon(Icons.warning_amber_rounded, size: 16, color: Colors.red),
+            avatar: const Icon(
+              Icons.warning_amber_rounded,
+              size: 16,
+              color: Colors.red,
+            ),
             label: const Text('SOS Only'),
             selected: sosOnly,
             selectedColor: AppColors.sosBackground,
@@ -350,7 +304,8 @@ class _FilterBar extends StatelessWidget {
           FilterChip(
             label: const Text('Pending'),
             selected: selectedStatus == IncidentStatus.pending,
-            onSelected: (val) => onStatusChanged(val ? IncidentStatus.pending : null),
+            onSelected: (val) =>
+                onStatusChanged(val ? IncidentStatus.pending : null),
           ),
           const SizedBox(width: 6),
 
@@ -358,7 +313,8 @@ class _FilterBar extends StatelessWidget {
           FilterChip(
             label: const Text('Verified'),
             selected: selectedStatus == IncidentStatus.verified,
-            onSelected: (val) => onStatusChanged(val ? IncidentStatus.verified : null),
+            onSelected: (val) =>
+                onStatusChanged(val ? IncidentStatus.verified : null),
           ),
           const SizedBox(width: 6),
 
@@ -366,7 +322,8 @@ class _FilterBar extends StatelessWidget {
           FilterChip(
             label: const Text('Resolved'),
             selected: selectedStatus == IncidentStatus.resolved,
-            onSelected: (val) => onStatusChanged(val ? IncidentStatus.resolved : null),
+            onSelected: (val) =>
+                onStatusChanged(val ? IncidentStatus.resolved : null),
           ),
           const SizedBox(width: 6),
 
@@ -374,7 +331,8 @@ class _FilterBar extends StatelessWidget {
           FilterChip(
             label: const Text('Rejected'),
             selected: selectedStatus == IncidentStatus.rejected,
-            onSelected: (val) => onStatusChanged(val ? IncidentStatus.rejected : null),
+            onSelected: (val) =>
+                onStatusChanged(val ? IncidentStatus.rejected : null),
           ),
         ],
       ),
@@ -400,39 +358,47 @@ class _IncidentList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (incidents.isEmpty) {
-      return Center(
-        child: Padding(
+      // Scrollable so it never overflows when banners above take space,
+      // and so pull-to-refresh still works with nothing listed.
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        child: ListView(
           padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.seafoam.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
+          children: [
+            Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.seafoam.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.report_outlined,
+                    size: 48,
+                    color: AppColors.deepEstuary,
+                  ),
                 ),
-                child: const Icon(Icons.report_outlined, size: 48, color: AppColors.deepEstuary),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'No incidents reported yet',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Help keep your community informed during floods and extreme weather events.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 20),
-              FilledButton.icon(
-                onPressed: onReportTap,
-                icon: const Icon(Icons.add),
-                label: const Text('Report an Incident'),
-              ),
-            ],
-          ),
+                const SizedBox(height: 16),
+                const Text(
+                  'No incidents reported yet',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Help keep your community informed during floods and extreme weather events.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: onReportTap,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Report an Incident'),
+                ),
+              ],
+            ),
+          ],
         ),
       );
     }
@@ -450,283 +416,6 @@ class _IncidentList extends StatelessWidget {
             onTap: () => onIncidentTap(incident),
           );
         },
-      ),
-    );
-  }
-}
-
-// ─── Map View ─────────────────────────────────────────────────────────────────
-
-class _IncidentsMap extends StatefulWidget {
-  final List<Incident> incidents;
-  final ValueChanged<Incident> onIncidentTap;
-  final LatLng center;
-  final LatLng? liveLocation;
-
-  const _IncidentsMap({
-    required this.incidents,
-    required this.onIncidentTap,
-    required this.center,
-    required this.liveLocation,
-  });
-
-  @override
-  State<_IncidentsMap> createState() => _IncidentsMapState();
-}
-
-class _IncidentsMapState extends State<_IncidentsMap> {
-  final MapController _mapController = MapController();
-  BaseMapStyle _baseMapStyle = BaseMapStyle.street;
-
-  /// Jump to the user's position once, when the first GPS fix arrives.
-  bool _centeredOnUser = false;
-
-  @override
-  void didUpdateWidget(_IncidentsMap oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!_centeredOnUser && widget.liveLocation != null) {
-      _centeredOnUser = true;
-      final live = widget.liveLocation!;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final zoom = _mapController.camera.zoom;
-        _mapController.move(live, zoom < 15 ? 15 : zoom);
-      });
-    }
-  }
-
-  void _goToMyLocation() =>
-      recenterOnUser(context, _mapController, widget.liveLocation);
-
-  void _showAlertSheet(BuildContext context, DisasterAlert alert) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: severityColor(alert.severity),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  alert.severity.label,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: severityColor(alert.severity),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(alert.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-            if (alert.instructions != null) ...[
-              const SizedBox(height: 8),
-              Text(alert.instructions!),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showIncidentSheet(Incident incident) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => IncidentDetailSheet(
-        incident: incident,
-        onViewDetails: () {
-          Navigator.pop(context);
-          widget.onIncidentTap(incident);
-        },
-        onConfirm: () {
-          final userId = SupabaseService.currentUserId;
-          if (userId != null) {
-            context.read<IncidentProvider>().confirmIncident(
-                  incidentId: incident.id,
-                  memberId: userId,
-                );
-          }
-          Navigator.pop(context);
-        },
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final activeAlerts = context.watch<AlertProvider>().activeAlerts;
-
-    return Stack(
-      children: [
-        FlutterMap(
-          mapController: _mapController,
-          options: MapOptions(
-            initialCenter: widget.center,
-            initialZoom: 12,
-            minZoom: 5,
-            maxZoom: 18,
-            interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
-          ),
-          children: [
-            buildBaseTileLayer(_baseMapStyle),
-            CircleLayer(
-              circles: [
-                for (final alert in activeAlerts)
-                  CircleMarker(
-                    point: LatLng(alert.centerLat, alert.centerLng),
-                    radius: alert.radiusMeters.toDouble(),
-                    useRadiusInMeter: true,
-                    color: severityFillColor(alert.severity),
-                    borderColor: severityColor(alert.severity),
-                    borderStrokeWidth: 1.5,
-                  ),
-              ],
-            ),
-            MarkerLayer(
-              markers: [
-                for (final alert in activeAlerts)
-                  Marker(
-                    point: LatLng(alert.centerLat, alert.centerLng),
-                    width: 28,
-                    height: 28,
-                    child: GestureDetector(
-                      onTap: () => _showAlertSheet(context, alert),
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
-                for (final incident in widget.incidents)
-                  Marker(
-                    point: LatLng(incident.latitude, incident.longitude),
-                    width: 38,
-                    height: 38,
-                    child: GestureDetector(
-                      onTap: () => _showIncidentSheet(incident),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: incident.isSos ? AppColors.severityRed : categoryColor(incident.category),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black38, blurRadius: 4, offset: Offset(0, 2)),
-                          ],
-                        ),
-                        child: Icon(
-                          incident.isSos ? Icons.warning_amber_rounded : categoryIcon(incident.category),
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-                if (widget.liveLocation != null)
-                  Marker(
-                    point: widget.liveLocation!,
-                    width: 28,
-                    height: 28,
-                    child: const LiveLocationMarker(),
-                  ),
-              ],
-            ),
-            RichAttributionWidget(
-              alignment: AttributionAlignment.bottomLeft,
-              attributions: [
-                TextSourceAttribution(attributionFor(_baseMapStyle)),
-              ],
-            ),
-          ],
-        ),
-        if (activeAlerts.isEmpty)
-          const Positioned(
-            top: 16,
-            left: 16,
-            right: 16,
-            child: _NoActiveAlertsBanner(),
-          ),
-        Positioned(
-          right: 12,
-          bottom: 12,
-          child: Column(
-            children: [
-              MyLocationButton(onTap: _goToMyLocation),
-              const SizedBox(height: 8),
-              MapLayerToggleButton(
-                style: _baseMapStyle,
-                onTap: () {
-                  setState(() {
-                    _baseMapStyle = _baseMapStyle == BaseMapStyle.street
-                        ? BaseMapStyle.topo
-                        : BaseMapStyle.street;
-                  });
-                },
-              ),
-              const SizedBox(height: 8),
-              ZoomButton(
-                icon: Icons.add,
-                onTap: () {
-                  _mapController.move(
-                    _mapController.camera.center,
-                    _mapController.camera.zoom + 1,
-                  );
-                },
-              ),
-              const SizedBox(height: 6),
-              ZoomButton(
-                icon: Icons.remove,
-                onTap: () {
-                  _mapController.move(
-                    _mapController.camera.center,
-                    _mapController.camera.zoom - 1,
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ─── No Active Alerts Banner ─────────────────────────────────────────────────
-
-class _NoActiveAlertsBanner extends StatelessWidget {
-  const _NoActiveAlertsBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 1)),
-        ],
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.check_circle_outline, size: 18, color: Color(0xFF2E7D32)),
-          SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'No active alerts right now',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -776,7 +465,11 @@ class _ErrorState extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: AppColors.severityRed),
+              const Icon(
+                Icons.error_outline,
+                size: 48,
+                color: AppColors.severityRed,
+              ),
               const SizedBox(height: 12),
               const Text(
                 'Failed to load incidents',
