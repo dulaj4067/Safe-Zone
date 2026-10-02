@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/circle_member_location.dart';
 import '../models/safety_circle_contact.dart';
+import '../models/safety_circle_request.dart';
 import '../models/risk_zone.dart';
 import '../services/supabase_service.dart';
 import '../services/location_service.dart';
@@ -43,6 +44,7 @@ class SafetyProvider extends ChangeNotifier {
 
   List<SafetyCircleContact> _circle = [];
   List<CircleMemberLocation> _circleLocations = [];
+  List<SafetyCircleRequest> _pendingRequests = [];
   bool _isSharing = false;
   String? _activeShareId;
   LocationUpdate? _latestUpdate;
@@ -63,6 +65,12 @@ class SafetyProvider extends ChangeNotifier {
   /// marker on the home map. Empty until sql/safety_circle_migration.sql
   /// has been run and at least one linked contact has shared a location.
   List<CircleMemberLocation> get circleLocations => _circleLocations;
+
+  /// Incoming "X wants to add you to their safety circle" requests, where
+  /// this signed-in user is the one being added. Nothing in [circle] or
+  /// [circleLocations] here — this is the other direction: people who want
+  /// *this* user's location to show up on *their* map.
+  List<SafetyCircleRequest> get pendingRequests => _pendingRequests;
   bool get isLoading => _isLoading;
   bool get isSharing => _isSharing;
   LocationUpdate? get latestUpdate => _latestUpdate;
@@ -143,6 +151,46 @@ class SafetyProvider extends ChangeNotifier {
         Timer.periodic(const Duration(seconds: 45), (_) => fetchCircleLocations());
   }
 
+  /// Loads requests where someone else has added *this* user to *their*
+  /// circle and is waiting on consent. Until one is confirmed, the server
+  /// side (the `safety_circle_last_locations` view and the RLS policy on
+  /// `location_shares`) refuses to expose this user's location to that
+  /// owner no matter what the client does — this list exists only so the
+  /// user can see who's asking and act on it.
+  Future<void> loadPendingRequests() async {
+    final userId = SupabaseService.currentUserId;
+    if (userId == null) return;
+
+    try {
+      final rows = await SupabaseService.client
+          .from('my_pending_safety_circle_requests')
+          .select();
+      _pendingRequests = (rows as List)
+          .map((r) => SafetyCircleRequest.fromMap(r as Map<String, dynamic>))
+          .toList();
+      notifyListeners();
+    } catch (_) {
+      // View not migrated yet, or none pending — leave whatever was there.
+    }
+  }
+
+  /// Confirms or declines one pending request via a SECURITY DEFINER RPC
+  /// (rather than an ordinary table update) so a client can only ever flip
+  /// its *own* incoming request's status — never edit the owner's contact
+  /// row directly.
+  Future<void> respondToPendingRequest(String requestId, bool accept) async {
+    try {
+      await SupabaseService.client.rpc('respond_to_safety_circle_request', params: {
+        'request_id': requestId,
+        'accept': accept,
+      });
+    } catch (e) {
+      _errorMessage = 'Failed to respond: $e';
+    }
+    _pendingRequests = _pendingRequests.where((r) => r.id != requestId).toList();
+    notifyListeners();
+  }
+
   List<SafetyCircleContact> _demoSafetyCircle() {
     return [
       SafetyCircleContact(
@@ -170,6 +218,62 @@ class SafetyProvider extends ChangeNotifier {
   void toggleContactSelection(String contactId, bool selected) {
     final contact = _circle.firstWhere((c) => c.id == contactId);
     contact.isSelected = selected;
+    notifyListeners();
+  }
+
+  /// Adds a real contact to `safety_circle_contacts`. Until this is called
+  /// at least once, [_circle] only ever holds [_demoSafetyCircle] — there's
+  /// no other way for a real contact (and their live location) to show up.
+  /// Throws on failure so the caller (the add-contact sheet) can show why.
+  Future<void> addContact({
+    required String name,
+    required String phoneNumber,
+    required String relationship,
+  }) async {
+    final userId = SupabaseService.currentUserId;
+    if (userId == null) {
+      throw StateError('Sign in to add safety circle contacts.');
+    }
+
+    final row = await SupabaseService.client
+        .from('safety_circle_contacts')
+        .insert({
+          'owner_id': userId,
+          'name': name,
+          'phone_number': phoneNumber,
+          'relationship': relationship,
+        })
+        .select()
+        .single();
+
+    final contact = SafetyCircleContact.fromMap(row);
+    // Drop the demo placeholders the moment a real contact exists.
+    _circle = [..._circle.where((c) => !c.id.startsWith('demo-')), contact];
+    _errorMessage = null;
+    notifyListeners();
+
+    await fetchCircleLocations();
+  }
+
+  /// Removes a contact. A demo placeholder is just dropped locally; a real
+  /// contact is deleted server-side first (RLS already scopes this to rows
+  /// the signed-in user owns).
+  Future<void> removeContact(String contactId) async {
+    if (!contactId.startsWith('demo-')) {
+      try {
+        await SupabaseService.client
+            .from('safety_circle_contacts')
+            .delete()
+            .eq('id', contactId);
+      } catch (e) {
+        _errorMessage = 'Failed to remove contact: $e';
+        notifyListeners();
+        return;
+      }
+    }
+
+    _circle = _circle.where((c) => c.id != contactId).toList();
+    _circleLocations = _circleLocations.where((c) => c.contactId != contactId).toList();
     notifyListeners();
   }
 
