@@ -19,10 +19,11 @@ class GuideMarkdown extends StatelessWidget {
             padding: const EdgeInsets.only(top: 12, bottom: 4),
             child: Text(
               heading.group(2)!,
-              style: (heading.group(1)!.length == 1
-                      ? theme.textTheme.titleLarge
-                      : theme.textTheme.titleMedium)
-                  ?.copyWith(fontWeight: FontWeight.w700),
+              style:
+                  (heading.group(1)!.length == 1
+                          ? theme.textTheme.titleLarge
+                          : theme.textTheme.titleMedium)
+                      ?.copyWith(fontWeight: FontWeight.w700),
             ),
           );
         }
