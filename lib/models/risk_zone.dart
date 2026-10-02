@@ -63,9 +63,17 @@ class RiskZone {
   }
 }
 
-/// Sample zones along the Kelani River basin near Colombo, for layout/testing.
-/// TODO: replace with zones fetched from your backend (e.g. a RiskZoneProvider
-/// mirroring the pattern used by IncidentProvider).
+/// Sample zones along the Kelani River basin near Colombo, for map layout
+/// and development/demo use ONLY — see [RiskZone.label] for the real
+/// severity text. Names deliberately omit the risk descriptor (just the
+/// place) since callers that display `'${zone.name} - ${zone.label}'`
+/// would otherwise show it twice, e.g. "North Bank - High Risk - High risk".
+///
+/// There is no backend source for real zone-level flood-risk severity yet
+/// (the `zones` table has geometry but no risk column) — until one exists,
+/// this list must never be used to assign a real user a "current risk
+/// zone" in production. See home_screen.dart's `_nearestRiskZone`, which
+/// gates use of this list to kDebugMode for exactly that reason.
 final List<RiskZone> sampleRiskZones = [
   RiskZone(
     id: 'kelani-severe-1',
@@ -81,7 +89,7 @@ final List<RiskZone> sampleRiskZones = [
   ),
   RiskZone(
     id: 'kelani-high-1',
-    name: 'North Bank — High Risk',
+    name: 'North Bank',
     level: RiskLevel.high,
     boundary: const [
       LatLng(6.9670, 79.8980),
@@ -93,7 +101,7 @@ final List<RiskZone> sampleRiskZones = [
   ),
   RiskZone(
     id: 'kelani-moderate-1',
-    name: 'South Bank — Moderate Risk',
+    name: 'South Bank',
     level: RiskLevel.moderate,
     boundary: const [
       LatLng(6.9560, 79.9075),
@@ -105,7 +113,7 @@ final List<RiskZone> sampleRiskZones = [
   ),
   RiskZone(
     id: 'outer-low-1',
-    name: 'Outer District — Low Risk',
+    name: 'Outer District',
     level: RiskLevel.low,
     boundary: const [
       LatLng(6.9750, 79.8900),

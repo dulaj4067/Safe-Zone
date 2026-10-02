@@ -15,6 +15,7 @@ import '../theme/app_theme.dart';
 import '../utils/format_utils.dart';
 import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
+import '../utils/sri_lanka_bounds.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/incident_card.dart';
 import 'incident_detail_screen.dart';
@@ -515,7 +516,8 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                       options: MapOptions(
                         initialCenter: _selectedLocation,
                         initialZoom: 14,
-                        minZoom: 5,
+                        minZoom: kSriLankaMinZoom,
+                        cameraConstraint: kSriLankaCameraConstraint,
                         maxZoom: 18,
                         interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
                         onTap: (tapPosition, point) {

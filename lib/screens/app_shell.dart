@@ -11,6 +11,7 @@ import '../providers/safety_provider.dart';
 import '../services/activity_history_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/alert_banner.dart';
+import '../widgets/safety_circle_request_banner.dart';
 import '../widgets/splash_screen.dart';
 import 'admin_broadcast_screen.dart';
 import 'broadcast_dashboard_screen.dart';
@@ -64,6 +65,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       // they're ready as soon as the citizen looks at the home map, not
       // only after they happen to open the "I'm Safe" screen first.
       unawaited(context.read<SafetyProvider>().loadSafetyCircle());
+      unawaited(context.read<SafetyProvider>().loadPendingRequests());
     });
   }
 
@@ -144,6 +146,13 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                 alert: alertProvider.bannerAlert!,
                 onDismiss: () => context.read<AlertProvider>().dismissBanner(),
               ),
+            ),
+          if (!_loadingProfile)
+            const Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: SafetyCircleRequestBanner(),
             ),
         ],
       ),

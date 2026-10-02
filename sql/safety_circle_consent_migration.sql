@@ -1,29 +1,23 @@
 -- ============================================================================
--- Safety Circle, Live ETA Sharing & "I'm Safe" Broadcasts — Supabase SQL Migration
--- Run this in the Supabase SQL Editor.
+-- Safety Circle, Live ETA Sharing & "I'm Safe" Broadcasts
+-- + consent-to-be-added flow (status: pending/confirmed/declined)
+-- + cleanup of leftover test/placeholder rows
 --
--- Context: lib/providers/safety_provider.dart already calls three tables —
--- safety_circle_contacts, location_shares, safety_broadcasts — that do not
--- exist in the live schema. Every one of those calls is wrapped in a
--- try/catch that silently falls back to fake demo data, so today the whole
--- "I'm Safe" / Safety Circle feature runs with no real persistence at all.
--- This migration creates the three tables the Dart code already assumes,
--- plus what's needed to answer "where was my safety-circle contact last
--- seen": a `contact_user_id` link from a free-text contact to a real
--- profiles row (auto-resolved by phone number), and a view that joins a
--- citizen's circle to each linked contact's most recent location_shares row.
+-- Supersedes sql/safety_circle_migration.sql for fresh deployments — run
+-- this one instead (it creates the same tables/views plus the consent
+-- additions). If safety_circle_migration.sql was already run, this is safe
+-- to run on top of it: every statement is create-or-replace / if-not-exists.
+--
+-- Run this once in the Safe-Zone Supabase project's SQL Editor.
 -- ============================================================================
 
--- 0. set_updated_at() — reused below; defined here too so this file runs
--- standalone even if sql/incident_migration.sql (which also defines it)
--- hasn't been run against this project.
 create or replace function set_updated_at()
 returns trigger as $$
 begin
   NEW.updated_at = now();
   return NEW;
 end;
-$$ language plpgsql;
+$$ language plpgsql set search_path = public;
 
 -- ============================================================================
 -- 1. safety_circle_contacts
@@ -34,13 +28,26 @@ create table if not exists safety_circle_contacts (
   name            text not null,
   phone_number    text not null,
   relationship    text not null default 'Contact',
-  -- Resolved automatically (see trigger below) when phone_number matches a
-  -- registered profile — null means this contact isn't an app user, so
-  -- there's nothing to show a location marker for.
   contact_user_id uuid references profiles(id) on delete set null,
+  -- 'pending' until the linked person confirms. Only matters when
+  -- contact_user_id is set — that's the only case where this row could
+  -- expose someone's real location. See the view/RLS below: a location is
+  -- never returned for anything but a 'confirmed' row, no matter what the
+  -- client sends.
+  status          text not null default 'pending'
+                    check (status in ('pending', 'confirmed', 'declined')),
   created_at      timestamptz not null default now(),
   unique (owner_id, phone_number)
 );
+
+-- In case safety_circle_migration.sql already ran without this column.
+alter table safety_circle_contacts
+  add column if not exists status text not null default 'pending';
+alter table safety_circle_contacts
+  drop constraint if exists safety_circle_contacts_status_check;
+alter table safety_circle_contacts
+  add constraint safety_circle_contacts_status_check
+  check (status in ('pending', 'confirmed', 'declined'));
 
 create index if not exists idx_safety_circle_contacts_owner
   on safety_circle_contacts (owner_id);
@@ -48,9 +55,6 @@ create index if not exists idx_safety_circle_contacts_owner
 create index if not exists idx_safety_circle_contacts_user
   on safety_circle_contacts (contact_user_id);
 
--- Auto-link a contact to a real profile by matching phone numbers, both on
--- insert/update of the contact and (via the second trigger) when someone
--- signs up or changes their phone number after already being added.
 create or replace function resolve_safety_circle_contact_user()
 returns trigger as $$
 begin
@@ -60,7 +64,7 @@ begin
   limit 1;
   return NEW;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists trg_resolve_contact_user on safety_circle_contacts;
 create trigger trg_resolve_contact_user
@@ -68,16 +72,20 @@ create trigger trg_resolve_contact_user
   for each row
   execute function resolve_safety_circle_contact_user();
 
+-- When a profile's phone changes/arrives and it newly matches a contact row,
+-- link it AND reset status to 'pending' — a fresh link is a fresh consent
+-- requirement, even if some other link on this row was confirmed before.
 create or replace function relink_safety_circle_contacts_on_profile_change()
 returns trigger as $$
 begin
   update safety_circle_contacts
-  set contact_user_id = NEW.id
+  set contact_user_id = NEW.id,
+      status = 'pending'
   where phone_number = NEW.phone
     and (contact_user_id is distinct from NEW.id);
   return NEW;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists trg_relink_contacts_on_profile_change on profiles;
 create trigger trg_relink_contacts_on_profile_change
@@ -86,9 +94,7 @@ create trigger trg_relink_contacts_on_profile_change
   execute function relink_safety_circle_contacts_on_profile_change();
 
 -- ============================================================================
--- 2. location_shares — active "Share my ETA" sessions. The most recent row
---    per owner (active or not) also doubles as that person's last-known
---    location, so a session ending doesn't erase where they last were.
+-- 2. location_shares
 -- ============================================================================
 create table if not exists location_shares (
   id            uuid primary key default gen_random_uuid(),
@@ -113,7 +119,7 @@ create trigger trg_location_shares_updated_at
   execute function set_updated_at();
 
 -- ============================================================================
--- 3. safety_broadcasts — "I'm Safe" one-tap notifications.
+-- 3. safety_broadcasts
 -- ============================================================================
 create table if not exists safety_broadcasts (
   id       uuid primary key default gen_random_uuid(),
@@ -126,14 +132,18 @@ create index if not exists idx_safety_broadcasts_user
   on safety_broadcasts (user_id, sent_at desc);
 
 -- ============================================================================
--- 4. safety_circle_last_locations — what the app queries to draw a marker
---    for each circle contact at "where they were last at". Intended to be
---    evaluated under the querying citizen's own RLS — a caller should only
---    ever see rows their own policies allow — but a plain `create view`
---    does NOT do this by default (it runs with the CREATOR's rights,
---    bypassing RLS entirely for every caller); `security_invoker = true`
---    is what actually makes that happen. See sql/safety_circle_consent_
---    migration.sql, which supersedes this file and fixes this.
+-- 4. safety_circle_last_locations — only ever returns a location for a
+--    CONFIRMED link. A pending or declined contact shows no location,
+--    regardless of what the client asks for.
+--
+--    security_invoker = true is load-bearing here, not cosmetic: a plain
+--    view defaults to running with its CREATOR's rights, which bypasses
+--    the RLS on safety_circle_contacts/location_shares entirely and lets
+--    ANY authenticated caller read EVERY row — verified live against this
+--    project (an unrelated account could read another user's contacts and
+--    raw GPS coordinates with an unfiltered select before this was set).
+--    With security_invoker, the view runs as the CALLING user, so the
+--    underlying tables' RLS policies apply exactly as if queried directly.
 -- ============================================================================
 create or replace view safety_circle_last_locations
 with (security_invoker = true)
@@ -155,12 +165,48 @@ left join lateral (
   where owner_id = sc.contact_user_id
   order by updated_at desc
   limit 1
-) ls on sc.contact_user_id is not null;
+) ls on sc.contact_user_id is not null and sc.status = 'confirmed';
 
 grant select on safety_circle_last_locations to authenticated;
 
 -- ============================================================================
--- 5. RLS Policies
+-- 5. my_pending_safety_circle_requests — what a user sees was added them,
+--    and by whom, so they can confirm/decline. A plain view defaults to
+--    creator-rights (definer-like) unless security_invoker is set, which
+--    is required here: the contact being added usually cannot read the
+--    owner's profiles row directly, so this join needs elevated rights to
+--    resolve owner_name. It's safe because the WHERE clause hard-scopes
+--    every row to auth.uid() — a caller can only ever see requests about
+--    themselves, never anyone else's.
+-- ============================================================================
+create or replace view my_pending_safety_circle_requests as
+select sc.id, sc.owner_id, p.full_name as owner_name, sc.relationship, sc.created_at
+from safety_circle_contacts sc
+join profiles p on p.id = sc.owner_id
+where sc.contact_user_id = auth.uid()
+  and sc.status = 'pending';
+
+grant select on my_pending_safety_circle_requests to authenticated;
+
+-- Lets the targeted contact flip their OWN request to confirmed/declined —
+-- a SECURITY DEFINER function instead of an open UPDATE policy, so a client
+-- can only ever change status on a row about them, never touch anything
+-- else on it (name, phone, relationship stay the owner's alone).
+create or replace function respond_to_safety_circle_request(request_id uuid, accept boolean)
+returns void as $$
+begin
+  update safety_circle_contacts
+  set status = case when accept then 'confirmed' else 'declined' end
+  where id = request_id
+    and contact_user_id = auth.uid()
+    and status = 'pending';
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function respond_to_safety_circle_request(uuid, boolean) to authenticated;
+
+-- ============================================================================
+-- 6. RLS Policies
 -- ============================================================================
 alter table safety_circle_contacts enable row level security;
 alter table location_shares enable row level security;
@@ -171,6 +217,14 @@ create policy "Citizens manage their own circle"
   on safety_circle_contacts for all to authenticated
   using (owner_id = auth.uid())
   with check (owner_id = auth.uid());
+
+-- Lets a targeted contact SEE the pending row naming them (so the app can
+-- render "X wants to add you"), without letting them edit it directly —
+-- the only mutation path for them is the RPC above.
+drop policy if exists "Linked contacts can see requests about them" on safety_circle_contacts;
+create policy "Linked contacts can see requests about them"
+  on safety_circle_contacts for select to authenticated
+  using (contact_user_id = auth.uid());
 
 drop policy if exists "Citizens post their own location shares" on location_shares;
 create policy "Citizens post their own location shares"
@@ -183,9 +237,7 @@ create policy "Citizens update their own location shares"
   using (owner_id = auth.uid())
   with check (owner_id = auth.uid());
 
--- Privacy model: the SHARER controls visibility by adding the viewer to
--- THEIR OWN circle — "I added Mom to my circle" means Mom can see me, not
--- the other way round. A citizen can always read their own rows too.
+-- Only a CONFIRMED circle link can read someone else's location rows.
 drop policy if exists "Circle members can view each other's shares" on location_shares;
 create policy "Circle members can view each other's shares"
   on location_shares for select to authenticated
@@ -195,6 +247,7 @@ create policy "Circle members can view each other's shares"
       select 1 from safety_circle_contacts sc
       where sc.owner_id = location_shares.owner_id
         and sc.contact_user_id = auth.uid()
+        and sc.status = 'confirmed'
     )
   );
 
@@ -212,5 +265,31 @@ create policy "Circle members can view each other's broadcasts"
       select 1 from safety_circle_contacts sc
       where sc.owner_id = safety_broadcasts.user_id
         and sc.contact_user_id = auth.uid()
+        and sc.status = 'confirmed'
     )
   );
+
+-- ============================================================================
+-- 7. Cleanup — leftover test/placeholder rows found during the account fix
+--    (generic "Zone B/C" names, a test alert, and three "Explain"/
+--    "Description"/"help wanted" incidents created while manually testing
+--    the report-incident form). Safe to skip this section if you'd rather
+--    review them yourself first.
+-- ============================================================================
+delete from incident_confirmations where incident_id in (
+  'c12ad7fb-68f9-47c9-9b60-474bbb658c01',
+  '0bfb20e3-ed23-432c-897f-fa42ba72f7fd',
+  '8574f5d5-65f2-4bd7-90dc-936acc908274'
+);
+delete from volunteer_assignments where task_id = 'eeeeeeee-0000-0000-0000-000000000001';
+delete from volunteer_tasks where id = 'eeeeeeee-0000-0000-0000-000000000001';
+delete from incidents where id in (
+  'c12ad7fb-68f9-47c9-9b60-474bbb658c01',
+  '0bfb20e3-ed23-432c-897f-fa42ba72f7fd',
+  '8574f5d5-65f2-4bd7-90dc-936acc908274'
+);
+delete from shelters where id in (
+  'dddddddd-0000-0000-0000-000000000001',
+  'dddddddd-0000-0000-0000-000000000002'
+);
+delete from alerts where id = 'decc134b-574f-4329-9bbd-83f395fb4e33';
