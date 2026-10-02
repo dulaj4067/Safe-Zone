@@ -291,7 +291,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
           children: [
             Icon(Icons.delete_outline, color: AppColors.severityRed),
             SizedBox(width: 8),
-            Text('Delete Incident Report?'),
+            Expanded(child: Text('Delete Incident Report?')),
           ],
         ),
         content: const Text(
@@ -305,6 +305,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.severityRed,
+              minimumSize: const Size(0, 40),
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Delete Report'),
@@ -358,7 +359,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
             children: [
               Icon(Icons.gavel, color: AppColors.severityRed),
               SizedBox(width: 8),
-              Text('Moderate / Delete Report'),
+              Expanded(child: Text('Moderate / Delete Report')),
             ],
           ),
           content: Column(
@@ -403,6 +404,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
             FilledButton.icon(
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.severityRed,
+                minimumSize: const Size(0, 40),
               ),
               icon: const Icon(Icons.delete_forever, size: 16),
               onPressed: () => Navigator.pop(ctx, true),

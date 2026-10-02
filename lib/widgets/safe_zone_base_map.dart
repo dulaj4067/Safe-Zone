@@ -53,6 +53,11 @@ class SafeZoneBaseMap extends StatefulWidget {
   /// before each one is added automatically.
   final List<Widget> extraControls;
 
+  /// Floating buttons stacked above My Location, at the top of the control
+  /// column (e.g. the home screen's SOS button). Spacing after each one is
+  /// added automatically.
+  final List<Widget> leadingControls;
+
   /// Optional content pinned to the top-left corner (a district label, a
   /// cached-tiles indicator, …).
   final Widget? topLeftOverlay;
@@ -73,6 +78,7 @@ class SafeZoneBaseMap extends StatefulWidget {
     this.onTap,
     this.overlayLayers = const [],
     this.extraControls = const [],
+    this.leadingControls = const [],
     this.topLeftOverlay,
     this.baseMapStyle,
   });
@@ -185,6 +191,10 @@ class _SafeZoneBaseMapState extends State<SafeZoneBaseMap> {
           bottom: 12,
           child: Column(
             children: [
+              for (final control in widget.leadingControls) ...[
+                control,
+                const SizedBox(height: 16),
+              ],
               MyLocationButton(onTap: _goToMyLocation),
               if (widget.baseMapStyle == null) ...[
                 const SizedBox(height: 8),

@@ -467,18 +467,20 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             // ─── Description Multiline Field ──────────────────────────────
             TextFormField(
               controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description *',
+              decoration: InputDecoration(
+                // An SOS shouldn't be held up by typing — description is
+                // optional while the SOS switch is on.
+                labelText: _isSos ? 'Description (optional)' : 'Description *',
                 hintText: 'Explain what happened, water depth, roadblocks, or trapped individuals...',
                 alignLabelWithHint: true,
-                prefixIcon: Padding(
+                prefixIcon: const Padding(
                   padding: EdgeInsets.only(bottom: 50),
                   child: Icon(Icons.description_outlined),
                 ),
               ),
               maxLines: 3,
               validator: (val) {
-                if (val == null || val.trim().isEmpty) {
+                if (!_isSos && (val == null || val.trim().isEmpty)) {
                   return 'Please provide a short description';
                 }
                 return null;
