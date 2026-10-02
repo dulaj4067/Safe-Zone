@@ -43,12 +43,10 @@ class DisasterApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ActiveRouteProvider()),
         ChangeNotifierProvider(
           create: (_) => PreparednessProvider(
-            repository: LocalPreparednessRepository(),
+            repository: LocalPreparednessRepository(syncWithSupabase: true),
           ),
         ),
-        ChangeNotifierProvider(
-          create: (_) => ActivityHistoryService()..load(),
-        ),
+        ChangeNotifierProvider(create: (_) => ActivityHistoryService()..load()),
       ],
       child: MaterialApp(
         title: 'Disaster & Flood Early-Warning Network',

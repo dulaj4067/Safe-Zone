@@ -16,13 +16,13 @@ class DisasterHistoryRecord {
   final String summary;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'zoneId': zoneId,
-        'disasterType': disasterType,
-        'date': date.toIso8601String(),
-        'severity': severity,
-        'summary': summary,
-      };
+    'id': id,
+    'zoneId': zoneId,
+    'disasterType': disasterType,
+    'date': date.toIso8601String(),
+    'severity': severity,
+    'summary': summary,
+  };
 
   factory DisasterHistoryRecord.fromJson(Map<String, dynamic> json) =>
       DisasterHistoryRecord(
