@@ -6,9 +6,9 @@ import '../providers/safety_provider.dart';
 import '../theme/app_colors.dart';
 
 /// App-wide banner (see AppShell's overlay Stack) asking the signed-in
-/// user to confirm or decline being added to someone else's safety
-/// circle. Shows one request at a time — if someone has several pending,
-/// the rest appear as each one is resolved.
+/// user to confirm or decline joining a family circle whose invite link
+/// they opened. Stays until answered, so closing the confirmation dialog
+/// doesn't lose the request. Shows one request at a time.
 class SafetyCircleRequestBanner extends StatelessWidget {
   const SafetyCircleRequestBanner({super.key});
 
@@ -35,14 +35,13 @@ class SafetyCircleRequestBanner extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${request.ownerName} wants to add you to their safety circle',
+                      'Join ${request.ownerName}\'s family circle?',
                       style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'As their "${request.relationship}", your live location will be '
-                      'visible to them whenever you share it. Only confirm if you '
-                      'recognize them.',
+                      'You\'ll see each other\'s location whenever either of you '
+                      'shares it. Only confirm if you know them.',
                       style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
                     ),
                     const SizedBox(height: 8),
@@ -73,7 +72,13 @@ class SafetyCircleRequestBanner extends StatelessWidget {
     );
   }
 
-  void _respond(BuildContext context, SafetyCircleRequest request, bool accept) {
-    context.read<SafetyProvider>().respondToPendingRequest(request.id, accept);
+  Future<void> _respond(
+    BuildContext context,
+    SafetyCircleRequest request,
+    bool accept,
+  ) async {
+    final safety = context.read<SafetyProvider>();
+    await safety.respondToPendingRequest(request.id, accept);
+    await safety.loadFamilyCircle();
   }
 }

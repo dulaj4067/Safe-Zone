@@ -63,15 +63,28 @@ void main() {
     await tester.tap(find.text('Share my ETA'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Share Live Location'), findsOneWidget);
+    expect(find.text('Family circle'), findsOneWidget);
+    // No hardcoded contacts, and no risk-zone banner on this screen.
+    expect(find.text('Asha Perera'), findsNothing);
+    expect(find.textContaining('High risk'), findsNothing);
   });
 
-  test('Safety circle falls back to demo contacts when backend data is unavailable', () async {
+  test('Family circle never shows placeholder members when signed out', () async {
     final provider = SafetyProvider();
-    await provider.loadSafetyCircle();
+    await provider.loadFamilyCircle();
 
-    expect(provider.circle, isNotEmpty);
+    expect(provider.family, isEmpty);
+    expect(provider.circleLocations, isEmpty);
     expect(provider.errorMessage, isNull);
+  });
+
+  test('Invite links point at the public family-invite function', () {
+    final link = SafetyProvider.inviteLinkFor('ABC123DEF456');
+
+    expect(link.scheme, 'https');
+    expect(link.host, 'frkwsgriwdezkvrmgsgf.supabase.co');
+    expect(link.path, '/functions/v1/family-invite');
+    expect(link.queryParameters['code'], 'ABC123DEF456');
   });
 
   test('Sharing can start in local demo mode without auth or GPS', () async {

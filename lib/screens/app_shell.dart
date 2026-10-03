@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app_links/app_links.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -16,6 +17,7 @@ import '../widgets/safety_circle_request_banner.dart';
 import '../widgets/splash_screen.dart';
 import 'admin_broadcast_screen.dart';
 import 'broadcast_dashboard_screen.dart';
+import 'family_circle_screen.dart';
 import 'incidents_screen.dart';
 import 'settings_screen.dart';
 import 'shelters_screen.dart';
@@ -47,6 +49,22 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   late final InterruptionDetector _interruptionDetector;
   MapFocusProvider? _mapFocus;
+  StreamSubscription<Uri>? _inviteLinkSubscription;
+
+  /// app_links can deliver the launch link more than once (as the initial
+  /// link and on the stream); each invite should only be accepted once.
+  final Set<String> _handledInviteCodes = {};
+
+  /// Family invite links (safezone://family-invite?code=...) — accepted
+  /// here, once the user is signed in, then confirmed in a dialog.
+  void _listenForInviteLinks() {
+    _inviteLinkSubscription = AppLinks().uriLinkStream.listen((uri) {
+      if (uri.scheme != 'safezone' || uri.host != 'family-invite') return;
+      final code = uri.queryParameters['code'];
+      if (code == null || !_handledInviteCodes.add(code) || !mounted) return;
+      acceptFamilyInvite(context, code);
+    }, onError: (_) {});
+  }
 
   /// "Show on map" from anywhere → jump to the Home tab (index 0).
   void _onMapFocus() {
@@ -73,8 +91,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       // Loads circle-member "last known location" markers ahead of time so
       // they're ready as soon as the citizen looks at the home map, not
       // only after they happen to open the "I'm Safe" screen first.
-      unawaited(context.read<SafetyProvider>().loadSafetyCircle());
+      unawaited(context.read<SafetyProvider>().loadFamilyCircle());
       unawaited(context.read<SafetyProvider>().loadPendingRequests());
+      if (mounted) _listenForInviteLinks();
     });
   }
 
@@ -88,6 +107,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _mapFocus?.removeListener(_onMapFocus);
     _connectivitySubscription?.cancel();
+    _inviteLinkSubscription?.cancel();
     super.dispose();
   }
 

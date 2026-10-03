@@ -1,12 +1,23 @@
 ﻿import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import '../models/circle_member_location.dart';
-import '../models/safety_circle_contact.dart';
+import '../models/family_member.dart';
 import '../models/safety_circle_request.dart';
 import '../models/risk_zone.dart';
 import '../services/supabase_service.dart';
 import '../services/location_service.dart';
+
+/// A family-circle action that failed, with a message safe to show as-is
+/// (e.g. "This invite link has expired. Ask for a new one.").
+class FamilyCircleException implements Exception {
+  final String message;
+  const FamilyCircleException(this.message);
+
+  @override
+  String toString() => message;
+}
 
 class LocationUpdate {
   final double latitude;
@@ -27,11 +38,10 @@ class LocationUpdate {
 /// Handles live ETA/location sharing (now backed by real GPS via
 /// LocationService) and one-tap "I'm Safe" broadcasts.
 ///
-/// Backed by safety_circle_contacts / location_shares / safety_broadcasts —
-/// see sql/safety_circle_migration.sql for the table definitions and RLS
-/// policies. Until that migration is run against your Supabase project,
-/// every call below fails and silently falls back to fake demo data, so
-/// the feature still works for a demo but nothing persists.
+/// Also owns the family circle: invite links, members and their last-known
+/// locations. Backed by safety_circle_contacts / family_invites /
+/// location_shares / safety_broadcasts — see
+/// sql/family_circle_invites_migration.sql.
 ///
 /// ETA ASSUMPTION: there's no routing API wired up yet, so "distance
 /// remaining" is computed as a straight-line (haversine) distance to an
@@ -42,8 +52,8 @@ class LocationUpdate {
 class SafetyProvider extends ChangeNotifier {
   final LocationService _locationService = LocationService();
 
-  List<SafetyCircleContact> _circle = [];
-  List<CircleMemberLocation> _circleLocations = [];
+  List<FamilyMember> _family = [];
+  List<FamilyInvite> _openInvites = [];
   List<SafetyCircleRequest> _pendingRequests = [];
   bool _isSharing = false;
   String? _activeShareId;
@@ -58,13 +68,23 @@ class SafetyProvider extends ChangeNotifier {
   LatLng? _destination;
   static const double _assumedSpeedKmh = 20; // rough avg travel speed estimate
 
-  List<SafetyCircleContact> get circle => _circle;
+  /// Everyone in your family circle: confirmed members, plus people who
+  /// opened your invite and haven't confirmed yet. No demo placeholders —
+  /// an empty circle is shown as empty.
+  List<FamilyMember> get family => _family;
 
-  /// Where each safety-circle contact who is also a registered app user
-  /// was last at — one entry per contact with `hasLocation == true` gets a
-  /// marker on the home map. Empty until sql/safety_circle_migration.sql
-  /// has been run and at least one linked contact has shared a location.
-  List<CircleMemberLocation> get circleLocations => _circleLocations;
+  List<FamilyMember> get confirmedFamily =>
+      _family.where((m) => m.isConfirmed).toList();
+
+  /// Invite links you've created that nobody has used yet.
+  List<FamilyInvite> get openInvites => _openInvites;
+
+  /// Where each confirmed family member was last seen — one marker each on
+  /// the home and ETA maps.
+  List<CircleMemberLocation> get circleLocations => [
+    for (final m in _family)
+      if (m.isConfirmed && m.hasLocation) m.toLocation(),
+  ];
 
   /// Incoming "X wants to add you to their safety circle" requests, where
   /// this signed-in user is the one being added. Nothing in [circle] or
@@ -78,68 +98,118 @@ class SafetyProvider extends ChangeNotifier {
   DateTime? get lastBroadcastAt => _lastBroadcastAt;
   String? get errorMessage => _errorMessage;
 
-  List<SafetyCircleContact> get selectedContacts =>
-      _circle.where((c) => c.isSelected).toList();
-
-  Future<void> loadSafetyCircle() async {
+  /// Loads the family circle and your open invites. Shows a spinner on the
+  /// first load only; later refreshes (the 45s timer) are silent.
+  Future<void> loadFamilyCircle() async {
     final userId = SupabaseService.currentUserId;
+    if (userId == null) {
+      _family = [];
+      _openInvites = [];
+      notifyListeners();
+      return;
+    }
 
-    _isLoading = true;
+    _isLoading = _family.isEmpty;
     notifyListeners();
 
     try {
-      if (userId == null) {
-        _circle = _demoSafetyCircle();
-        _errorMessage = null;
-        return;
-      }
-
-      final rows = await SupabaseService.client
-          .from('safety_circle_contacts')
-          .select()
-          .eq('owner_id', userId);
-
-      final contacts = (rows as List)
-          .map((r) => SafetyCircleContact.fromMap(r as Map<String, dynamic>))
+      final rows = await SupabaseService.client.rpc('my_family_circle');
+      _family = (rows as List)
+          .map((r) => FamilyMember.fromMap(r as Map<String, dynamic>))
           .toList();
 
-      _circle = contacts.isNotEmpty ? contacts : _demoSafetyCircle();
+      final invites = await SupabaseService.client
+          .from('family_invites')
+          .select('code, expires_at')
+          .eq('owner_id', userId)
+          .isFilter('used_by', null)
+          .gt('expires_at', DateTime.now().toUtc().toIso8601String())
+          .order('created_at', ascending: false);
+      _openInvites = (invites as List)
+          .map((r) => FamilyInvite.fromMap(r as Map<String, dynamic>))
+          .toList();
       _errorMessage = null;
     } catch (e) {
-      _circle = _demoSafetyCircle();
-      _errorMessage = null;
+      _errorMessage = 'Couldn\'t load your family circle. Pull to retry.';
     } finally {
       _isLoading = false;
       notifyListeners();
     }
 
-    await fetchCircleLocations();
     _startCircleLocationsAutoRefresh();
   }
 
-  /// Queries the `safety_circle_last_locations` view for where each linked
-  /// circle contact was last at. Safe to call even before the migration
-  /// has been run — an unrecognised-table error just leaves the list empty
-  /// rather than throwing, same fallback pattern as the rest of this class.
-  Future<void> fetchCircleLocations() async {
-    final userId = SupabaseService.currentUserId;
-    if (userId == null) return;
+  /// Refreshes members' last-known locations (same RPC as the full load).
+  Future<void> fetchCircleLocations() => loadFamilyCircle();
 
+  /// Public https link for an invite code. Messaging apps only make https
+  /// links tappable, so this points at the `family-invite` Edge Function,
+  /// which redirects into the app.
+  static Uri inviteLinkFor(String code) {
+    final api = Uri.parse(SupabaseService.client.rest.url);
+    return Uri.parse('${api.origin}/functions/v1/family-invite?code=$code');
+  }
+
+  /// Creates a single-use, 7-day invite and returns its shareable link.
+  /// Throws with a user-readable message on failure.
+  Future<Uri> createInvite() async {
     try {
-      final rows = await SupabaseService.client
-          .from('safety_circle_last_locations')
-          .select()
-          .eq('owner_id', userId);
-
-      _circleLocations = (rows as List)
-          .map((r) => CircleMemberLocation.fromMap(r as Map<String, dynamic>))
-          .where((c) => c.hasLocation)
-          .toList();
-      notifyListeners();
-    } catch (_) {
-      // View/tables not migrated yet, or RLS not yet applied — leave
-      // whatever was already loaded rather than clearing it on a blip.
+      final code = await SupabaseService.client.rpc('create_family_invite');
+      await loadFamilyCircle();
+      return inviteLinkFor(code as String);
+    } on PostgrestException catch (e) {
+      throw FamilyCircleException(e.message);
     }
+  }
+
+  Future<void> revokeInvite(String code) async {
+    await SupabaseService.client.from('family_invites').delete().eq('code', code);
+    _openInvites = _openInvites.where((i) => i.code != code).toList();
+    notifyListeners();
+  }
+
+  /// Accepts an invite as the signed-in user. This only creates a pending
+  /// link: the server then emails them, and [pendingRequests] gets the
+  /// in-app confirmation. Returns that pending request.
+  Future<SafetyCircleRequest> acceptInvite(String code) async {
+    if (SupabaseService.currentUserId == null) {
+      throw const FamilyCircleException('Sign in to join a family circle.');
+    }
+    try {
+      final result = await SupabaseService.client.rpc(
+        'accept_family_invite',
+        params: {'invite_code': code},
+      );
+      await loadPendingRequests();
+      final map = result as Map;
+      final linkId = map['link_id'] as String;
+      return _pendingRequests.firstWhere(
+        (r) => r.id == linkId,
+        orElse: () => SafetyCircleRequest(
+          id: linkId,
+          ownerId: '',
+          ownerName: map['inviter_name'] as String? ?? 'Someone',
+          relationship: 'Family',
+        ),
+      );
+    } on PostgrestException catch (e) {
+      throw FamilyCircleException(e.message);
+    }
+  }
+
+  /// Removes a member, or leaves their circle — either side can do this.
+  Future<void> removeFamilyMember(String linkId) async {
+    try {
+      await SupabaseService.client.rpc(
+        'remove_family_member',
+        params: {'target_link_id': linkId},
+      );
+      _family = _family.where((m) => m.linkId != linkId).toList();
+      _errorMessage = null;
+    } catch (e) {
+      _errorMessage = 'Couldn\'t remove that member. Try again.';
+    }
+    notifyListeners();
   }
 
   /// Keeps circle-member markers reasonably fresh while the home map is
@@ -188,92 +258,6 @@ class SafetyProvider extends ChangeNotifier {
       _errorMessage = 'Failed to respond: $e';
     }
     _pendingRequests = _pendingRequests.where((r) => r.id != requestId).toList();
-    notifyListeners();
-  }
-
-  List<SafetyCircleContact> _demoSafetyCircle() {
-    return [
-      SafetyCircleContact(
-        id: 'demo-mom',
-        name: 'Asha Perera',
-        phoneNumber: '+94 77 123 4567',
-        relationship: 'Mother',
-        isSelected: true,
-      ),
-      SafetyCircleContact(
-        id: 'demo-brother',
-        name: 'Nimal Perera',
-        phoneNumber: '+94 71 765 4321',
-        relationship: 'Brother',
-      ),
-      SafetyCircleContact(
-        id: 'demo-partner',
-        name: 'Maya Silva',
-        phoneNumber: '+94 76 890 1122',
-        relationship: 'Partner',
-      ),
-    ];
-  }
-
-  void toggleContactSelection(String contactId, bool selected) {
-    final contact = _circle.firstWhere((c) => c.id == contactId);
-    contact.isSelected = selected;
-    notifyListeners();
-  }
-
-  /// Adds a real contact to `safety_circle_contacts`. Until this is called
-  /// at least once, [_circle] only ever holds [_demoSafetyCircle] — there's
-  /// no other way for a real contact (and their live location) to show up.
-  /// Throws on failure so the caller (the add-contact sheet) can show why.
-  Future<void> addContact({
-    required String name,
-    required String phoneNumber,
-    required String relationship,
-  }) async {
-    final userId = SupabaseService.currentUserId;
-    if (userId == null) {
-      throw StateError('Sign in to add safety circle contacts.');
-    }
-
-    final row = await SupabaseService.client
-        .from('safety_circle_contacts')
-        .insert({
-          'owner_id': userId,
-          'name': name,
-          'phone_number': phoneNumber,
-          'relationship': relationship,
-        })
-        .select()
-        .single();
-
-    final contact = SafetyCircleContact.fromMap(row);
-    // Drop the demo placeholders the moment a real contact exists.
-    _circle = [..._circle.where((c) => !c.id.startsWith('demo-')), contact];
-    _errorMessage = null;
-    notifyListeners();
-
-    await fetchCircleLocations();
-  }
-
-  /// Removes a contact. A demo placeholder is just dropped locally; a real
-  /// contact is deleted server-side first (RLS already scopes this to rows
-  /// the signed-in user owns).
-  Future<void> removeContact(String contactId) async {
-    if (!contactId.startsWith('demo-')) {
-      try {
-        await SupabaseService.client
-            .from('safety_circle_contacts')
-            .delete()
-            .eq('id', contactId);
-      } catch (e) {
-        _errorMessage = 'Failed to remove contact: $e';
-        notifyListeners();
-        return;
-      }
-    }
-
-    _circle = _circle.where((c) => c.id != contactId).toList();
-    _circleLocations = _circleLocations.where((c) => c.contactId != contactId).toList();
     notifyListeners();
   }
 

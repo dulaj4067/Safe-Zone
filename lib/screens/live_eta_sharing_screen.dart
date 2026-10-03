@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:latlong2/latlong.dart';
 import '../providers/safety_provider.dart';
 import '../models/circle_member_location.dart';
+import '../models/family_member.dart';
 import '../models/risk_zone.dart';
 import '../theme/app_colors.dart';
 import '../utils/map_tile_config.dart';
@@ -81,18 +82,10 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
   String _formatEta(Duration d) =>
       '${d.inMinutes}m ${(d.inSeconds % 60).toString().padLeft(2, '0')}s';
 
-  /// A contact you're sharing with only ever appears here if they've ALSO
-  /// added you to their own circle and confirmed it — the server-side
-  /// privacy model is "I added them, so they can see me," so seeing *their*
-  /// location back requires the reverse link too. That mutual-consent
-  /// requirement is exactly right for "this is probably a family member
-  /// pinging back" rather than a one-way watch list.
-  CircleMemberLocation? _locationFor(String contactId, List<CircleMemberLocation> locations) {
-    for (final loc in locations) {
-      if (loc.contactId == contactId && loc.hasLocation) return loc;
-    }
-    return null;
-  }
+  /// A confirmed family member's last-known location, if they've ever
+  /// shared one. The server only returns locations for confirmed members.
+  CircleMemberLocation? _locationFor(FamilyMember member) =>
+      member.hasLocation ? member.toLocation() : null;
 
   void _showContactLocationSheet(BuildContext context, CircleMemberLocation member) {
     showModalBottomSheet(
@@ -158,10 +151,10 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
     final mapCenter = update == null
       ? _zoneCenter(zone) ?? const LatLng(6.9615, 79.9010)
       : LatLng(update.latitude, update.longitude);
-    // Only contacts you're actively sharing *with* on this screen, and only
-    // where the location is actually visible to you (see _locationFor).
+    // Everyone you're sharing with: your confirmed family members.
+    final family = safety.confirmedFamily;
     final sharedContactLocations = [
-      for (final c in safety.selectedContacts) ?_locationFor(c.id, safety.circleLocations),
+      for (final m in family) ?_locationFor(m),
     ];
 
     return Scaffold(
@@ -295,10 +288,10 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: safety.selectedContacts.length,
+              itemCount: family.length,
               itemBuilder: (context, i) {
-                final c = safety.selectedContacts[i];
-                final loc = _locationFor(c.id, safety.circleLocations);
+                final c = family[i];
+                final loc = _locationFor(c);
                 return Padding(
                   padding: const EdgeInsets.only(right: 16),
                   child: GestureDetector(
