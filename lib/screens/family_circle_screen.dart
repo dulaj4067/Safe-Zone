@@ -449,37 +449,60 @@ Future<void> showInviteLinkSheet(BuildContext context, Uri link) {
 
 /// Manual fallback for when a link doesn't open the app directly.
 Future<void> showJoinWithCodeDialog(BuildContext context) async {
-  final controller = TextEditingController();
   final code = await showDialog<String>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
+    builder: (_) => const _JoinWithCodeDialog(),
+  );
+  if (code == null || code.trim().isEmpty || !context.mounted) return;
+  await acceptFamilyInvite(context, code.trim());
+}
+
+/// Owns its text controller, so the controller is only disposed once the
+/// dialog has finished animating out. Disposing it right after
+/// `showDialog` returns crashes, because the closing dialog still uses it.
+class _JoinWithCodeDialog extends StatefulWidget {
+  const _JoinWithCodeDialog();
+
+  @override
+  State<_JoinWithCodeDialog> createState() => _JoinWithCodeDialogState();
+}
+
+class _JoinWithCodeDialogState extends State<_JoinWithCodeDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
       title: const Text('Join a family circle'),
       content: TextField(
-        controller: controller,
+        controller: _controller,
         autofocus: true,
         textCapitalization: TextCapitalization.characters,
         decoration: const InputDecoration(
           labelText: 'Invite code',
           hintText: 'e.g. 3F9A1C7B20DE',
         ),
-        onSubmitted: (v) => Navigator.pop(dialogContext, v),
+        onSubmitted: (v) => Navigator.pop(context, v),
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
+          onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
         FilledButton(
           style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
-          onPressed: () => Navigator.pop(dialogContext, controller.text),
+          onPressed: () => Navigator.pop(context, _controller.text),
           child: const Text('Join'),
         ),
       ],
-    ),
-  );
-  controller.dispose();
-  if (code == null || code.trim().isEmpty || !context.mounted) return;
-  await acceptFamilyInvite(context, code.trim());
+    );
+  }
 }
 
 /// Accepts an invite (from a link or a typed code), then asks the user to
