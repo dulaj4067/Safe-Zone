@@ -41,8 +41,12 @@ abstract class PreparednessRepository {
 class LocalPreparednessRepository implements PreparednessRepository {
   LocalPreparednessRepository({this.syncWithSupabase = false});
 
+  // Local cache is the primary source of truth for the preparedness hub. When
+  // Supabase sync is enabled, the repository replays queued mutations and keeps
+  // the last successful response available offline.
   final bool syncWithSupabase;
 
+  // Cache keys are versioned so schema changes can safely invalidate stale data.
   static const _guidesKey = 'preparedness.guides.v1';
   static const _routesKey = 'preparedness.routes.v1';
   static const _checklistItemsKey = 'preparedness.checklist.master.v1';
@@ -90,6 +94,8 @@ class LocalPreparednessRepository implements PreparednessRepository {
     }
   }
 
+  // Content entries are read through the local cache first, and the backend is
+  // used as a refresh source when the user is authenticated and sync is enabled.
   Future<List<T>> _readContent<T>(
     String type,
     String cacheKey,
@@ -127,6 +133,8 @@ class LocalPreparednessRepository implements PreparednessRepository {
     return merged.map(decode).toList();
   }
 
+  // Offline writes are queued locally and replayed later so the user can keep
+  // working even when connectivity is temporarily unavailable.
   Future<List<Map<String, dynamic>>> _pendingMutations() async {
     final cached = (await _preferences).getString(_pendingMutationsKey);
     if (cached == null) return [];
@@ -437,6 +445,8 @@ class LocalPreparednessRepository implements PreparednessRepository {
     }).toList();
   }
 
+  // User-specific safety data is stored under a per-user key so each profile can
+  // be retrieved independently even when the app is offline.
   @override
   Future<Map<String, dynamic>> getRiskProfile(String userId) async {
     final preferences = await _preferences;
@@ -614,6 +624,8 @@ class LocalPreparednessRepository implements PreparednessRepository {
     await saveChecklistForUser(userId, updated);
   }
 
+  // Only reminders tagged for the current zone or for all zones should appear in
+  // the dashboard for a given area.
   @override
   List<PreparednessReminder> remindersForZone(
     List<PreparednessReminder> reminders,
