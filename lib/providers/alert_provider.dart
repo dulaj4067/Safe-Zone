@@ -338,6 +338,30 @@ class AlertProvider extends ChangeNotifier {
     );
   }
 
+  /// Escalate or edit an existing broadcast's severity, title, and instructions.
+  /// Writes an audit log entry and lets the realtime subscription refresh
+  /// `_activeAlerts` so the dashboard re-renders without optimistic mutation.
+  Future<void> escalateAlert(
+    String alertId, {
+    required AlertSeverity newSeverity,
+    String? newTitle,
+    String? newInstructions,
+  }) async {
+    final alert = _activeAlerts.cast<DisasterAlert?>().firstWhere(
+          (a) => a?.id == alertId,
+          orElse: () => null,
+        );
+    await _service.escalateAlert(
+      alertId,
+      newSeverity: newSeverity,
+      newTitle: newTitle,
+      newInstructions: newInstructions,
+      oldTitle: alert?.title,
+      oldSeverity: alert?.severity,
+      zoneName: alert?.affectedZoneId,
+    );
+  }
+
   // ─── Engagement & Resident Reach Metrics ───────────────────────────────────
 
   /// Fetches resident seen/acknowledged engagement analytics for an alert.

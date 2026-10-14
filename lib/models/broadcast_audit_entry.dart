@@ -4,6 +4,7 @@ import 'alert.dart';
 enum BroadcastAuditAction {
   created,
   dispatched,
+  escalated,
   resolved,
   archived,
 }
@@ -15,6 +16,8 @@ extension BroadcastAuditActionX on BroadcastAuditAction {
         return 'Created';
       case BroadcastAuditAction.dispatched:
         return 'Dispatched';
+      case BroadcastAuditAction.escalated:
+        return 'Escalated';
       case BroadcastAuditAction.resolved:
         return 'Resolved';
       case BroadcastAuditAction.archived:
@@ -28,6 +31,8 @@ extension BroadcastAuditActionX on BroadcastAuditAction {
         return Icons.add_circle_outline;
       case BroadcastAuditAction.dispatched:
         return Icons.send_rounded;
+      case BroadcastAuditAction.escalated:
+        return Icons.trending_up_rounded;
       case BroadcastAuditAction.resolved:
         return Icons.check_circle_outline;
       case BroadcastAuditAction.archived:
@@ -41,6 +46,8 @@ extension BroadcastAuditActionX on BroadcastAuditAction {
         return Colors.blue;
       case BroadcastAuditAction.dispatched:
         return Colors.teal;
+      case BroadcastAuditAction.escalated:
+        return Colors.deepOrange;
       case BroadcastAuditAction.resolved:
         return Colors.green;
       case BroadcastAuditAction.archived:

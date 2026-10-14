@@ -82,6 +82,8 @@ class BroadcastAuditService {
         return 'Broadcast alert created in command center.';
       case BroadcastAuditAction.dispatched:
         return 'Multi-channel broadcast dispatched across active alert channels.';
+      case BroadcastAuditAction.escalated:
+        return 'Broadcast alert severity escalated by authority.';
       case BroadcastAuditAction.resolved:
         return 'Broadcast alert marked resolved and de-escalated.';
       case BroadcastAuditAction.archived:

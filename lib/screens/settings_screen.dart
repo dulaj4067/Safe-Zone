@@ -22,6 +22,7 @@ import 'admin_incident_review_screen.dart';
 import 'incidents_screen.dart';
 import 'messages_screen.dart';
 import 'volunteer_tasks_screen.dart';
+import '../widgets/a11y/a11y_widgets.dart';
 
 /// Settings screen tailored for both [UserRole.member] (Citizens) and
 /// [UserRole.authority] / [UserRole.admin] / [UserRole.volunteerOrg].
@@ -439,6 +440,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 );
               },
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.deepEstuary,
+                side: const BorderSide(color: AppColors.deepEstuary),
+                minimumSize: const Size.fromHeight(42),
+              ),
+              icon: const Icon(Icons.accessibility_new_rounded, size: 18),
+              label: const Text('Inclusion & Accessibility Settings'),
+              onPressed: () => showA11yInclusionSheet(context),
             ),
           ],
         ),

@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/admin_strings.dart';
 import '../models/alert.dart';
 import '../models/app_user.dart';
 import '../models/zone.dart';
+import '../providers/accessibility_provider.dart';
 import '../providers/alert_form_provider.dart';
 import '../providers/alert_provider.dart';
 import '../theme/app_colors.dart';
+import '../widgets/a11y/a11y_widgets.dart';
 
 /// Story 3: authority-only screen for creating a geo-targeted broadcast.
 /// Guard access to this route at the navigation layer too (e.g. only show
@@ -33,11 +36,10 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
   Widget build(BuildContext context) {
     if (!widget.currentUser.role.isAuthority) {
       // Client-side gate per Story 3 AC. RLS blocks the insert regardless.
+      final strings = adminStringsOf(context);
       return Scaffold(
-        appBar: AppBar(title: const Text('New Alert')),
-        body: const Center(
-          child: Text('You do not have permission to create alerts.'),
-        ),
+        appBar: AppBar(title: Text(strings.t('broadcastTitle'))),
+        body: Center(child: Text(strings.t('noPermission'))),
       );
     }
 
@@ -55,187 +57,314 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
   }
 }
 
-class _BroadcastForm extends StatelessWidget {
+class _BroadcastForm extends StatefulWidget {
   final List<Zone> zones;
   const _BroadcastForm({required this.zones});
 
   @override
-  Widget build(BuildContext context) {
-    final form = context.watch<AlertFormProvider>();
+  State<_BroadcastForm> createState() => _BroadcastFormState();
+}
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('New Broadcast Alert')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          TextField(
-            decoration: const InputDecoration(
-              labelText: 'Title *',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: context.read<AlertFormProvider>().updateTitle,
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            decoration: const InputDecoration(
-              labelText: 'Alert type',
-              border: OutlineInputBorder(),
-            ),
-            initialValue: form.alertType,
-            items: const [
-              DropdownMenuItem(value: 'flood', child: Text('Flood')),
-              DropdownMenuItem(value: 'landslide', child: Text('Landslide')),
-              DropdownMenuItem(value: 'cyclone', child: Text('Cyclone')),
-              DropdownMenuItem(value: 'other', child: Text('Other')),
-            ],
-            onChanged: (v) {
-              if (v != null) context.read<AlertFormProvider>().updateAlertType(v);
-            },
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<AlertSeverity>(
-            decoration: const InputDecoration(
-              labelText: 'Severity *',
-              border: OutlineInputBorder(),
-            ),
-            initialValue: form.severity,
-            items: AlertSeverity.values.map((s) {
-              return DropdownMenuItem(value: s, child: Text(s.label));
-            }).toList(),
-            onChanged: (v) {
-              if (v != null) context.read<AlertFormProvider>().updateSeverity(v);
-            },
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<Zone>(
-            decoration: const InputDecoration(
-              labelText: 'Affected zone *',
-              helperText: 'Or drop a custom point on the map below',
-              border: OutlineInputBorder(),
-            ),
-            initialValue: form.selectedZone,
-            items: zones.map((z) {
-              return DropdownMenuItem(value: z, child: Text(z.name));
-            }).toList(),
-            onChanged: (z) => context.read<AlertFormProvider>().selectZone(z),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Or tap the map to set a custom center point:',
-            style: TextStyle(fontSize: 13, color: Colors.black54),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 220,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: GoogleMap(
-                initialCameraPosition: const CameraPosition(
-                  target: LatLng(7.4167, 81.8206), // defaults near Zone A
-                  zoom: 11,
-                ),
-                onTap: (latLng) {
-                  context.read<AlertFormProvider>().setCustomCenter(
-                        latLng.latitude,
-                        latLng.longitude,
-                      );
-                },
-                markers: form.customLat != null
-                    ? {
-                        Marker(
-                          markerId: const MarkerId('custom_center'),
-                          position: LatLng(form.customLat!, form.customLng!),
-                        ),
-                      }
-                    : {},
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text('Radius: ${form.radiusMeters} m'),
-          Slider(
-            min: 500,
-            max: 10000,
-            divisions: 19,
-            value: form.radiusMeters.toDouble(),
-            label: '${form.radiusMeters} m',
-            onChanged: (v) =>
-                context.read<AlertFormProvider>().updateRadius(v.round()),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            decoration: const InputDecoration(
-              labelText: 'Instructions',
-              border: OutlineInputBorder(),
-              alignLabelWithHint: true,
-            ),
-            maxLines: 4,
-            onChanged: context.read<AlertFormProvider>().updateInstructions,
-          ),
-          const SizedBox(height: 16),
-          // ─── Broadcast Delivery Channels Section ─────────────────────────────
-          _buildDeliveryChannelsCard(context, form),
-          const SizedBox(height: 20),
+class _BroadcastFormState extends State<_BroadcastForm> {
+  int _step = 0;
+  late final TextEditingController _title;
+  late final TextEditingController _instructions;
+  late final TextEditingController _transcript;
 
-          if (form.submitError != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(
-                form.submitError!,
-                style: const TextStyle(color: Colors.red),
-              ),
-            ),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              key: const Key('broadcast_submit_btn'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.deepEstuary,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              icon: form.isSubmitting
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.campaign),
-              // Story 3 AC: submission disabled until required fields are set.
-              onPressed: (!form.isValid || form.isSubmitting)
-                  ? null
-                  : () async {
-                      final success = await form.submit();
-                      if (success && context.mounted) {
-                        final result = form.lastDispatchResult;
-                        final message = result != null
-                            ? 'Broadcast sent: ${result.summary}.'
-                            : 'Alert broadcast sent across selected channels.';
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(message),
-                            backgroundColor: AppColors.deepEstuary,
-                            duration: const Duration(seconds: 4),
-                          ),
-                        );
-                        Navigator.pop(context);
-                      }
-                    },
-              label: Text(
-                form.isSubmitting
-                    ? 'Dispatching broadcast...'
-                    : (form.selectedChannelsCount == 3
-                        ? 'Dispatch Broadcast (All 3 Channels)'
-                        : 'Dispatch Broadcast (${form.selectedChannelsCount} Channel${form.selectedChannelsCount == 1 ? '' : 's'})'),
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-        ],
+  @override
+  void initState() {
+    super.initState();
+    _title = TextEditingController();
+    _instructions = TextEditingController();
+    _transcript = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _instructions.dispose();
+    _transcript.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit(AlertFormProvider form) async {
+    final success = await form.submit();
+    if (!success || !mounted) return;
+    try {
+      await context.read<AccessibilityProvider>().pulseHaptic();
+    } catch (_) {}
+    if (!mounted) return;
+    final result = form.lastDispatchResult;
+    final message = result != null
+        ? 'Broadcast sent: ${result.summary}.'
+        : 'Alert broadcast sent across selected channels.';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.deepEstuary,
+        duration: const Duration(seconds: 4),
       ),
     );
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final form = context.watch<AlertFormProvider>();
+    final strings = adminStringsOf(context);
+
+    return Shortcuts(
+      shortcuts: const {
+        submitBroadcastShortcut: SubmitBroadcastIntent(),
+      },
+      child: Actions(
+        actions: {
+          SubmitBroadcastIntent: CallbackAction<SubmitBroadcastIntent>(
+            onInvoke: (_) {
+              if (_step == 1 && form.isValid && !form.isSubmitting) {
+                _submit(form);
+              } else if (_step == 0) {
+                setState(() => _step = 1);
+              }
+              return null;
+            },
+          ),
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(strings.t('broadcastTitle')),
+            actions: const [A11yInclusionButton()],
+          ),
+          body: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              A11yStepHeader(
+                current: _step + 1,
+                total: 2,
+                label: strings.stepOf(_step + 1, 2),
+                stepTitle: _step == 0
+                    ? strings.t('stepDetails')
+                    : strings.t('stepDelivery'),
+              ),
+              if (_step == 0) ..._buildStepDetails(context, form, strings),
+              if (_step == 1) ..._buildStepDelivery(context, form, strings),
+              const SizedBox(height: 16),
+              if (form.submitError != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: A11yErrorBanner(
+                    message: form.submitError!,
+                    hint: strings.t('howToFix'),
+                  ),
+                ),
+              if (_step == 0)
+                FilledButton(
+                  onPressed: () => setState(() => _step = 1),
+                  child: Text(strings.t('next')),
+                )
+              else ...[
+                OutlinedButton(
+                  onPressed: () => setState(() => _step = 0),
+                  child: Text(strings.t('back')),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    key: const Key('broadcast_submit_btn'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.deepEstuary,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    icon: form.isSubmitting
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.campaign, semanticLabel: 'Broadcast'),
+                    onPressed: (!form.isValid || form.isSubmitting)
+                        ? null
+                        : () => _submit(form),
+                    label: Text(
+                      form.isSubmitting
+                          ? 'Dispatching broadcast...'
+                          : (form.selectedChannelsCount == 3
+                              ? 'Dispatch Broadcast (All 3 Channels)'
+                              : 'Dispatch Broadcast (${form.selectedChannelsCount} Channel${form.selectedChannelsCount == 1 ? '' : 's'})'),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  strings.t('shortcutSubmit'),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildStepDetails(
+    BuildContext context,
+    AlertFormProvider form,
+    AdminStrings strings,
+  ) {
+    return [
+      TextField(
+        controller: _title,
+        textCapitalization: TextCapitalization.sentences,
+        decoration: InputDecoration(
+          labelText: '${strings.t('titleLabel')} *',
+          hintText: strings.t('titleHint'),
+          helperText: strings.t('titleRequired'),
+          border: const OutlineInputBorder(),
+        ),
+        onChanged: context.read<AlertFormProvider>().updateTitle,
+      ),
+      const SizedBox(height: 12),
+      DropdownButtonFormField<String>(
+        decoration: InputDecoration(
+          labelText: strings.t('alertType'),
+          border: const OutlineInputBorder(),
+        ),
+        initialValue: form.alertType,
+        items: const [
+          DropdownMenuItem(value: 'flood', child: Text('Flood')),
+          DropdownMenuItem(value: 'landslide', child: Text('Landslide')),
+          DropdownMenuItem(value: 'cyclone', child: Text('Cyclone')),
+          DropdownMenuItem(value: 'other', child: Text('Other')),
+        ],
+        onChanged: (v) {
+          if (v != null) context.read<AlertFormProvider>().updateAlertType(v);
+        },
+      ),
+      const SizedBox(height: 12),
+      DropdownButtonFormField<AlertSeverity>(
+        decoration: InputDecoration(
+          labelText: '${strings.t('severity')} *',
+          border: const OutlineInputBorder(),
+        ),
+        initialValue: form.severity,
+        items: AlertSeverity.values.map((s) {
+          return DropdownMenuItem(value: s, child: Text(s.label));
+        }).toList(),
+        onChanged: (v) {
+          if (v != null) context.read<AlertFormProvider>().updateSeverity(v);
+        },
+      ),
+      const SizedBox(height: 12),
+      DropdownButtonFormField<Zone>(
+        decoration: InputDecoration(
+          labelText: '${strings.t('zone')} *',
+          helperText: strings.t('zoneHint'),
+          border: const OutlineInputBorder(),
+        ),
+        initialValue: form.selectedZone,
+        items: widget.zones.map((z) {
+          return DropdownMenuItem(value: z, child: Text(z.name));
+        }).toList(),
+        onChanged: (z) => context.read<AlertFormProvider>().selectZone(z),
+      ),
+      const SizedBox(height: 12),
+      Text(
+        strings.t('zoneHint'),
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      const SizedBox(height: 8),
+      Semantics(
+        label: strings.t('mapAlt'),
+        child: SizedBox(
+          height: 220,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: GoogleMap(
+              initialCameraPosition: const CameraPosition(
+                target: LatLng(7.4167, 81.8206),
+                zoom: 11,
+              ),
+              onTap: (latLng) {
+                context.read<AlertFormProvider>().setCustomCenter(
+                      latLng.latitude,
+                      latLng.longitude,
+                    );
+              },
+              markers: form.customLat != null
+                  ? {
+                      Marker(
+                        markerId: const MarkerId('custom_center'),
+                        position: LatLng(form.customLat!, form.customLng!),
+                      ),
+                    }
+                  : {},
+            ),
+          ),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _buildStepDelivery(
+    BuildContext context,
+    AlertFormProvider form,
+    AdminStrings strings,
+  ) {
+    var captions = true;
+    try {
+      captions = context.watch<AccessibilityProvider>().captionsEnabled;
+    } catch (_) {}
+
+    return [
+      Text('${strings.t('radius')}: ${form.radiusMeters} m'),
+      Slider(
+        min: 500,
+        max: 10000,
+        divisions: 19,
+        value: form.radiusMeters.toDouble(),
+        label: '${form.radiusMeters} m',
+        onChanged: (v) =>
+            context.read<AlertFormProvider>().updateRadius(v.round()),
+      ),
+      const SizedBox(height: 12),
+      TextField(
+        controller: _instructions,
+        decoration: InputDecoration(
+          labelText: strings.t('instructions'),
+          hintText: strings.t('instructionsHint'),
+          border: const OutlineInputBorder(),
+          alignLabelWithHint: true,
+        ),
+        maxLines: 4,
+        onChanged: context.read<AlertFormProvider>().updateInstructions,
+      ),
+      if (captions) ...[
+        const SizedBox(height: 12),
+        TextField(
+          controller: _transcript,
+          decoration: InputDecoration(
+            labelText: strings.t('transcript'),
+            hintText: strings.t('transcriptHint'),
+            border: const OutlineInputBorder(),
+            alignLabelWithHint: true,
+          ),
+          maxLines: 3,
+          onChanged: context.read<AlertFormProvider>().updateAudioTranscript,
+        ),
+      ],
+      const SizedBox(height: 16),
+      _buildDeliveryChannelsCard(context, form),
+      const SizedBox(height: 8),
+    ];
   }
 
   Widget _buildDeliveryChannelsCard(BuildContext context, AlertFormProvider form) {
@@ -254,7 +383,12 @@ class _BroadcastForm extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.cell_tower, size: 20, color: AppColors.deepEstuary),
+                  const Icon(
+                    Icons.cell_tower,
+                    size: 20,
+                    color: AppColors.deepEstuary,
+                    semanticLabel: 'Delivery channels',
+                  ),
                   const SizedBox(width: 8),
                   const Text(
                     'Delivery Channels',
@@ -351,15 +485,10 @@ class _BroadcastForm extends StatelessWidget {
           ),
 
           if (!form.hasSelectedChannel)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text(
-                '⚠️ Please select at least one delivery channel to dispatch the broadcast.',
-                style: TextStyle(
-                  color: AppColors.severityRed,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: A11yErrorBanner(
+                message: adminStringsOf(context).t('needChannel'),
               ),
             ),
         ],
@@ -396,9 +525,9 @@ class _BroadcastForm extends StatelessWidget {
         dense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
         secondary: CircleAvatar(
-          radius: 18,
+          radius: 22,
           backgroundColor: iconColor.withValues(alpha: 0.12),
-          child: Icon(icon, color: iconColor, size: 20),
+          child: Icon(icon, color: iconColor, size: 20, semanticLabel: title),
         ),
         title: Text(
           title,

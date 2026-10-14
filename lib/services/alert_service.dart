@@ -227,6 +227,48 @@ class AlertService {
     );
   }
 
+  /// Escalate or edit an existing alert's severity, title, and instructions.
+  /// Sets status to 'escalated' so it surfaces at the top of the dashboard.
+  /// RLS "Authority can update alerts" is the real enforcement.
+  Future<void> escalateAlert(
+    String alertId, {
+    required AlertSeverity newSeverity,
+    String? newTitle,
+    String? newInstructions,
+    String? oldTitle,
+    AlertSeverity? oldSeverity,
+    String? zoneName,
+  }) async {
+    final updates = <String, dynamic>{
+      'severity': newSeverity.name,
+      'status': 'escalated',
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    if (newTitle != null && newTitle.isNotEmpty) updates['title'] = newTitle;
+    if (newInstructions != null) updates['instructions'] = newInstructions;
+
+    try {
+      await SupabaseService.client
+          .from('alerts')
+          .update(updates)
+          .eq('id', alertId);
+    } catch (e) {
+      debugPrint('Supabase escalate update: $e');
+    }
+
+    final sevLabel = newSeverity.label;
+    final prevLabel = oldSeverity?.label ?? 'unknown';
+    await _auditService.logAction(
+      alertId: alertId,
+      alertTitle: newTitle ?? oldTitle ?? 'Alert $alertId',
+      action: BroadcastAuditAction.escalated,
+      severity: newSeverity,
+      zoneName: zoneName,
+      details:
+          'Severity changed from $prevLabel → $sevLabel by authority admin.',
+    );
+  }
+
   Future<void> _writeCache(List<DisasterAlert> alerts) async {
     final prefs = await SharedPreferences.getInstance();
     final encoded = jsonEncode(alerts

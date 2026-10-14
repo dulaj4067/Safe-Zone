@@ -289,6 +289,9 @@ void main() {
 
       await tester.pumpAndSettle();
 
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+
       // Verify delivery channel section elements
       expect(find.text('Delivery Channels'), findsOneWidget);
       expect(find.text('All Channels Active'), findsOneWidget);
@@ -334,6 +337,9 @@ void main() {
         ),
       );
 
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
 
       // Tap Siren channel tile to turn it off

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/admin_strings.dart';
 import '../models/feedback_entry.dart';
 import '../models/zone.dart';
+import '../providers/accessibility_provider.dart';
 import '../services/feedback_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
+import '../widgets/a11y/a11y_widgets.dart';
 
 /// Authority view of citizen feedback: average rating, rating spread, and
 /// every comment newest-first, filterable by zone.
@@ -49,10 +52,17 @@ class _FeedbackOverviewScreenState extends State<FeedbackOverviewScreen> {
   Widget build(BuildContext context) {
     final all = _entries;
     final entries = all?.where((e) => _zoneFilter == null || e.zoneId == _zoneFilter).toList();
+    final strings = adminStringsOf(context);
 
     Widget body;
     if (_failed) {
-      body = const Center(child: Text('Couldn\'t load feedback.'));
+      body = A11yEmptyState(
+        icon: Icons.error_outline,
+        message: 'Could not load citizen feedback.',
+        hint: 'Check your network connection and try again.',
+        actionLabel: 'Retry',
+        onAction: _load,
+      );
     } else if (entries == null) {
       body = const Center(child: CircularProgressIndicator());
     } else {
@@ -65,7 +75,7 @@ class _FeedbackOverviewScreenState extends State<FeedbackOverviewScreen> {
         children: [
           if (zonesWithFeedback.isNotEmpty)
             SizedBox(
-              height: 44,
+              height: 48,
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
@@ -92,12 +102,15 @@ class _FeedbackOverviewScreenState extends State<FeedbackOverviewScreen> {
           const SizedBox(height: 8),
           _SummaryCard(entries: entries),
           const SizedBox(height: 20),
-          Text('Comments', style: Theme.of(context).textTheme.titleMedium),
+          Text(strings.t('comments'), style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           if (entries.where((e) => (e.needs ?? '').isNotEmpty).isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: Text('No written feedback yet.')),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: A11yEmptyState(
+                icon: Icons.reviews_outlined,
+                message: strings.t('emptyFeedback'),
+              ),
             )
           else
             for (final e in entries.where((e) => (e.needs ?? '').isNotEmpty))
@@ -129,7 +142,10 @@ class _FeedbackOverviewScreenState extends State<FeedbackOverviewScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Citizen Feedback')),
+      appBar: AppBar(
+        title: Text(strings.t('feedbackTitle')),
+        actions: const [A11yInclusionButton()],
+      ),
       body: RefreshIndicator(onRefresh: _load, child: body),
     );
   }

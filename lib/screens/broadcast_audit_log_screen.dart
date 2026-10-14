@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import '../l10n/admin_strings.dart';
+import '../l10n/locale_format.dart';
 import '../models/broadcast_audit_entry.dart';
+import '../providers/accessibility_provider.dart';
 import '../services/broadcast_audit_service.dart';
+import '../theme/app_colors.dart';
+import '../widgets/a11y/a11y_widgets.dart';
 import '../widgets/severity_badge.dart';
 
 class BroadcastAuditLogScreen extends StatefulWidget {
@@ -41,48 +46,58 @@ class _BroadcastAuditLogScreenState extends State<BroadcastAuditLogScreen> {
   }
 
   Future<void> _clearLogs() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear Audit Logs?'),
-        content: const Text(
-          'Are you sure you want to clear all authority broadcast audit history? This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Clear All'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDestructive(
+      context,
+      title: 'Clear Audit Logs?',
+      body: 'Are you sure you want to clear all authority broadcast audit history? This action cannot be undone unless restored.',
+      confirmLabel: 'Clear All',
     );
 
-    if (confirm == true) {
+    if (confirmed == true) {
+      final backup = List<BroadcastAuditEntry>.from(_allLogs);
       await _auditService.clearAuditLogs();
       await _loadLogs();
+      if (mounted) {
+        showA11yUndoSnackBar(
+          context,
+          message: 'Audit logs cleared.',
+          undoLabel: adminStringsOf(context).t('undo'),
+          onUndo: () async {
+            for (final log in backup) {
+              await _auditService.logAction(
+                alertId: log.alertId,
+                alertTitle: log.alertTitle,
+                severity: log.severity,
+                action: log.action,
+                performedBy: log.performedBy,
+                details: log.details,
+                zoneName: log.zoneName,
+              );
+            }
+            await _loadLogs();
+          },
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final filtered = _filteredLogs;
+    final strings = adminStringsOf(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Broadcast Audit Log'),
+        title: Text(strings.t('auditTitle')),
         actions: [
+          const A11yInclusionButton(),
           IconButton(
-            icon: const Icon(Icons.delete_outline),
+            icon: const Icon(Icons.delete_outline, semanticLabel: 'Clear audit logs'),
             tooltip: 'Clear Audit Logs',
             onPressed: _allLogs.isEmpty ? null : _clearLogs,
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, semanticLabel: 'Refresh audit logs'),
             tooltip: 'Refresh',
             onPressed: _loadLogs,
           ),
@@ -147,39 +162,12 @@ class _BroadcastAuditLogScreenState extends State<BroadcastAuditLogScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : filtered.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.assignment_outlined,
-                                size: 56,
-                                color: Theme.of(context).disabledColor,
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                _selectedAction == null
-                                    ? 'No broadcast audit logs recorded.'
-                                    : 'No ${_selectedAction!.label.toLowerCase()} audit entries found.',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              const Text(
-                                'Actions such as alert creation, multi-channel dispatch, resolution, and archival will be logged here automatically.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                    ? A11yEmptyState(
+                        icon: Icons.assignment_outlined,
+                        message: _selectedAction == null
+                            ? 'No broadcast audit logs recorded.'
+                            : 'No ${entryActionName(_selectedAction)} audit entries found.',
+                        hint: 'Actions such as alert creation, multi-channel dispatch, resolution, and archival will be logged here automatically.',
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.all(12),
@@ -195,6 +183,11 @@ class _BroadcastAuditLogScreenState extends State<BroadcastAuditLogScreen> {
       ),
     );
   }
+
+  static String entryActionName(BroadcastAuditAction? action) {
+    if (action == null) return '';
+    return action.label.toLowerCase();
+  }
 }
 
 class _AuditLogCard extends StatelessWidget {
@@ -202,13 +195,12 @@ class _AuditLogCard extends StatelessWidget {
 
   const _AuditLogCard({required this.entry});
 
-  String _formatTimestamp(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
+  String _formatTimestamp(BuildContext context, DateTime dt) {
+    final diff = DateTime.now().difference(dt);
     if (diff.inSeconds < 60) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${dt.day}/${dt.month}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    return LocaleFormat.dateTime(dt, locale: localeCodeOf(context));
   }
 
   @override
@@ -229,6 +221,7 @@ class _AuditLogCard extends StatelessWidget {
                 entry.action.icon,
                 color: entry.action.color,
                 size: 20,
+                semanticLabel: entry.action.label,
               ),
             ),
             const SizedBox(width: 12),
@@ -259,11 +252,8 @@ class _AuditLogCard extends StatelessWidget {
                         SeverityBadge(severity: entry.severity!),
                       const Spacer(),
                       Text(
-                        _formatTimestamp(entry.timestamp),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.black54,
-                        ),
+                        _formatTimestamp(context, entry.timestamp),
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                   ),

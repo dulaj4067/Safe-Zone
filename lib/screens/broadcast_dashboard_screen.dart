@@ -5,8 +5,11 @@ import '../models/alert.dart';
 import '../models/alert_engagement.dart';
 import '../models/zone.dart';
 import '../providers/alert_provider.dart';
+import '../l10n/locale_format.dart';
+import '../providers/accessibility_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../widgets/a11y/a11y_widgets.dart';
 import '../widgets/alert_engagement_sheet.dart';
 import '../widgets/severity_badge.dart';
 import 'broadcast_audit_log_screen.dart';
@@ -45,12 +48,14 @@ class _BroadcastDashboardScreenState extends State<BroadcastDashboardScreen> {
         return b.createdAt.compareTo(a.createdAt);
       });
 
+    final strings = adminStringsOf(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Broadcast Dashboard'),
+        title: Text(strings.t('dashboardTitle')),
         actions: [
+          const A11yInclusionButton(),
           IconButton(
-            icon: const Icon(Icons.receipt_long_outlined),
+            icon: const Icon(Icons.receipt_long_outlined, semanticLabel: 'Audit log'),
             tooltip: 'Audit Log',
             onPressed: () => Navigator.push(
               context,
@@ -69,18 +74,31 @@ class _BroadcastDashboardScreenState extends State<BroadcastDashboardScreen> {
             onSelected: (s) => setState(() => _filter = s),
           ),
           if (provider.isOffline)
-            Container(
-              width: double.infinity,
-              color: Colors.amber.shade100,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: const Text(
-                'Offline — showing last synced alerts',
-                style: TextStyle(fontSize: 13),
+            Material(
+              color: AppColors.offlineAmber,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(
+                  children: [
+                    const Icon(Icons.wifi_off, size: 20, semanticLabel: 'Offline'),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        strings.t('offlineBanner'),
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           Expanded(
             child: sorted.isEmpty
-                ? const Center(child: Text('No active broadcasts.'))
+                ? A11yEmptyState(
+                    icon: Icons.campaign_outlined,
+                    message: strings.t('emptyBroadcasts'),
+                    hint: strings.t('emptyBroadcastsHint'),
+                  )
                 : ListView.separated(
                     padding: const EdgeInsets.all(12),
                     itemCount: sorted.length,
@@ -247,13 +265,57 @@ class _AlertDashboardCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
+            Builder(
+              builder: (context) {
+                var showCaptions = true;
+                try {
+                  showCaptions = context.watch<AccessibilityProvider>().captionsEnabled;
+                } catch (_) {}
+                final hasTranscript = alert.instructions?.contains('Transcript:') ?? false;
+                if (!showCaptions || !hasTranscript) return const SizedBox.shrink();
+                final transcriptText = alert.instructions!.split('Transcript:').last.trim();
+                return Container(
+                  margin: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.seafoam,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.riverTeal.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.closed_caption,
+                        size: 18,
+                        color: AppColors.deepEstuary,
+                        semanticLabel: 'Siren broadcast transcript',
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          transcriptText,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.deepEstuary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '${alert.alertType} · radius ${alert.radiusMeters}m · ${_timeAgo(alert.createdAt)}',
-                  style: AppTheme.dataText(context),
+                Flexible(
+                  child: Text(
+                    '${alert.alertType} · ${alert.radiusMeters}m · ${LocaleFormat.date(alert.createdAt, locale: localeCodeOf(context))}',
+                    style: AppTheme.dataText(context),
+                  ),
                 ),
                 Row(
                   children: [
@@ -324,6 +386,21 @@ class _AlertDashboardCard extends StatelessWidget {
                     alert: alert,
                     zones: zones,
                   ),
+                ),
+                const SizedBox(width: 6),
+                OutlinedButton.icon(
+                  key: Key('escalate_btn_${alert.id}'),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    foregroundColor: AppColors.severityOrange,
+                    side: BorderSide(
+                      color: AppColors.severityOrange.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  icon: const Icon(Icons.trending_up_rounded, size: 16, semanticLabel: 'Escalate or edit this broadcast'),
+                  label: const Text('Escalate', style: TextStyle(fontSize: 12)),
+                  onPressed: () => _showEscalateSheet(context, alert),
                 ),
                 const Spacer(),
                 TextButton(
@@ -581,5 +658,364 @@ class _AlertDashboardCard extends StatelessWidget {
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     return '${diff.inDays}d ago';
+  }
+
+  /// Shows the Escalate / Edit bottom sheet so the authority admin can raise
+  /// the severity level, update the title, and edit the instructions.
+  void _showEscalateSheet(BuildContext context, DisasterAlert alert) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _EscalateSheet(alert: alert, zones: zones),
+    );
+  }
+}
+
+// ─── Escalate / Edit Bottom Sheet ────────────────────────────────────────────
+
+class _EscalateSheet extends StatefulWidget {
+  final DisasterAlert alert;
+  final List<Zone> zones;
+
+  const _EscalateSheet({required this.alert, required this.zones});
+
+  @override
+  State<_EscalateSheet> createState() => _EscalateSheetState();
+}
+
+class _EscalateSheetState extends State<_EscalateSheet> {
+  late AlertSeverity _severity;
+  late TextEditingController _titleCtrl;
+  late TextEditingController _instructionsCtrl;
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _severity = widget.alert.severity;
+    _titleCtrl = TextEditingController(text: widget.alert.title);
+    _instructionsCtrl = TextEditingController(
+      text: widget.alert.instructions ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _instructionsCtrl.dispose();
+    super.dispose();
+  }
+
+  bool get _hasChanges =>
+      _severity != widget.alert.severity ||
+      _titleCtrl.text.trim() != widget.alert.title ||
+      _instructionsCtrl.text.trim() != (widget.alert.instructions ?? '');
+
+  Future<void> _submit() async {
+    if (!_hasChanges) {
+      Navigator.pop(context);
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      await context.read<AlertProvider>().escalateAlert(
+            widget.alert.id,
+            newSeverity: _severity,
+            newTitle: _titleCtrl.text.trim(),
+            newInstructions: _instructionsCtrl.text.trim(),
+          );
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.trending_up_rounded,
+                  color: Colors.white, size: 18, semanticLabel: 'Escalated'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Broadcast escalated to ${_severity.label}.',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.severityOrange,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        _submitting = false;
+        _error = 'Could not save escalation. Check your connection and try again.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isHigher = _severity.index > widget.alert.severity.index;
+    final isLower = _severity.index < widget.alert.severity.index;
+
+    // Colour coding for the severity direction indicator.
+    final directionColor = isHigher
+        ? AppColors.severityOrange
+        : (isLower ? AppColors.severityGreen : AppColors.slateMuted);
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle bar
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.severityOrange.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.trending_up_rounded,
+                  color: AppColors.severityOrange,
+                  size: 22,
+                  semanticLabel: 'Escalate broadcast',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Escalate / Edit Broadcast',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.slateInk,
+                      ),
+                    ),
+                    Text(
+                      'Changes are broadcast-wide immediately.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.slateMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Severity picker
+          Semantics(
+            label: 'Severity level selector',
+            child: DropdownButtonFormField<AlertSeverity>(
+              key: const Key('escalate_severity_dropdown'),
+              decoration: const InputDecoration(
+                labelText: 'Severity *',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.warning_amber_rounded),
+              ),
+              value: _severity,
+              items: AlertSeverity.values.map((s) {
+                return DropdownMenuItem(
+                  value: s,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _severityColor(s),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(s.label),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (v) {
+                if (v != null) setState(() => _severity = v);
+              },
+            ),
+          ),
+
+          // Direction chip — shows whether this is an escalation or de-escalation.
+          if (_severity != widget.alert.severity) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  isHigher ? Icons.arrow_upward : Icons.arrow_downward,
+                  size: 14,
+                  color: directionColor,
+                  semanticLabel: isHigher ? 'Escalating severity' : 'Reducing severity',
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  isHigher
+                      ? 'Escalating from ${widget.alert.severity.label} to ${_severity.label}'
+                      : 'Reducing from ${widget.alert.severity.label} to ${_severity.label}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: directionColor,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 14),
+
+          // Title field
+          TextField(
+            key: const Key('escalate_title_field'),
+            controller: _titleCtrl,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              labelText: 'Alert title *',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+
+          // Instructions field
+          TextField(
+            key: const Key('escalate_instructions_field'),
+            controller: _instructionsCtrl,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Updated instructions',
+              hintText: 'Example: Evacuate immediately via Route B.',
+              border: OutlineInputBorder(),
+              alignLabelWithHint: true,
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+
+          // Error banner
+          if (_error != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.severityRed.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: AppColors.severityRed.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline,
+                      color: AppColors.severityRed,
+                      size: 18,
+                      semanticLabel: 'Error'),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.severityRed,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+
+          // Action buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  key: const Key('escalate_cancel_btn'),
+                  onPressed: _submitting ? null : () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: FilledButton.icon(
+                  key: const Key('escalate_confirm_btn'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.severityOrange,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  icon: _submitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.trending_up_rounded,
+                          semanticLabel: 'Confirm escalation'),
+                  onPressed: (_submitting || !_hasChanges) ? null : _submit,
+                  label: Text(
+                    _submitting ? 'Saving…' : 'Confirm Escalation',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _severityColor(AlertSeverity s) {
+    switch (s) {
+      case AlertSeverity.green:
+        return AppColors.severityGreen;
+      case AlertSeverity.yellow:
+        return AppColors.severityYellow;
+      case AlertSeverity.orange:
+        return AppColors.severityOrange;
+      case AlertSeverity.red:
+        return AppColors.severityRed;
+    }
   }
 }

@@ -5,7 +5,9 @@ import '../models/app_user.dart';
 import '../models/incident.dart';
 import '../providers/incident_provider.dart';
 import '../services/supabase_service.dart';
+import '../providers/accessibility_provider.dart';
 import '../theme/app_colors.dart';
+import '../widgets/a11y/a11y_widgets.dart';
 import '../widgets/incident_card.dart';
 import 'incident_detail_screen.dart';
 
@@ -49,67 +51,139 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
   Future<void> _quickVerify(Incident incident) async {
     final userId = SupabaseService.currentUserId;
     if (userId == null) return;
+    final previous = incident.status;
+    final strings = adminStringsOf(context);
 
     final success = await context.read<IncidentProvider>().verifyIncident(
           incident.id,
           userId,
         );
 
-    if (mounted) {
+    if (!mounted) return;
+    if (success) {
+      showA11yUndoSnackBar(
+        context,
+        message: 'Incident verified successfully.',
+        undoLabel: strings.t('undo'),
+        onUndo: () {
+          context.read<IncidentProvider>().restoreIncidentStatus(
+                incidentId: incident.id,
+                status: previous,
+                verifiedBy: userId,
+              );
+        },
+      );
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            success
-                ? 'Incident verified successfully.'
-                : 'Failed to verify incident.',
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Could not verify this report. Try again.')),
+            ],
           ),
-          backgroundColor: success ? AppColors.severityGreen : AppColors.severityRed,
+          backgroundColor: AppColors.severityRed,
         ),
       );
     }
   }
 
   Future<void> _quickReject(Incident incident) async {
+    final strings = adminStringsOf(context);
+    final confirmed = await confirmDestructive(
+      context,
+      title: strings.t('reject'),
+      body: strings.t('confirmReject'),
+      confirmLabel: strings.t('reject'),
+      cancelLabel: strings.t('cancel'),
+    );
+    if (!confirmed) return;
+
     final userId = SupabaseService.currentUserId;
     if (userId == null) return;
+    final previous = incident.status;
 
     final success = await context.read<IncidentProvider>().rejectIncident(
           incident.id,
           userId,
         );
 
-    if (mounted) {
+    if (!mounted) return;
+    if (success) {
+      showA11yUndoSnackBar(
+        context,
+        message: 'Incident rejected.',
+        undoLabel: strings.t('undo'),
+        onUndo: () {
+          context.read<IncidentProvider>().restoreIncidentStatus(
+                incidentId: incident.id,
+                status: previous,
+                verifiedBy: userId,
+              );
+        },
+      );
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            success
-                ? 'Incident rejected.'
-                : 'Failed to reject incident.',
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Could not reject this report. Try again.')),
+            ],
           ),
-          backgroundColor: success ? AppColors.severityRed : AppColors.severityRed,
+          backgroundColor: AppColors.severityRed,
         ),
       );
     }
   }
 
   Future<void> _quickResolve(Incident incident) async {
+    final strings = adminStringsOf(context);
+    final confirmed = await confirmDestructive(
+      context,
+      title: strings.t('resolve'),
+      body: strings.t('confirmResolve'),
+      confirmLabel: strings.t('resolve'),
+      cancelLabel: strings.t('cancel'),
+    );
+    if (!confirmed) return;
+
     final userId = SupabaseService.currentUserId;
     if (userId == null) return;
+    final previous = incident.status;
 
     final success = await context.read<IncidentProvider>().resolveIncident(
           incident.id,
           userId,
         );
 
-    if (mounted) {
+    if (!mounted) return;
+    if (success) {
+      showA11yUndoSnackBar(
+        context,
+        message: 'Incident marked as resolved.',
+        undoLabel: strings.t('undo'),
+        onUndo: () {
+          context.read<IncidentProvider>().restoreIncidentStatus(
+                incidentId: incident.id,
+                status: previous,
+                verifiedBy: userId,
+              );
+        },
+      );
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            success
-                ? 'Incident marked as resolved.'
-                : 'Failed to resolve incident.',
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Could not resolve this report. Try again.')),
+            ],
           ),
-          backgroundColor: success ? const Color(0xFF546E7A) : AppColors.severityRed,
+          backgroundColor: AppColors.severityRed,
         ),
       );
     }
@@ -214,20 +288,22 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
     final sosIncidents = allIncidents.where((i) => i.isSos && i.status == IncidentStatus.pending).toList();
     final verifiedIncidents = allIncidents.where((i) => i.status == IncidentStatus.verified).toList();
 
+    final strings = adminStringsOf(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Incident Verification Queue'),
+        title: Text(strings.t('reviewTitle')),
+        actions: const [A11yInclusionButton()],
         bottom: TabBar(
           controller: _tabController,
           tabs: [
             Tab(
-              text: 'Pending (${pendingIncidents.length})',
+              text: '${strings.t('pending')} (${pendingIncidents.length})',
             ),
             Tab(
-              text: 'SOS Priority (${sosIncidents.length})',
+              text: '${strings.t('sosPriority')} (${sosIncidents.length})',
             ),
             Tab(
-              text: 'Active Verified (${verifiedIncidents.length})',
+              text: '${strings.t('activeVerified')} (${verifiedIncidents.length})',
             ),
           ],
         ),
@@ -238,21 +314,21 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
           // Pending tab
           _buildReviewList(
             incidents: pendingIncidents,
-            emptyMessage: 'No pending incidents awaiting review.',
+            emptyMessage: strings.t('emptyPending'),
             showPendingActions: true,
           ),
 
           // SOS Priority tab
           _buildReviewList(
             incidents: sosIncidents,
-            emptyMessage: 'No high-priority SOS incidents currently pending.',
+            emptyMessage: strings.t('emptySos'),
             showPendingActions: true,
           ),
 
           // Verified tab
           _buildReviewList(
             incidents: verifiedIncidents,
-            emptyMessage: 'No verified incidents currently active.',
+            emptyMessage: strings.t('emptyVerified'),
             showResolveAction: true,
           ),
         ],
@@ -267,24 +343,12 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
     bool showResolveAction = false,
   }) {
     if (incidents.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.check_circle_outline, size: 48, color: AppColors.severityGreen),
-              const SizedBox(height: 12),
-              Text(
-                emptyMessage,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
+      return A11yEmptyState(
+        icon: Icons.check_circle_outline,
+        message: emptyMessage,
       );
     }
+    final strings = adminStringsOf(context);
 
     return ListView.separated(
       padding: const EdgeInsets.all(12),
@@ -303,33 +367,35 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
                   onTap: () => _openDetail(incident),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.end,
                   children: [
-                    // Quick Delete for spam/duplicate/false
                     IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.severityRed),
-                      tooltip: 'Delete as Spam / Duplicate / False',
+                      icon: const Icon(Icons.delete_outline, color: AppColors.severityRed),
+                      tooltip: strings.t('delete'),
                       onPressed: () => _quickDelete(incident),
                     ),
-                    const Spacer(),
                     if (showPendingActions) ...[
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.severityRed,
                           side: const BorderSide(color: AppColors.severityRed),
+                          minimumSize: const Size(44, 44),
                         ),
                         icon: const Icon(Icons.close, size: 16),
-                        label: const Text('Reject'),
+                        label: Text(strings.t('reject')),
                         onPressed: () => _quickReject(incident),
                       ),
-                      const SizedBox(width: 8),
                       FilledButton.icon(
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.severityGreen,
+                          minimumSize: const Size(44, 44),
                         ),
                         icon: const Icon(Icons.check, size: 16),
-                        label: const Text('Verify'),
+                        label: Text(strings.t('verify')),
                         onPressed: () => _quickVerify(incident),
                       ),
                     ],
@@ -337,9 +403,10 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
                       FilledButton.icon(
                         style: FilledButton.styleFrom(
                           backgroundColor: const Color(0xFF546E7A),
+                          minimumSize: const Size(44, 44),
                         ),
                         icon: const Icon(Icons.task_alt, size: 16),
-                        label: const Text('Mark Resolved'),
+                        label: Text(strings.t('resolve')),
                         onPressed: () => _quickResolve(incident),
                       ),
                     ],

@@ -383,6 +383,27 @@ class IncidentProvider extends ChangeNotifier {
     }
   }
 
+  /// Restores an incident to a previous status (undo from the review queue).
+  Future<bool> restoreIncidentStatus({
+    required String incidentId,
+    required IncidentStatus status,
+    String? verifiedBy,
+  }) async {
+    try {
+      await _service.updateIncidentStatus(
+        incidentId: incidentId,
+        newStatus: status,
+        verifiedBy: verifiedBy,
+      );
+      await refresh();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Deletes an incident permanently from the database (authority or reporter).
   Future<bool> deleteIncident(String incidentId) async {
     try {
