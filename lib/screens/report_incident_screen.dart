@@ -11,6 +11,7 @@ import '../l10n/app_strings.dart';
 import '../models/incident.dart';
 import '../providers/accessibility_provider.dart';
 import '../providers/incident_provider.dart';
+import '../services/location_service.dart';
 import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
@@ -51,12 +52,44 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   Incident? _nearbyDuplicate;
   bool _dismissedInlineBanner = false;
 
+  /// True once the citizen taps the map themselves, so a slow GPS fix that
+  /// arrives afterwards never moves a pin they already placed.
+  bool _pinSetManually = false;
+
   @override
   void initState() {
     super.initState();
     if (widget.initialLocation != null) {
       _selectedLocation = widget.initialLocation!;
+      _pinSetManually = true;
+    } else {
+      // Start on the citizen's real position; they can still adjust it.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _useMyLocation(silent: true));
     }
+  }
+
+  /// Moves the pin to the device's GPS position. [silent] is used for the
+  /// automatic attempt on open, which shouldn't nag if permission is off.
+  Future<void> _useMyLocation({bool silent = false}) async {
+    final here = await LocationService().getCurrentLocation();
+    if (!mounted) return;
+    if (here == null) {
+      if (!silent) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(appStringsOf(context).t('locationUnavailable'))),
+        );
+      }
+      return;
+    }
+    if (silent && _pinSetManually) return;
+    setState(() {
+      _selectedLocation = here;
+      _pinSetManually = !silent;
+      _dismissedInlineBanner = false;
+      _nearbyDuplicate = null;
+    });
+    _mapController.move(here, 15);
+    _checkDuplicateInline();
   }
 
   @override
@@ -534,6 +567,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                         onTap: (tapPosition, point) {
                           setState(() {
                             _selectedLocation = point;
+                            _pinSetManually = true;
                             // Let the banner re-evaluate for the new pin.
                             _dismissedInlineBanner = false;
                             _nearbyDuplicate = null;
@@ -580,6 +614,8 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                       bottom: 8,
                       child: Column(
                         children: [
+                          MyLocationButton(onTap: () => _useMyLocation()),
+                          const SizedBox(height: 6),
                           MapLayerToggleButton(
                             style: _baseMapStyle,
                             onTap: () {
