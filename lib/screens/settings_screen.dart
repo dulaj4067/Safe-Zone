@@ -21,6 +21,7 @@ import '../widgets/feedback_sheet.dart';
 import 'admin_broadcast_screen.dart';
 import 'admin_incident_review_screen.dart';
 import 'incidents_screen.dart';
+import 'deletion_requests_screen.dart';
 import 'messages_screen.dart';
 import 'privacy_settings_screen.dart';
 import 'volunteer_tasks_screen.dart';

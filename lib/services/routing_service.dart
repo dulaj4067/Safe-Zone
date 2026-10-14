@@ -15,7 +15,15 @@ import '../models/route_result.dart';
 /// [baseUrl] to point at it.
 class RoutingService {
   final String baseUrl;
-  RoutingService({this.baseUrl = 'https://router.project-osrm.org'});
+  RoutingService({String? baseUrl}) : baseUrl = baseUrl ?? kRoutingBaseUrl;
+
+  /// Set ROUTING_BASE_URL (dart-define) to a self-hosted or commercial OSRM
+  /// server for production; the public demo server has no uptime guarantee
+  /// and a fair-use limit.
+  static const String kRoutingBaseUrl = String.fromEnvironment(
+    'ROUTING_BASE_URL',
+    defaultValue: 'https://router.project-osrm.org',
+  );
 
   static String _profileFor(TravelMode mode) {
     switch (mode) {
