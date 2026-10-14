@@ -77,6 +77,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
   int _step = 0;
   final MapController _mapController = MapController();
   bool _usingGps = false;
+  bool _locating = false;
   late final TextEditingController _title;
   late final TextEditingController _instructions;
   late final TextEditingController _transcript;
@@ -114,8 +115,14 @@ class _BroadcastFormState extends State<_BroadcastForm> {
   Future<void> _useMyLocation({bool silent = false}) async {
     final form = context.read<AlertFormProvider>();
     if (silent && (form.selectedZone != null || form.customLat != null)) return;
-    final here = await LocationService().getCurrentLocation();
+    setState(() => _locating = true);
+    // A failed lookup (no permission, no GPS, no plugin) must clear the
+    // spinner, so treat any error as "no location".
+    final LatLng? here = await LocationService()
+        .getCurrentLocation()
+        .catchError((_) => null);
     if (!mounted) return;
+    setState(() => _locating = false);
     if (here == null) {
       if (!silent) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -384,7 +391,22 @@ class _BroadcastFormState extends State<_BroadcastForm> {
           ),
         ),
       ),
-      if (_usingGps && form.customLat != null) ...[
+      if (_locating) ...[
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            const Icon(
+              Icons.gps_not_fixed,
+              size: 16,
+            ), // static: no endless animation
+            const SizedBox(width: 8),
+            Text(
+              appStringsOf(context).t('findingLocation'),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ] else if (_usingGps && form.customLat != null) ...[
         const SizedBox(height: 6),
         Text(
           appStringsOf(context).t('usingMyLocation'),
