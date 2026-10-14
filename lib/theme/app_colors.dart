@@ -18,9 +18,10 @@ class AppColors {
   // Neutrals — warm cream canvas with white cards.
   static const mist = Color(0xFFF4F2ED); // app background
   static const cloud = Color(0xFFFFFFFF); // surface / cards
-  static const slateInk = Color(0xFF0B2545); // primary text
-  static const slateMuted = Color(0xFF6B7178); // secondary text
+  static const slateInk = Color(0xFF0B2545); // primary text (~12:1 on mist)
+  static const slateMuted = Color(0xFF4A5560); // secondary text ≥ 4.5:1 on mist
   static const hairline = Color(0xFFE6E2DA); // card / input borders
+  static const hairlineStrong = Color(0xFFB7B0A4); // glare-aware borders
 
   // Dark mode
   static const deepWater = Color(0xFF07182C); // dark background

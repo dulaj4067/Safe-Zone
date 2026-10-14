@@ -22,6 +22,7 @@ class AlertFormProvider extends ChangeNotifier {
   String alertType = 'flood';
   AlertSeverity severity = AlertSeverity.yellow;
   String? instructions;
+  String? audioTranscript;
   Zone? selectedZone;
   double? customLat;
   double? customLng;
@@ -97,6 +98,11 @@ class AlertFormProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateAudioTranscript(String value) {
+    audioTranscript = value;
+    notifyListeners();
+  }
+
   void selectZone(Zone? zone) {
     selectedZone = zone;
     if (zone != null) {
@@ -119,7 +125,7 @@ class AlertFormProvider extends ChangeNotifier {
   }
 
   Future<bool> submit() async {
-    if (!isValid || SupabaseService.currentUserId == null) {
+    if (!isValid) {
       _submitError = 'Fill in all required fields before submitting.';
       notifyListeners();
       return false;
@@ -130,8 +136,8 @@ class AlertFormProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final lat = customLat ?? selectedZone!.centroidLat!;
-      final lng = customLng ?? selectedZone!.centroidLng!;
+      final lat = customLat ?? selectedZone?.centroidLat ?? 0.0;
+      final lng = customLng ?? selectedZone?.centroidLng ?? 0.0;
 
       final draft = DisasterAlert(
         id: '', // ignored on insert
@@ -143,7 +149,7 @@ class AlertFormProvider extends ChangeNotifier {
         centerLat: lat,
         centerLng: lng,
         radiusMeters: radiusMeters,
-        instructions: instructions,
+        instructions: _combinedInstructions(),
         source: 'manual',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -171,11 +177,25 @@ class AlertFormProvider extends ChangeNotifier {
     }
   }
 
+  String? _combinedInstructions() {
+    final body = instructions?.trim();
+    final transcript = audioTranscript?.trim();
+    if ((body == null || body.isEmpty) && (transcript == null || transcript.isEmpty)) {
+      return null;
+    }
+    if (transcript == null || transcript.isEmpty) return body;
+    if (body == null || body.isEmpty) {
+      return 'Transcript: $transcript';
+    }
+    return '$body\n\nTranscript: $transcript';
+  }
+
   void reset() {
     title = '';
     alertType = 'flood';
     severity = AlertSeverity.yellow;
     instructions = null;
+    audioTranscript = null;
     selectedZone = null;
     customLat = null;
     customLng = null;

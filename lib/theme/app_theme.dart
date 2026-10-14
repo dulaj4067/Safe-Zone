@@ -13,29 +13,44 @@ import 'app_colors.dart';
 class AppTheme {
   AppTheme._();
 
+  /// Sinhala, Tamil, and Arabic glyphs fall back to Noto so body copy
+  /// stays legible at 12sp and under system text scaling.
+  static const fontFallbacks = [
+    'Noto Sans Sinhala',
+    'Noto Sans Tamil',
+    'Noto Naskh Arabic',
+    'Nirmala UI',
+  ];
+
+  static TextStyle _withFallbacks(TextStyle? style) {
+    return (style ?? const TextStyle()).copyWith(
+      fontFamilyFallback: fontFallbacks,
+    );
+  }
+
   static TextTheme _textTheme(Color textColor, Color mutedColor) {
     final base = GoogleFonts.interTextTheme();
     return base
         .copyWith(
-          displayLarge: base.displayLarge?.copyWith(
+          displayLarge: _withFallbacks(base.displayLarge).copyWith(
             fontWeight: FontWeight.w800,
             color: textColor,
           ),
-          headlineMedium: base.headlineMedium?.copyWith(
+          headlineMedium: _withFallbacks(base.headlineMedium).copyWith(
             fontWeight: FontWeight.w800,
             color: textColor,
           ),
-          titleLarge: base.titleLarge?.copyWith(
+          titleLarge: _withFallbacks(base.titleLarge).copyWith(
             fontWeight: FontWeight.w700,
             color: textColor,
           ),
-          titleMedium: base.titleMedium?.copyWith(
+          titleMedium: _withFallbacks(base.titleMedium).copyWith(
             fontWeight: FontWeight.w700,
             color: textColor,
           ),
-          bodyLarge: base.bodyLarge?.copyWith(color: textColor),
-          bodyMedium: base.bodyMedium?.copyWith(color: textColor),
-          bodySmall: base.bodySmall?.copyWith(color: mutedColor),
+          bodyLarge: _withFallbacks(base.bodyLarge).copyWith(color: textColor),
+          bodyMedium: _withFallbacks(base.bodyMedium).copyWith(color: textColor),
+          bodySmall: _withFallbacks(base.bodySmall).copyWith(color: mutedColor),
         )
         .apply(bodyColor: textColor, displayColor: textColor);
   }
@@ -51,8 +66,20 @@ class AppTheme {
       fontWeight: FontWeight.w600,
       color: isDark ? AppColors.foamText : AppColors.slateInk,
       fontFeatures: const [FontFeature.tabularFigures()],
+    ).copyWith(
+      fontFamilyFallback: fontFallbacks,
     );
   }
+
+  static const Size minTapTarget = Size(44, 44);
+
+  static WidgetStateProperty<BorderSide?> get _focusSide =>
+      WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.focused)) {
+          return const BorderSide(color: Color(0xFF1B4B6B), width: 2);
+        }
+        return BorderSide.none;
+      });
 
   static ThemeData get light {
     final colorScheme = ColorScheme.fromSeed(
@@ -102,29 +129,35 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.deepEstuary,
           foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size(44, 52),
           textStyle: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-        ),
+        ).copyWith(side: _focusSide),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          minimumSize: minTapTarget,
+          tapTargetSize: MaterialTapTargetSize.padded,
+        ).copyWith(side: _focusSide),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.deepEstuary,
           foregroundColor: Colors.white,
           elevation: 0,
-          minimumSize: const Size(0, 48),
+          minimumSize: const Size(44, 48),
           textStyle: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-        ),
+        ).copyWith(side: _focusSide),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.deepEstuary,
-          minimumSize: const Size(0, 48),
+          minimumSize: const Size(44, 48),
           textStyle: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700),
           side: const BorderSide(color: AppColors.deepEstuary, width: 1.5),
           shape: RoundedRectangleBorder(
@@ -135,8 +168,9 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.deepEstuary,
+          minimumSize: minTapTarget,
           textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700),
-        ),
+        ).copyWith(side: _focusSide),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -154,7 +188,11 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColors.deepEstuary, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.deepEstuary, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: AppColors.severityRed, width: 1.5),
         ),
       ),
       chipTheme: ChipThemeData(
@@ -235,7 +273,7 @@ class AppTheme {
       surface: AppColors.harborSurface,
     );
     final textTheme =
-        _textTheme(AppColors.foamText, AppColors.foamText.withValues(alpha: 0.65));
+        _textTheme(AppColors.foamText, AppColors.foamText.withValues(alpha: 0.82));
 
     return ThemeData(
       useMaterial3: true,
@@ -274,28 +312,34 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.riverTeal,
           foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size(44, 52),
           textStyle: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-        ),
+        ).copyWith(side: _focusSide),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          minimumSize: minTapTarget,
+          tapTargetSize: MaterialTapTargetSize.padded,
+        ).copyWith(side: _focusSide),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.riverTeal,
           foregroundColor: Colors.white,
           elevation: 0,
-          minimumSize: const Size(0, 48),
+          minimumSize: const Size(44, 48),
           textStyle: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-        ),
+        ).copyWith(side: _focusSide),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 48),
+          minimumSize: const Size(44, 48),
           textStyle: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

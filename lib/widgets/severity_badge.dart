@@ -39,12 +39,14 @@ class SeverityBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        severity.label.toUpperCase(),
-        style: const TextStyle(
-          color: Colors.white,
+        severity.label,
+        style: TextStyle(
+          color: severity == AlertSeverity.yellow
+              ? AppColors.slateInk
+              : Colors.white,
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          letterSpacing: 0.4,
+          letterSpacing: 0.2,
         ),
       ),
     );
