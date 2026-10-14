@@ -34,6 +34,17 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Family circle invite links: safezone://family-invite?code=... -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="safezone" android:host="family-invite"/>
+            </intent-filter>
+            <!-- Links are handled by app_links, not Flutter's router. -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false"/>
         </activity>
         <!-- Google Maps API Key -->
         <meta-data

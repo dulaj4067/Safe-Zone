@@ -372,7 +372,12 @@ class _AlertDashboardCard extends StatelessWidget {
             ),
 
             const SizedBox(height: 10),
-            Row(
+            // Wrap rather than Row: all four actions don't fit on one line
+            // on a phone, so Resolve/Archive drop to a second line.
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
@@ -387,7 +392,6 @@ class _AlertDashboardCard extends StatelessWidget {
                     zones: zones,
                   ),
                 ),
-                const SizedBox(width: 6),
                 OutlinedButton.icon(
                   key: Key('escalate_btn_${alert.id}'),
                   style: OutlinedButton.styleFrom(
@@ -402,7 +406,6 @@ class _AlertDashboardCard extends StatelessWidget {
                   label: const Text('Escalate', style: TextStyle(fontSize: 12)),
                   onPressed: () => _showEscalateSheet(context, alert),
                 ),
-                const Spacer(),
                 TextButton(
                   onPressed: () => _confirmAndRun(
                     context,
@@ -413,7 +416,6 @@ class _AlertDashboardCard extends StatelessWidget {
                   ),
                   child: const Text('Resolve'),
                 ),
-                const SizedBox(width: 4),
                 TextButton(
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
                   onPressed: () => _confirmAndRun(

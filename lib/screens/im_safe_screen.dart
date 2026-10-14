@@ -18,13 +18,14 @@ class _ImSafeScreenState extends State<ImSafeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SafetyProvider>().loadSafetyCircle();
+      context.read<SafetyProvider>().loadFamilyCircle();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final safety = context.watch<SafetyProvider>();
+    final family = safety.confirmedFamily;
 
     return Scaffold(
       appBar: AppBar(title: const Text('I\'m Safe')),
@@ -58,22 +59,30 @@ class _ImSafeScreenState extends State<ImSafeScreen> {
               const SizedBox(height: 24),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Your safety circle (${safety.circle.length})',
+                child: Text('Your family circle (${family.length})',
                     style: Theme.of(context).textTheme.titleSmall),
               ),
               const SizedBox(height: 8),
               Expanded(
                 child: safety.isLoading
                     ? const Center(child: CircularProgressIndicator())
+                    : family.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No family members yet — invite them from the '
+                          'Family circle screen.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                      )
                     : ListView.separated(
-                        itemCount: safety.circle.length,
+                        itemCount: family.length,
                         separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (context, i) {
-                          final c = safety.circle[i];
+                          final c = family[i];
                           return ListTile(
                             leading: CircleAvatar(child: Text(c.initials)),
                             title: Text(c.name),
-                            subtitle: Text(c.relationship),
                             trailing: safety.lastBroadcastAt != null
                                 ? const Icon(Icons.check_circle, color: Colors.green)
                                 : null,

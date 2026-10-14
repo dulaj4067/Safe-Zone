@@ -42,7 +42,7 @@ import '../widgets/incident_detail_sheet.dart';
 import '../screens/incident_detail_screen.dart';
 import '../screens/shelter_detail_screen.dart';
 import '../screens/shelter_directions_screen.dart';
-import '../screens/select_safety_circle_screen.dart';
+import '../screens/family_circle_screen.dart';
 import '../services/supabase_service.dart';
 
 /// SafeZone home tab — district map with live alert-radius overlays
@@ -305,7 +305,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => SelectSafetyCircleScreen(
+                        builder: (_) => FamilyCircleScreen(
                           currentRiskZone: nearestRiskZone,
                         ),
                       ),

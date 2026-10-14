@@ -736,11 +736,15 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                   children: [
                     const Icon(Icons.people_outline, size: 20, color: AppColors.deepEstuary),
                     const SizedBox(width: 8),
-                    const Text(
-                      'Community Credibility',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    // Expanded so the title wraps instead of pushing the
+                    // confirmations chip off the edge on narrow phones.
+                    const Expanded(
+                      child: Text(
+                        'Community Credibility',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(

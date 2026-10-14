@@ -109,6 +109,9 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
         title: const Text('Incidents'),
       ),
       floatingActionButton: FloatingActionButton.extended(
+        // Unique tag: this tab lives in the same route as the shell's
+        // New Alert FAB, and two default tags crash the hero animation.
+        heroTag: 'report-incident-fab',
         onPressed: _openReportScreen,
         icon: const Icon(Icons.add),
         label: const Text('Report Incident'),

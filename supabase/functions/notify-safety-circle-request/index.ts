@@ -73,12 +73,12 @@ Deno.serve(async (req: Request) => {
     body: JSON.stringify({
       sender: { name: "SafeZone", email: BREVO_SENDER_EMAIL },
       to: [{ email: targetEmail }],
-      subject: `${ownerName} wants to add you to their safety circle`,
+      subject: `Confirm joining ${ownerName}'s SafeZone family circle`,
       htmlContent: `
-        <p><strong>${ownerName}</strong> added you to their SafeZone safety circle as their "${contact.relationship}".</p>
-        <p>If you confirm, your live location will be visible to them whenever you choose to share it.
-        Open the SafeZone app to confirm or decline the request.</p>
-        <p>If you don't recognize this person, you can safely ignore this email or decline in the app -
+        <p>You opened an invite to join <strong>${ownerName}</strong>'s SafeZone family circle.</p>
+        <p>If you confirm, you and ${ownerName} will be able to see each other's location
+        whenever either of you shares it. Open the SafeZone app to confirm or decline.</p>
+        <p>If you didn't open this invite or don't recognize this person, decline it in the app -
         nothing is shared unless you confirm.</p>
       `,
     }),
