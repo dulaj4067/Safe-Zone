@@ -27,6 +27,8 @@ import '../widgets/severity_badge.dart';
 import '../widgets/shelter_resources_card.dart';
 import 'incident_detail_screen.dart';
 import 'message_thread_screen.dart';
+import 'messages_screen.dart';
+import 'shelter_form_screen.dart';
 import 'shelter_directions_screen.dart';
 import 'volunteer_tasks_screen.dart';
 
@@ -281,6 +283,33 @@ class _ShelterDetailScreenState extends State<ShelterDetailScreen> {
                           )
                         : null,
                   ),
+                  // Only the shelter's owner sees these; the same page
+                  // doubles as their management view.
+                  if (isMine) ...[
+                    const Divider(height: 1),
+                    ListTile(
+                      key: const Key('edit_shelter_tile'),
+                      leading: const Icon(Icons.edit_outlined),
+                      title: const Text('Edit shelter details'),
+                      subtitle: const Text('Info, capacity, occupancy and open/full/closed'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () async {
+                        final saved = await Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(builder: (_) => ShelterFormScreen(shelter: _shelter)),
+                        );
+                        if (saved == true) _refresh();
+                      },
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.chat_bubble_outline),
+                      title: const Text('Messages'),
+                      subtitle: const Text('Replies from people asking about this shelter'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _push(const MessagesScreen()),
+                    ),
+                  ],
                 ],
               ),
             ),

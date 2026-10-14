@@ -23,7 +23,9 @@ import 'admin_broadcast_screen.dart';
 import 'admin_incident_review_screen.dart';
 import 'incidents_screen.dart';
 import 'deletion_requests_screen.dart';
+import 'manage_shelter_screen.dart';
 import 'messages_screen.dart';
+import 'shelter_submissions_screen.dart';
 import 'privacy_settings_screen.dart';
 import 'volunteer_tasks_screen.dart';
 import '../widgets/a11y/a11y_widgets.dart';
@@ -486,6 +488,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 MaterialPageRoute(builder: (_) => const DeletionRequestsScreen()),
               ),
             ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              key: const Key('shelter_submissions_button'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: context.brandInk,
+                side: BorderSide(color: context.brandInk),
+                minimumSize: const Size.fromHeight(42),
+              ),
+              icon: const Icon(Icons.night_shelter_outlined, size: 18),
+              label: const Text('Shelter Submissions'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ShelterSubmissionsScreen()),
+              ),
+            ),
           ],
         ),
       ),
@@ -865,6 +882,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Card(
       child: Column(
         children: [
+          ListTile(
+            key: const Key('manage_shelter_tile'),
+            leading: Icon(Icons.night_shelter_outlined, color: context.brandInk),
+            title: const Text('Manage your shelter'),
+            subtitle: const Text('Submit a shelter for approval or manage one you run'),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ManageShelterScreen(currentUser: widget.currentUser),
+              ),
+            ),
+          ),
+          const Divider(height: 1),
           ListTile(
             leading: Icon(Icons.chat_bubble_outline, color: context.brandInk),
             title: const Text('Messages'),
