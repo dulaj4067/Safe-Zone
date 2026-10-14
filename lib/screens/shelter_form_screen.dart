@@ -101,7 +101,10 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
 
   Future<void> _useMyLocation({bool silent = false}) async {
     setState(() => _locating = true);
-    final here = await LocationService().getCurrentLocation();
+    // Any failed lookup counts as no location so the indicator clears.
+    final LatLng? here = await LocationService()
+        .getCurrentLocation()
+        .catchError((_) => null);
     if (!mounted) return;
     setState(() => _locating = false);
     if (here == null) {
@@ -381,11 +384,7 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
             Row(
               children: [
                 if (_locating) ...[
-                  const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+                  const Icon(Icons.gps_not_fixed, size: 16),
                   const SizedBox(width: 8),
                   Text(
                     'Finding your location…',
