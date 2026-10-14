@@ -1,27 +1,31 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/alert_engagement.dart';
 import '../models/zone.dart';
 import 'supabase_service.dart';
 
+/// Resident "seen" / "acknowledged" receipts for alerts.
+///
+/// Source of truth is the `alert_engagements` table (see
+/// sql/privacy_consent_onboarding_migration.sql): each resident writes their
+/// own row, and authorities read everyone's to see who an alert has reached.
+/// A local copy is kept so a resident's own "acknowledged" state survives
+/// being offline; marks that couldn't reach the server are retried on the
+/// next mark.
+///
+/// Dashboard numbers are never invented: if no residents are registered in
+/// a zone the dashboard shows zero. The response simulator exists only in
+/// debug builds, and simulated residents are labelled as such.
 class AlertEngagementService {
   static const String _prefKeyPrefix = 'alert_engagement_v1_';
+  static const String _pendingKey = '${_prefKeyPrefix}pending_sync';
 
-  /// Standard default resident rosters per zone when Supabase profiles are sparse
-  static final Map<String, List<Map<String, String>>> _fallbackZoneResidents = {
-    'default': [
-      {'id': 'res-01', 'name': 'Nimal Perera', 'phone': '+94 77 123 4567'},
-      {'id': 'res-02', 'name': 'Sunil Jayawardena', 'phone': '+94 71 234 5678'},
-      {'id': 'res-03', 'name': 'Kamani Silva', 'phone': '+94 76 345 6789'},
-      {'id': 'res-04', 'name': 'Anura Fernando', 'phone': '+94 78 456 7890'},
-      {'id': 'res-05', 'name': 'Dilhani Gunasekara', 'phone': '+94 75 567 8901'},
-      {'id': 'res-06', 'name': 'Roshan Wickramasinghe', 'phone': '+94 72 678 9012'},
-      {'id': 'res-07', 'name': 'Malini Rathnayake', 'phone': '+94 70 789 0123'},
-      {'id': 'res-08', 'name': 'Chandana Senaratne', 'phone': '+94 77 890 1234'},
-      {'id': 'res-09', 'name': 'Priyantha Bandara', 'phone': '+94 71 901 2345'},
-      {'id': 'res-10', 'name': 'Nirosha Dias', 'phone': '+94 76 012 3456'},
-    ],
-  };
+  /// Debug-only sample roster used by the response simulator.
+  static final List<Map<String, String>> _simulatedResidents = [
+    for (var i = 1; i <= 10; i++)
+      {'id': 'sim-$i', 'name': 'Simulated resident $i', 'phone': '—'},
+  ];
 
   /// Fetches resident engagement and calculates percentages for the given alert and zone.
   Future<ZoneAlertEngagement> getZoneEngagement(
@@ -31,8 +35,6 @@ class AlertEngagementService {
     List<Zone>? knownZones,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final cachedSeen = (prefs.getStringList('${_prefKeyPrefix}seen_$alertId') ?? []).toSet();
-    final cachedAcks = (prefs.getStringList('${_prefKeyPrefix}ack_$alertId') ?? []).toSet();
 
     String resolvedZoneName = zoneName ?? 'All Active Zones';
     if (zoneId != null && knownZones != null) {
@@ -42,61 +44,51 @@ class AlertEngagementService {
       }
     }
 
-    // 1. Attempt to load actual registered profiles from Supabase
+    final simulation = kDebugMode ? _readSimulation(prefs, alertId) : null;
+
+    // 1. Registered residents of the zone. RLS only lets authorities read
+    //    other people's profiles, so a non-authority sees just themselves.
     List<Map<String, dynamic>> memberProfiles = [];
     try {
       var query = SupabaseService.client
           .from('profiles')
           .select('id, full_name, phone, role, zone_id');
-
       if (zoneId != null && zoneId.isNotEmpty) {
         query = query.eq('zone_id', zoneId);
       }
+      memberProfiles = List<Map<String, dynamic>>.from(await query);
+    } catch (e) {
+      debugPrint('getZoneEngagement: profiles unavailable: $e');
+    }
 
-      final rows = await query;
-      if (rows.isNotEmpty) {
-        memberProfiles = List<Map<String, dynamic>>.from(rows);
+    if (memberProfiles.isEmpty && simulation != null) {
+      memberProfiles = [
+        for (final r in _simulatedResidents)
+          {'id': r['id'], 'full_name': r['name'], 'phone': r['phone'], 'zone_id': zoneId},
+      ];
+    }
+
+    // 2. Their real receipts for this alert.
+    final receipts = <String, Map<String, dynamic>>{};
+    try {
+      final rows = await SupabaseService.client
+          .from('alert_engagements')
+          .select('user_id, seen_at, acknowledged_at')
+          .eq('alert_id', alertId);
+      for (final r in rows as List) {
+        receipts[r['user_id'] as String] = Map<String, dynamic>.from(r as Map);
       }
-    } catch (_) {
-      // Supabase query failed or offline; fall back quietly to cached/mock roster
+    } catch (e) {
+      debugPrint('getZoneEngagement: receipts unavailable: $e');
     }
 
-    // 2. If no profiles exist in this zone yet, use realistic fallback resident pool
-    if (memberProfiles.isEmpty) {
-      final pool = _fallbackZoneResidents[zoneId] ?? _fallbackZoneResidents['default']!;
-      memberProfiles = pool
-          .map((r) => {
-                'id': '${r['id']}_${zoneId ?? "gen"}',
-                'full_name': r['name'],
-                'phone': r['phone'],
-                'role': 'member',
-                'zone_id': zoneId,
-              })
-          .toList();
-    }
-
-    // Check simulated response data if present
-    final simRaw = prefs.getString('${_prefKeyPrefix}sim_$alertId');
-    double? simAckRate;
-    double? simSeenRate;
-    if (simRaw != null) {
-      try {
-        final decoded = jsonDecode(simRaw) as Map<String, dynamic>;
-        if (decoded['ackRate'] != null) {
-          simAckRate = (decoded['ackRate'] as num).toDouble();
-        }
-        if (decoded['seenRate'] != null) {
-          simSeenRate = (decoded['seenRate'] as num).toDouble();
-        }
-      } catch (_) {}
-    }
-
-    // If simulation is active, determine simulated counts
     final total = memberProfiles.length;
-    final simAckCount = simAckRate != null ? (total * simAckRate).round() : null;
-    final simSeenCount = simSeenRate != null ? (total * simSeenRate).round().clamp(simAckCount ?? 0, total) : null;
+    final simAckCount =
+        simulation?.ackRate != null ? (total * simulation!.ackRate!).round() : null;
+    final simSeenCount = simulation?.seenRate != null
+        ? (total * simulation!.seenRate!).round().clamp(simAckCount ?? 0, total)
+        : null;
 
-    // Build the ResidentEngagement list
     final residents = <ResidentEngagement>[];
     int seenCount = 0;
     int ackCount = 0;
@@ -104,26 +96,24 @@ class AlertEngagementService {
     for (int i = 0; i < total; i++) {
       final profile = memberProfiles[i];
       final uId = profile['id'] as String;
-      final name = profile['full_name'] as String? ?? 'Resident ($uId)';
-      final phone = profile['phone'] as String? ?? 'N/A';
-      final pZone = profile['zone_id'] as String?;
-
-      bool isAck = cachedAcks.contains(uId);
-      bool isSeen = isAck || cachedSeen.contains(uId);
+      final receipt = receipts[uId];
+      DateTime? seenAt = DateTime.tryParse(receipt?['seen_at'] as String? ?? '')?.toLocal();
+      DateTime? ackAt =
+          DateTime.tryParse(receipt?['acknowledged_at'] as String? ?? '')?.toLocal();
 
       if (simAckCount != null && i < simAckCount) {
-        isAck = true;
-        isSeen = true;
+        seenAt ??= DateTime.now();
+        ackAt ??= DateTime.now();
       } else if (simSeenCount != null && i < simSeenCount) {
-        isSeen = true;
+        seenAt ??= DateTime.now();
       }
 
-      ResidentEngagementStatus status;
-      if (isAck) {
+      final ResidentEngagementStatus status;
+      if (ackAt != null) {
         status = ResidentEngagementStatus.acknowledged;
         ackCount++;
         seenCount++;
-      } else if (isSeen) {
+      } else if (seenAt != null) {
         status = ResidentEngagementStatus.seen;
         seenCount++;
       } else {
@@ -132,12 +122,14 @@ class AlertEngagementService {
 
       residents.add(ResidentEngagement(
         userId: uId,
-        fullName: name,
-        phone: phone,
-        zoneId: pZone,
+        fullName: (profile['full_name'] as String?)?.trim().isNotEmpty == true
+            ? profile['full_name'] as String
+            : 'Unnamed resident',
+        phone: profile['phone'] as String? ?? '—',
+        zoneId: profile['zone_id'] as String?,
         status: status,
-        seenAt: isSeen ? DateTime.now().subtract(const Duration(minutes: 15)) : null,
-        acknowledgedAt: isAck ? DateTime.now().subtract(const Duration(minutes: 8)) : null,
+        seenAt: seenAt,
+        acknowledgedAt: ackAt,
       ));
     }
 
@@ -153,51 +145,90 @@ class AlertEngagementService {
   }
 
   /// Records that a user has seen the alert banner or notification.
-  Future<void> markSeen(String alertId, String userId) async {
+  Future<void> markSeen(String alertId, String userId) =>
+      _record(alertId, userId, acknowledged: false);
+
+  /// Records that a user has acknowledged the alert (implies seen).
+  Future<void> markAcknowledged(String alertId, String userId) =>
+      _record(alertId, userId, acknowledged: true);
+
+  Future<void> _record(String alertId, String userId, {required bool acknowledged}) async {
     final prefs = await SharedPreferences.getInstance();
-    final key = '${_prefKeyPrefix}seen_$alertId';
-    final list = prefs.getStringList(key) ?? [];
-    if (!list.contains(userId)) {
-      list.add(userId);
-      await prefs.setStringList(key, list);
+    await _addToList(prefs, '${_prefKeyPrefix}seen_$alertId', userId);
+    if (acknowledged) {
+      await _addToList(prefs, '${_prefKeyPrefix}ack_$alertId', userId);
     }
+
+    // Only the signed-in user's own receipts can go to the server (RLS).
+    if (userId != SupabaseService.currentUserId) return;
+    final pending = prefs.getStringList(_pendingKey) ?? [];
+    pending.add(jsonEncode({'alert': alertId, 'ack': acknowledged}));
+    await prefs.setStringList(_pendingKey, pending);
+    await flushPending();
   }
 
-  /// Records that a user has acknowledged the alert.
-  Future<void> markAcknowledged(String alertId, String userId) async {
+  /// Sends receipts that couldn't reach the server earlier. Each write is an
+  /// idempotent upsert keyed by (alert_id, user_id), so retrying is safe.
+  Future<void> flushPending() async {
+    final userId = SupabaseService.currentUserId;
+    if (userId == null) return;
     final prefs = await SharedPreferences.getInstance();
-    // Acknowledging implies seen as well
-    await markSeen(alertId, userId);
+    final pending = prefs.getStringList(_pendingKey) ?? [];
+    if (pending.isEmpty) return;
 
-    final key = '${_prefKeyPrefix}ack_$alertId';
-    final list = prefs.getStringList(key) ?? [];
-    if (!list.contains(userId)) {
-      list.add(userId);
-      await prefs.setStringList(key, list);
+    final remaining = <String>[];
+    for (final raw in pending) {
+      try {
+        final item = jsonDecode(raw) as Map<String, dynamic>;
+        final alertId = item['alert'] as String;
+        final ack = item['ack'] == true;
+        if (ack) {
+          await SupabaseService.client.from('alert_engagements').upsert({
+            'alert_id': alertId,
+            'user_id': userId,
+            'acknowledged_at': DateTime.now().toUtc().toIso8601String(),
+          }, onConflict: 'alert_id,user_id');
+        } else {
+          // Never overwrite an existing seen/acknowledged time with "seen".
+          await SupabaseService.client.from('alert_engagements').upsert(
+            {'alert_id': alertId, 'user_id': userId},
+            onConflict: 'alert_id,user_id',
+            ignoreDuplicates: true,
+          );
+        }
+      } on FormatException {
+        // Corrupt entry: drop it rather than retrying forever.
+      } catch (e) {
+        debugPrint('alert engagement sync failed, will retry: $e');
+        remaining.add(raw);
+      }
     }
+    await prefs.setStringList(_pendingKey, remaining);
   }
 
-  /// Checks if a user has acknowledged an alert.
+  /// Checks if a user has acknowledged an alert (this device's record).
   Future<bool> hasUserAcknowledged(String alertId, String userId) async {
     final prefs = await SharedPreferences.getInstance();
     final list = prefs.getStringList('${_prefKeyPrefix}ack_$alertId') ?? [];
     return list.contains(userId);
   }
 
-  /// Checks if a user has seen an alert.
+  /// Checks if a user has seen an alert (this device's record).
   Future<bool> hasUserSeen(String alertId, String userId) async {
     final prefs = await SharedPreferences.getInstance();
     final list = prefs.getStringList('${_prefKeyPrefix}seen_$alertId') ?? [];
     return list.contains(userId);
   }
 
-  /// Helper for Authority Admins / Tests to simulate responses in a zone.
+  /// Debug builds only: overlays simulated response rates on the dashboard
+  /// for testing the escalation UI. Does nothing in release builds.
   Future<void> simulateEngagement(
     String alertId,
     String? zoneId, {
     required double ackRate,
     required double seenRate,
   }) async {
+    if (!kDebugMode) return;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
       '${_prefKeyPrefix}sim_$alertId',
@@ -214,5 +245,30 @@ class AlertEngagementService {
     await prefs.remove('${_prefKeyPrefix}seen_$alertId');
     await prefs.remove('${_prefKeyPrefix}ack_$alertId');
     await prefs.remove('${_prefKeyPrefix}sim_$alertId');
+  }
+
+  static Future<void> _addToList(SharedPreferences prefs, String key, String value) async {
+    final list = prefs.getStringList(key) ?? [];
+    if (!list.contains(value)) {
+      list.add(value);
+      await prefs.setStringList(key, list);
+    }
+  }
+
+  static ({double? ackRate, double? seenRate})? _readSimulation(
+    SharedPreferences prefs,
+    String alertId,
+  ) {
+    final raw = prefs.getString('${_prefKeyPrefix}sim_$alertId');
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return (
+        ackRate: (decoded['ackRate'] as num?)?.toDouble(),
+        seenRate: (decoded['seenRate'] as num?)?.toDouble(),
+      );
+    } catch (_) {
+      return null;
+    }
   }
 }

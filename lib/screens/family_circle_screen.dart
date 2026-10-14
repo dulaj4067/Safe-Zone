@@ -226,7 +226,7 @@ class _EmptyFamily extends StatelessWidget {
           Text(
             'Send an invite link to a family member to get started.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey.shade600),
+            style: TextStyle(color: context.inkMuted),
           ),
         ],
       ),
@@ -242,9 +242,13 @@ class _MemberTile extends StatelessWidget {
 
   String get _status {
     if (member.isPending) return 'Waiting for them to confirm';
-    if (member.isSharingNow) return 'Sharing their location now';
-    if (member.lastSeenAt != null) return 'Last seen ${timeAgo(member.lastSeenAt!)}';
-    return 'Hasn\'t shared a location yet';
+    final location = member.isSharingNow
+        ? 'Sharing their location now'
+        : member.lastSeenAt != null
+        ? 'Last seen ${timeAgo(member.lastSeenAt!)}'
+        : 'Hasn\'t shared a location yet';
+    if (member.lastSafeAt == null) return location;
+    return 'Marked safe ${timeAgo(member.lastSafeAt!)} · $location';
   }
 
   @override
@@ -280,7 +284,7 @@ class _MemberTile extends StatelessWidget {
       subtitle: Text(
         _status,
         style: TextStyle(
-          color: member.isPending ? AppColors.slateMuted : null,
+          color: member.isPending ? context.inkMuted : null,
           fontStyle: member.isPending ? FontStyle.italic : null,
         ),
       ),
@@ -378,10 +382,10 @@ Future<void> showInviteLinkSheet(BuildContext context, Uri link) {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.cloud,
+                color: context.surfaceCard,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: AppColors.deepEstuary.withValues(alpha: 0.15),
+                  color: context.brandInk.withValues(alpha: 0.15),
                 ),
               ),
               child: Column(
@@ -529,9 +533,9 @@ Future<void> showFamilyRequestDialog(
   final accept = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      icon: const Icon(
+      icon: Icon(
         Icons.family_restroom,
-        color: AppColors.deepEstuary,
+        color: context.brandInk,
         size: 36,
       ),
       title: Text('Join ${request.ownerName}\'s family circle?'),
@@ -547,7 +551,7 @@ Future<void> showFamilyRequestDialog(
         ),
         FilledButton(
           style: FilledButton.styleFrom(
-            backgroundColor: AppColors.deepEstuary,
+            backgroundColor: context.brandFill,
             minimumSize: const Size(0, 40),
           ),
           onPressed: () => Navigator.pop(dialogContext, true),

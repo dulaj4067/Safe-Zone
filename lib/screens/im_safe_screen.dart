@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:provider/provider.dart';
 import '../providers/safety_provider.dart';
 import '../models/risk_zone.dart';
@@ -38,8 +39,8 @@ class _ImSafeScreenState extends State<ImSafeScreen> {
               Text('Let your safety circle know you\'re okay',
                   textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 4),
-              Text('This sends one instant notification to everyone below.',
-                  textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade600)),
+              Text('Everyone below will see "Marked safe" in their Family circle.',
+                  textAlign: TextAlign.center, style: TextStyle(color: context.inkMuted)),
               const SizedBox(height: 32),
               Center(
                 child: ImSafeBroadcastButton(
@@ -72,7 +73,7 @@ class _ImSafeScreenState extends State<ImSafeScreen> {
                           'No family members yet — invite them from the '
                           'Family circle screen.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey.shade600),
+                          style: TextStyle(color: context.inkMuted),
                         ),
                       )
                     : ListView.separated(
@@ -83,9 +84,7 @@ class _ImSafeScreenState extends State<ImSafeScreen> {
                           return ListTile(
                             leading: CircleAvatar(child: Text(c.initials)),
                             title: Text(c.name),
-                            trailing: safety.lastBroadcastAt != null
-                                ? const Icon(Icons.check_circle, color: Colors.green)
-                                : null,
+
                           );
                         },
                       ),

@@ -1,0 +1,6 @@
+{
+  "CARTO_API_KEY": "your-carto-api-key",
+  "SUPABASE_URL": "https://frkwsgriwdezkvrmgsgf.supabase.co",
+  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_...",
+  "ROUTING_BASE_URL": "https://router.project-osrm.org"
+}

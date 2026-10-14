@@ -88,11 +88,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
           final fromMe = c.lastMessage.senderId == me;
           return ListTile(
             leading: CircleAvatar(
-              backgroundColor: AppColors.seafoam,
+              backgroundColor: context.tintSoft,
               child: Text(
                 name.isNotEmpty ? name[0].toUpperCase() : '?',
-                style: const TextStyle(
-                  color: AppColors.deepEstuary,
+                style: TextStyle(
+                  color: context.brandInk,
                   fontWeight: FontWeight.w700,
                 ),
               ),

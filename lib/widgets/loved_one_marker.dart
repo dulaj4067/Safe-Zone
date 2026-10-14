@@ -28,7 +28,7 @@ class LovedOneMarker extends StatelessWidget {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: AppColors.riverTeal,
+            color: context.brandAccent,
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 2.5),
             boxShadow: const [

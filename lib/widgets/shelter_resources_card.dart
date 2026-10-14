@@ -204,7 +204,7 @@ class _ShelterResourcesCardState extends State<ShelterResourcesCard> {
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Row(
                   children: [
-                    Icon(_iconFor(resources[i].type), size: 20, color: AppColors.riverTeal),
+                    Icon(_iconFor(resources[i].type), size: 20, color: context.brandAccent),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(

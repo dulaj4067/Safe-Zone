@@ -402,7 +402,7 @@ class _TaskCard extends StatelessWidget {
                         child: LinearProgressIndicator(
                           value: fraction,
                           minHeight: 6,
-                          color: AppColors.riverTeal,
+                          color: context.brandAccent,
                           backgroundColor: AppColors.riverTeal.withValues(alpha: 0.15),
                         ),
                       ),

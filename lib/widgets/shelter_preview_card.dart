@@ -122,7 +122,7 @@ class ShelterPreviewCard extends StatelessWidget {
                     FilledButton.icon(
                       style: FilledButton.styleFrom(
                         visualDensity: VisualDensity.compact,
-                        backgroundColor: AppColors.deepEstuary,
+                        backgroundColor: context.brandFill,
                         // The app theme makes filled buttons full-width,
                         // which is infinite inside this Row.
                         minimumSize: const Size(0, 40),
@@ -135,14 +135,14 @@ class ShelterPreviewCard extends StatelessWidget {
                     Text(
                       'View shelter',
                       style: textTheme.labelLarge?.copyWith(
-                        color: AppColors.riverTeal,
+                        color: context.brandAccent,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.chevron_right,
                       size: 18,
-                      color: AppColors.riverTeal,
+                      color: context.brandAccent,
                     ),
                   ],
                 ),

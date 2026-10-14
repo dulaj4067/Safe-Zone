@@ -22,6 +22,7 @@ import '../providers/safety_provider.dart';
 import '../theme/app_colors.dart';
 import '../services/activity_history_service.dart';
 import '../services/location_service.dart';
+import '../services/place_name_service.dart';
 import '../services/shelter_service.dart';
 import '../widgets/severity_badge.dart';
 import '../widgets/active_alerts_sheet.dart';
@@ -196,17 +197,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _locationService.getCurrentLocation().then((fix) {
       if (mounted && fix != null && _liveLocation == null) {
         setState(() => _liveLocation = fix);
+        _updatePlaceName(fix);
       }
     });
     _positionSub = _locationService.watchPosition().listen(
       (position) {
         if (mounted) setState(() => _liveLocation = position);
+        _updatePlaceName(position);
       },
       onError: (_) {
         // Leave whatever last-known position we have rather than
         // clearing it on a transient GPS/provider error.
       },
     );
+  }
+
+  final PlaceNameService _placeNames = PlaceNameService();
+
+  /// Town/suburb at the person's GPS position (null until looked up, or
+  /// when offline — the label then falls back to the nearest district).
+  String? _placeName;
+  String? _placeCell;
+
+  Future<void> _updatePlaceName(LatLng position) async {
+    final cell = PlaceNameService.cellKey(position);
+    if (cell == _placeCell) return; // same ~1 km cell: nothing new to ask
+    _placeCell = cell;
+    final name = await _placeNames.placeNameFor(position);
+    if (!mounted || _placeCell != cell) return;
+    if (name == null) _placeCell = null; // retry on the next fix
+    setState(() => _placeName = name);
   }
 
   String? _nearestZoneName(LatLng center) {
@@ -258,7 +278,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // reflect where the person actually is once we have a GPS fix,
     // falling back to the district default until then.
     final effectiveCenter = _liveLocation ?? _initialCenter;
-    final districtLabel = _nearestZoneName(effectiveCenter);
+    final districtLabel = (_liveLocation != null ? _placeName : null) ??
+        _nearestZoneName(effectiveCenter);
     final nearestRiskZone = _nearestRiskZone(effectiveCenter);
 
     // Consume the resume-centre once so the map animates to it this frame
@@ -704,7 +725,7 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                       Text(
                         member.relationship,
                         style: TextStyle(
-                          color: Colors.grey.shade600,
+                          color: context.inkMuted,
                           fontSize: 13,
                         ),
                       ),
@@ -730,7 +751,7 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                       : member.lastSeenAt != null
                       ? 'Last seen ${timeAgo(member.lastSeenAt!)}'
                       : 'Last seen location unknown',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                  style: TextStyle(fontSize: 13, color: context.inkMuted),
                 ),
               ],
             ),
@@ -853,7 +874,7 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.surfaceCard,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: const [
                         BoxShadow(
@@ -865,9 +886,10 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                     ),
                     child: Text(
                       widget.districtLabel!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
+                        color: context.inkStrong,
                       ),
                     ),
                   )
@@ -916,7 +938,7 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                     Polyline(
                       points: activeRoute.result.points,
                       strokeWidth: 5,
-                      color: AppColors.deepEstuary,
+                      color: context.brandInk,
                     ),
                   ],
                 ),

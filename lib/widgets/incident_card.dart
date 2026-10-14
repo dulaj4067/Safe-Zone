@@ -117,19 +117,19 @@ class IncidentCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
-                        color: AppColors.deepEstuary.withValues(alpha: 0.12),
+                        color: context.brandInk.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: AppColors.deepEstuary.withValues(alpha: 0.3)),
+                        border: Border.all(color: context.brandInk.withValues(alpha: 0.3)),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.person_outline, size: 12, color: AppColors.deepEstuary),
+                          Icon(Icons.person_outline, size: 12, color: context.brandInk),
                           SizedBox(width: 3),
                           Text(
                             'Mine',
                             style: TextStyle(
-                              color: AppColors.deepEstuary,
+                              color: context.brandInk,
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                             ),
@@ -213,24 +213,24 @@ class IncidentCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: AppColors.riverTeal.withValues(alpha: 0.10),
+                        color: context.brandAccent.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: AppColors.riverTeal.withValues(alpha: 0.30),
+                          color: context.brandAccent.withValues(alpha: 0.30),
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.link_rounded,
-                              size: 12, color: AppColors.riverTeal),
+                          Icon(Icons.link_rounded,
+                              size: 12, color: context.brandAccent),
                           const SizedBox(width: 3),
                           Text(
                             '${incident.credibilityScore} confirmation${incident.credibilityScore == 1 ? '' : 's'}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.riverTeal,
+                              color: context.brandAccent,
                             ),
                           ),
                         ],

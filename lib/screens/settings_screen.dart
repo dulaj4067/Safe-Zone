@@ -6,21 +6,24 @@ import 'package:provider/provider.dart';
 import '../models/alert.dart';
 import '../models/app_user.dart';
 import '../models/zone.dart';
+import '../providers/accessibility_provider.dart';
 import '../providers/alert_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/incident_provider.dart';
 import '../services/notification_service.dart';
-import '../services/settings_service.dart';
 import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
+import '../utils/validators.dart';
 import '../widgets/feedback_sheet.dart';
 import 'admin_broadcast_screen.dart';
 import 'admin_incident_review_screen.dart';
 import 'incidents_screen.dart';
+import 'deletion_requests_screen.dart';
 import 'messages_screen.dart';
+import 'privacy_settings_screen.dart';
 import 'volunteer_tasks_screen.dart';
 import '../widgets/a11y/a11y_widgets.dart';
 
@@ -43,14 +46,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final SettingsService _settingsService = SettingsService();
-
-  // These three have no functional consumer yet (see SettingsService's
-  // doc comment) — persisted so the toggle survives a restart, but they
-  // don't turn any real feature on or off.
-  bool _liveLocationBeacon = true;
-  bool _autoEscalateSos = true;
-  bool _autoRelayDispatch = false;
 
   /// Local value while the broadcast-radius slider is being dragged, so it
   /// doesn't round-trip through [AlertProvider]/SharedPreferences on every
@@ -58,24 +53,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   double? _draftBroadcastRadiusKm;
 
   bool _syncingCache = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUnwiredPreferences();
-  }
-
-  Future<void> _loadUnwiredPreferences() async {
-    final beacon = await _settingsService.getLiveLocationBeacon();
-    final escalate = await _settingsService.getAutoEscalateSos();
-    final relay = await _settingsService.getAutoRelayDispatch();
-    if (!mounted) return;
-    setState(() {
-      _liveLocationBeacon = beacon;
-      _autoEscalateSos = escalate;
-      _autoRelayDispatch = relay;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -103,6 +80,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildAuthorityPanel(context, user!),
               const SizedBox(height: 20),
             ],
+
+            // ─── Appearance ────────────────────────────────────────────────
+            _buildSectionHeader('Appearance', Icons.palette_outlined),
+            const SizedBox(height: 8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<ThemeMode>(
+                    key: const Key('theme_mode_selector'),
+                    segments: const [
+                      ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_outlined), label: Text('Light')),
+                      ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto_outlined), label: Text('System')),
+                      ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_outlined), label: Text('Dark')),
+                    ],
+                    selected: {context.watch<AccessibilityProvider>().themeMode},
+                    onSelectionChanged: (s) =>
+                        context.read<AccessibilityProvider>().setThemeMode(s.first),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
 
             // ─── Emergency & Alert Preferences ────────────────────────────
             _buildSectionHeader('Emergency & Warning Notifications', Icons.notifications_active_outlined),
@@ -132,6 +133,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSectionHeader('Network & System Status', Icons.info_outline),
             const SizedBox(height: 8),
             _buildSystemStatusCard(context),
+            const SizedBox(height: 28),
+
+            // ─── Privacy & Data ────────────────────────────────────────────
+            _buildSectionHeader('Privacy & Data', Icons.privacy_tip_outlined),
+            const SizedBox(height: 8),
+            Card(
+              child: ListTile(
+                key: const Key('privacy_settings_tile'),
+                leading: Icon(Icons.privacy_tip_outlined, color: context.brandInk),
+                title: const Text('Privacy & data'),
+                subtitle: const Text('Policies, what you share, app tour, delete account'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PrivacySettingsScreen()),
+                ),
+              ),
+            ),
             const SizedBox(height: 28),
 
             // ─── Logout Button ─────────────────────────────────────────────
@@ -167,9 +186,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       null => 'Civilian',
     };
 
-    final roleBadgeColor = isAuthority
-        ? AppColors.riverTeal
-        : AppColors.deepEstuary;
+    final roleBadgeColor = isAuthority ? context.brandAccent : context.brandInk;
 
     return Container(
       decoration: BoxDecoration(
@@ -231,12 +248,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                     ),
                     const SizedBox(height: 4),
-                    if (user?.phone.isNotEmpty == true && !_looksLikeUuid(user!.phone))
+                    if (user?.phone.isNotEmpty == true && !looksLikeAccountId(user!.phone))
                       Text(
                         user.phone,
                         style: AppTheme.dataText(context).copyWith(
                           fontSize: 12,
-                          color: isDark ? AppColors.foamText : AppColors.slateMuted,
+                          color: isDark ? AppColors.foamText : context.inkMuted,
                         ),
                       )
                     else if (user != null)
@@ -345,8 +362,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.broadcast_on_personal,
-                    color: AppColors.riverTeal, size: 20),
+                Icon(Icons.broadcast_on_personal,
+                    color: context.brandAccent, size: 20),
                 const SizedBox(width: 8),
                 Text(
                   'Emergency Broadcast Controls',
@@ -356,34 +373,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
+            // Auto-escalate SOS and direct relay toggles were removed: they
+            // saved a preference that no code acted on, so authorities could
+            // believe escalation was happening when it wasn't.
             const SizedBox(height: 14),
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Auto-Escalate High-Risk SOS'),
-              subtitle: const Text(
-                'Automatically flag incidents with 3+ citizen confirmations for instant review',
-              ),
-              value: _autoEscalateSos,
-              onChanged: (v) {
-                setState(() => _autoEscalateSos = v);
-                _settingsService.saveAutoEscalateSos(v);
-              },
-            ),
-            const Divider(),
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Direct Disaster Relay'),
-              subtitle: const Text(
-                'Forward verified critical alerts to regional disaster responder units',
-              ),
-              value: _autoRelayDispatch,
-              onChanged: (v) {
-                setState(() => _autoRelayDispatch = v);
-                _settingsService.saveAutoRelayDispatch(v);
-              },
-            ),
-            const Divider(),
-            const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -395,7 +388,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   '${draftRadiusKm.toStringAsFixed(1)} km',
                   style: AppTheme.dataText(context).copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppColors.riverTeal,
+                    color: context.brandAccent,
                   ),
                 ),
               ],
@@ -405,7 +398,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               max: 25.0,
               divisions: 24,
               value: draftRadiusKm,
-              activeColor: AppColors.riverTeal,
+              activeColor: context.brandAccent,
               onChanged: (v) => setState(() => _draftBroadcastRadiusKm = v),
               onChangeEnd: (v) {
                 setState(() => _draftBroadcastRadiusKm = null);
@@ -415,8 +408,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 8),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.riverTeal,
-                side: const BorderSide(color: AppColors.riverTeal),
+                foregroundColor: context.brandAccent,
+                side: BorderSide(color: context.brandAccent),
                 minimumSize: const Size.fromHeight(42),
               ),
               icon: const Icon(Icons.campaign, size: 18),
@@ -456,13 +449,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 8),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.deepEstuary,
-                side: const BorderSide(color: AppColors.deepEstuary),
+                foregroundColor: context.brandInk,
+                side: BorderSide(color: context.brandInk),
                 minimumSize: const Size.fromHeight(42),
               ),
               icon: const Icon(Icons.accessibility_new_rounded, size: 18),
               label: const Text('Inclusion & Accessibility Settings'),
               onPressed: () => showA11yInclusionSheet(context),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              key: const Key('deletion_requests_button'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: context.brandInk,
+                side: BorderSide(color: context.brandInk),
+                minimumSize: const Size.fromHeight(42),
+              ),
+              icon: const Icon(Icons.person_remove_outlined, size: 18),
+              label: const Text('Account Deletion Requests'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DeletionRequestsScreen()),
+              ),
             ),
           ],
         ),
@@ -522,7 +530,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     : widget.zones.first.id,
                 decoration: InputDecoration(
                   labelText: 'Designated Safety Zone',
-                  prefixIcon: const Icon(Icons.location_on, color: AppColors.riverTeal),
+                  prefixIcon: Icon(Icons.location_on, color: context.brandAccent),
                   filled: true,
                   fillColor: isDark ? AppColors.harborSurface : AppColors.cloud,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -724,7 +732,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         children: [
           ListTile(
-            leading: const Icon(Icons.person_pin_circle_outlined, color: AppColors.deepEstuary),
+            leading: Icon(Icons.person_pin_circle_outlined, color: context.brandInk),
             title: const Text('My Reported Incidents'),
             subtitle: const Text('View, edit details, or resolve your incident reports'),
             trailing: Row(
@@ -733,14 +741,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.deepEstuary.withValues(alpha: 0.12),
+                    color: context.brandInk.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     '$myIncidentsCount',
                     style: AppTheme.dataText(context).copyWith(
                       fontWeight: FontWeight.bold,
-                      color: AppColors.deepEstuary,
+                      color: context.brandInk,
                     ),
                   ),
                 ),
@@ -760,20 +768,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const Divider(height: 1),
-          SwitchListTile.adaptive(
-            title: const Text('Live GPS Safety Beacon'),
-            subtitle: const Text(
-              'Attach high-accuracy coordinates when submitting SOS flood reports',
-            ),
-            value: _liveLocationBeacon,
-            onChanged: (v) {
-              setState(() => _liveLocationBeacon = v);
-              _settingsService.saveLiveLocationBeacon(v);
-            },
-          ),
-          const Divider(height: 1),
           ListTile(
-            leading: const Icon(Icons.cached_outlined, color: AppColors.deepEstuary),
+            leading: Icon(Icons.cached_outlined, color: context.brandInk),
             title: const Text('Offline Safe-Zone Maps Cache'),
             subtitle: const Text('Stores district flood zones and evacuation shelters offline'),
             trailing: TextButton(
@@ -856,7 +852,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         children: [
           ListTile(
-            leading: const Icon(Icons.chat_bubble_outline, color: AppColors.deepEstuary),
+            leading: Icon(Icons.chat_bubble_outline, color: context.brandInk),
             title: const Text('Messages'),
             subtitle: const Text('Conversations with shelter managers'),
             trailing: const Icon(Icons.chevron_right, size: 20),
@@ -867,7 +863,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(height: 1),
           ListTile(
-            leading: const Icon(Icons.volunteer_activism_outlined, color: AppColors.deepEstuary),
+            leading: Icon(Icons.volunteer_activism_outlined, color: context.brandInk),
             title: const Text('Volunteer'),
             subtitle: const Text('Sign up to help at shelters near you'),
             trailing: const Icon(Icons.chevron_right, size: 20),
@@ -880,7 +876,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(height: 1),
           ListTile(
-            leading: const Icon(Icons.rate_review_outlined, color: AppColors.deepEstuary),
+            leading: Icon(Icons.rate_review_outlined, color: context.brandInk),
             title: const Text('Send Feedback'),
             subtitle: const Text('Rate the support you\'re getting and tell us what you need'),
             trailing: const Icon(Icons.chevron_right, size: 20),
@@ -942,14 +938,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: AppColors.deepEstuary.withValues(alpha: 0.1),
+          color: context.brandInk.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
           number,
           style: AppTheme.dataText(context).copyWith(
             fontWeight: FontWeight.bold,
-            color: AppColors.deepEstuary,
+            color: context.brandInk,
             fontSize: 14,
           ),
         ),
@@ -1073,7 +1069,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final storedPhone = user?.phone ?? '';
     final nameCtrl = TextEditingController(text: user?.fullName ?? '');
     final phoneCtrl = TextEditingController(
-      text: _looksLikeUuid(storedPhone) ? '' : storedPhone,
+      text: looksLikeAccountId(storedPhone) ? '' : storedPhone,
     );
     bool saving = false;
     String? submitError;
@@ -1113,7 +1109,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     labelText: 'Full Name',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
-                  validator: _validateFullName,
+                  validator: validateFullName,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                 ),
                 const SizedBox(height: 12),
@@ -1125,7 +1121,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     hintText: '+94 77 123 4567',
                     prefixIcon: Icon(Icons.phone_outlined),
                   ),
-                  validator: _validatePhoneNumber,
+                  validator: validatePhone,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                 ),
                 if (submitError != null) ...[
@@ -1144,7 +1140,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           if (!(formKey.currentState?.validate() ?? false)) return;
 
                           final newName = nameCtrl.text.trim();
-                          final newPhone = phoneCtrl.text.trim();
+                          final newPhone = normalizePhone(phoneCtrl.text)!;
 
                           setModalState(() => saving = true);
                           try {
@@ -1201,36 +1197,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
-  static final RegExp _uuidPattern = RegExp(
-    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-  );
-
-  bool _looksLikeUuid(String value) => _uuidPattern.hasMatch(value.trim());
-
-  String? _validateFullName(String? value) {
-    final trimmed = (value ?? '').trim();
-    if (trimmed.isEmpty) return 'Full name is required';
-    if (trimmed.length < 2) return 'Name is too short';
-    return null;
-  }
-
-  String? _validatePhoneNumber(String? value) {
-    final trimmed = (value ?? '').trim();
-    if (trimmed.isEmpty) return 'Phone number is required';
-    if (_looksLikeUuid(trimmed)) {
-      return 'That looks like an account ID, not a phone number';
-    }
-    final digitsOnly = trimmed.replaceAll(RegExp(r'[\s-]'), '');
-    if (!RegExp(r'^\+?[0-9]{7,15}$').hasMatch(digitsOnly)) {
-      return 'Enter a valid phone number';
-    }
-    return null;
-  }
-
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: AppColors.deepEstuary),
+        Icon(icon, size: 18, color: context.brandInk),
         const SizedBox(width: 8),
         Text(
           title,

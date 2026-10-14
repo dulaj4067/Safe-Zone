@@ -1,0 +1,92 @@
+1
+00:00:00,700 --> 00:00:06,910
+In late 2025, Cyclone Ditwah brought floods that claimed more than 600 lives in Sri Lanka.
+
+2
+00:00:07,110 --> 00:00:08,660
+Every minute of warning matters.
+
+3
+00:00:09,960 --> 00:00:13,860
+Today, warnings are fragmented, unverified, and easy to miss.
+
+4
+00:00:14,060 --> 00:00:17,430
+Shelters and volunteers are coordinated by phone calls,
+
+5
+00:00:17,630 --> 00:00:20,330
+and when networks fail, people are left in the dark.
+
+6
+00:00:21,630 --> 00:00:22,700
+Meet SafeZone.
+
+7
+00:00:22,900 --> 00:00:28,400
+One platform that connects citizens and authorities before, during, and after a disaster.
+
+8
+00:00:29,700 --> 00:00:34,400
+Authorities broadcast geo-targeted alerts that reach citizens in real time.
+
+9
+00:00:34,600 --> 00:00:40,520
+Citizens report incidents and confirm each other's reports, building a trusted picture on the ground.
+
+10
+00:00:40,720 --> 00:00:45,690
+And families stay connected with one-tap I'm Safe check-ins and live location sharing.
+
+11
+00:00:46,990 --> 00:00:52,220
+What sets us apart? Offline-first maps, so safety information works without signal.
+
+12
+00:00:52,420 --> 00:00:55,390
+Community-verified reports with credibility scoring.
+
+13
+00:00:55,590 --> 00:00:57,350
+Support for Sinhala and Tamil.
+
+14
+00:00:57,550 --> 00:01:01,510
+And reach analytics that show authorities exactly who has been alerted.
+
+15
+00:01:02,810 --> 00:01:04,380
+Our proposed model is simple.
+
+16
+00:01:04,580 --> 00:01:09,080
+Annual licences for disaster management agencies and local councils,
+
+17
+00:01:09,280 --> 00:01:12,780
+subscriptions for NGOs and volunteer organisations,
+
+18
+00:01:12,980 --> 00:01:15,700
+and data partnerships with insurers and utilities.
+
+19
+00:01:17,000 --> 00:01:21,220
+Today, we have a working app with citizen, shelter, and authority tools.
+
+20
+00:01:21,420 --> 00:01:25,760
+Next, we pilot in a flood-prone district with a disaster-management partner.
+
+21
+00:01:25,960 --> 00:01:31,560
+We're looking for pilot partners and seed investment to bring SafeZone to every community at risk.
+
+22
+00:01:32,860 --> 00:01:34,820
+SafeZone. Every minute matters.
+
+23
+00:01:35,020 --> 00:01:36,750
+We are The Pioneers. Thank you.
+

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -123,13 +124,13 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                       Row(
                         children: [
                           Icon(Icons.location_on_outlined,
-                              size: 15, color: AppColors.deepEstuary),
+                              size: 15, color: context.brandInk),
                           const SizedBox(width: 4),
                           Text(
                             engagement?.zoneName ?? 'Zone Target',
                             style: TextStyle(
                               fontSize: 13,
-                              color: AppColors.deepEstuary,
+                              color: context.brandInk,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -165,9 +166,12 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                       _buildAdminActionsSection(context, engagement),
                       const SizedBox(height: 16),
 
-                      // 4. Resident Response Simulation Tool (for Testing/Demo)
-                      _buildSimulationSection(context, engagement),
-                      const SizedBox(height: 20),
+                      // 4. Resident Response Simulation Tool — debug builds
+                      //    only, so real responders never see fake numbers.
+                      if (kDebugMode) ...[
+                        _buildSimulationSection(context, engagement),
+                        const SizedBox(height: 20),
+                      ],
 
                       // 5. Resident Roster Header & Search
                       _buildResidentRosterHeader(context, engagement),
@@ -229,7 +233,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                   '${eng.acknowledgedCount} of ${eng.totalResidents} residents',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.grey.shade700,
+                    color: context.inkMuted,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -253,10 +257,10 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.deepEstuary.withValues(alpha: 0.08),
+              color: context.brandInk.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: AppColors.deepEstuary.withValues(alpha: 0.25),
+                color: context.brandInk.withValues(alpha: 0.25),
               ),
             ),
             child: Column(
@@ -265,14 +269,14 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                 Row(
                   children: [
                     Icon(Icons.visibility_rounded,
-                        size: 16, color: AppColors.deepEstuary),
+                        size: 16, color: context.brandInk),
                     const SizedBox(width: 6),
                     Text(
                       'Seen / Viewed',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.deepEstuary,
+                        color: context.brandInk,
                       ),
                     ),
                   ],
@@ -283,7 +287,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.deepEstuary,
+                    color: context.brandInk,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -291,7 +295,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                   '${eng.seenCount} of ${eng.totalResidents} residents',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.grey.shade700,
+                    color: context.inkMuted,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -301,7 +305,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                     value: (eng.seenPercentage / 100).clamp(0.0, 1.0),
                     minHeight: 6,
                     backgroundColor: Colors.grey.shade200,
-                    color: AppColors.deepEstuary,
+                    color: context.brandInk,
                   ),
                 ),
               ],
@@ -353,7 +357,12 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                // Wrap: the label and badge don't fit side by side on a
+                // narrow phone or with larger text.
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       eng.urgency.label.toUpperCase(),
@@ -365,7 +374,6 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                       ),
                     ),
                     if (eng.needsFurtherAction) ...[
-                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
@@ -390,7 +398,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                   eng.actionRecommendation,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey.shade800,
+                    color: context.inkStrong,
                     height: 1.3,
                   ),
                 ),
@@ -430,7 +438,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                       content: Text(
                         'Emergency SMS broadcast queued for ${eng.unreachedCount} unreached residents in ${eng.zoneName}.',
                       ),
-                      backgroundColor: AppColors.deepEstuary,
+                      backgroundColor: context.brandFill,
                     ),
                   );
                 },
@@ -453,7 +461,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                       content: Text(
                         'Ground volunteer response unit notified for ${eng.zoneName}.',
                       ),
-                      backgroundColor: AppColors.deepEstuary,
+                      backgroundColor: context.brandFill,
                     ),
                   );
                 },
@@ -479,14 +487,14 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
         children: [
           Row(
             children: [
-              Icon(Icons.tune_rounded, size: 15, color: Colors.grey.shade700),
+              Icon(Icons.tune_rounded, size: 15, color: context.inkMuted),
               const SizedBox(width: 6),
               Text(
                 'Test / Response Simulation Tool',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade700,
+                  color: context.inkMuted,
                 ),
               ),
             ],
@@ -494,7 +502,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
           const SizedBox(height: 6),
           Text(
             'Simulate zone response rates to test alert thresholds:',
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 11, color: context.inkMuted),
           ),
           const SizedBox(height: 8),
           Wrap(

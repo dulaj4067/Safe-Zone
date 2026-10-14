@@ -1,3 +1,5 @@
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
+
 import '../models/app_user.dart';
 import 'supabase_service.dart';
 
@@ -35,12 +37,9 @@ class ProfileService {
     final unique = ids.toSet().toList();
     if (unique.isEmpty) return {};
     try {
-      final rows = await SupabaseService.client
-          .from('profiles')
-          .select('id, full_name')
-          .inFilter('id', unique);
+      final rows = await _fetchNameRows(unique);
       return {
-        for (final r in rows as List)
+        for (final r in rows)
           (r as Map<String, dynamic>)['id'] as String:
               (r['full_name'] as String?)?.trim().isNotEmpty == true
                   ? r['full_name'] as String
@@ -48,6 +47,22 @@ class ProfileService {
       };
     } catch (_) {
       return {};
+    }
+  }
+
+  /// Names only, via `profile_display_names` (other users' phone/role/zone
+  /// aren't readable since sql/security_hardening_migration.sql). Falls back
+  /// to a direct read on backends where that function doesn't exist yet.
+  static Future<List<dynamic>> _fetchNameRows(List<String> ids) async {
+    try {
+      return await SupabaseService.client
+          .rpc('profile_display_names', params: {'ids': ids}) as List<dynamic>;
+    } on PostgrestException catch (e) {
+      if (e.code != 'PGRST202' && e.code != '42883') rethrow;
+      return await SupabaseService.client
+          .from('profiles')
+          .select('id, full_name')
+          .inFilter('id', ids);
     }
   }
 }

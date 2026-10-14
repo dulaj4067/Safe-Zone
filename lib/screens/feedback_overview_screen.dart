@@ -201,7 +201,7 @@ class _SummaryCard extends StatelessWidget {
                               child: LinearProgressIndicator(
                                 value: maxCount == 0 ? 0 : entry.value / maxCount,
                                 minHeight: 6,
-                                color: entry.key <= 2 ? AppColors.severityOrange : AppColors.riverTeal,
+                                color: entry.key <= 2 ? AppColors.severityOrange : context.brandAccent,
                                 backgroundColor: AppColors.hairline,
                               ),
                             ),
@@ -238,7 +238,7 @@ class _Stars extends StatelessWidget {
           Icon(
             i <= rating ? Icons.star_rounded : Icons.star_outline_rounded,
             size: 16,
-            color: i <= rating ? AppColors.severityYellow : AppColors.slateMuted,
+            color: i <= rating ? AppColors.severityYellow : context.inkMuted,
           ),
       ],
     );

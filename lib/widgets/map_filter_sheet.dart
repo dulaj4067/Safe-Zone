@@ -112,7 +112,7 @@ class MapFilterButton extends StatelessWidget {
         isLabelVisible: active,
         label: Text('$changedCount'),
         child: Material(
-          color: active ? AppColors.riverTeal : Colors.white,
+          color: active ? context.brandAccent : Colors.white,
           shape: const CircleBorder(),
           elevation: 2,
           child: InkWell(

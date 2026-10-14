@@ -115,7 +115,7 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
         onPressed: _openReportScreen,
         icon: const Icon(Icons.add),
         label: const Text('Report Incident'),
-        backgroundColor: AppColors.deepEstuary,
+        backgroundColor: context.brandFill,
         foregroundColor: Colors.white,
       ),
       body: Column(
@@ -272,14 +272,14 @@ class _FilterBar extends StatelessWidget {
 
           // My Reports Filter
           FilterChip(
-            avatar: const Icon(
+            avatar: Icon(
               Icons.person_pin_circle_outlined,
               size: 16,
-              color: AppColors.deepEstuary,
+              color: context.brandInk,
             ),
             label: const Text('My Reports'),
             selected: myReportsOnly,
-            selectedColor: AppColors.deepEstuary.withValues(alpha: 0.15),
+            selectedColor: context.brandInk.withValues(alpha: 0.15),
             onSelected: (val) => onMyReportsChanged(val),
           ),
           const SizedBox(width: 6),
@@ -293,7 +293,7 @@ class _FilterBar extends StatelessWidget {
             ),
             label: const Text('SOS Only'),
             selected: sosOnly,
-            selectedColor: AppColors.sosBackground,
+            selectedColor: context.dangerTint,
             onSelected: (val) => onSosChanged(val),
           ),
           const SizedBox(width: 6),
@@ -371,10 +371,10 @@ class _IncidentList extends StatelessWidget {
                     color: AppColors.seafoam.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.report_outlined,
                     size: 48,
-                    color: AppColors.deepEstuary,
+                    color: context.brandInk,
                   ),
                 ),
                 const SizedBox(height: 16),

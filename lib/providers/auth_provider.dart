@@ -49,7 +49,10 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> register({
+  /// Creates the account and returns its user id, or null on failure (see
+  /// [error]). The profile row is created server-side by the
+  /// `handle_new_user` trigger; the role is always assigned by the server.
+  Future<String?> register({
     required String email,
     required String password,
     required String fullName,
@@ -60,6 +63,9 @@ class AuthProvider extends ChangeNotifier {
       final response = await SupabaseService.client.auth.signUp(
         email: email,
         password: password,
+        // The link in the confirmation email lands on the auth-callback
+        // Edge Function, which opens the app (not the project's Site URL).
+        emailRedirectTo: authCallbackUrl,
         data: {
           'full_name': fullName,
           'phone': phone,
@@ -69,33 +75,43 @@ class AuthProvider extends ChangeNotifier {
       // If the project requires email confirmation, signUp succeeds but
       // returns no session yet. Either way we treat the call as successful
       // so the UI can show the "check your email" message.
-      if (response.user != null) {
-        // Attempt to upsert the profile row immediately (only works if the
-        // session was issued i.e. email-confirmation is disabled).
-        try {
-          await SupabaseService.client.from('profiles').upsert({
-            'id': response.user!.id,
-            'full_name': fullName,
-            'phone': phone,
-            'role': 'member',
-          });
-        } catch (_) {
-          // Profile upsert might fail when there's no active session yet
-          // (email confirmation pending). The DB trigger / confirmation
-          // webhook should handle creation in that case — ignore silently.
+      final user = response.user;
+      if (user != null) {
+        // Supabase returns a user with no identities when the email is
+        // already registered (to avoid revealing which emails exist).
+        if (user.identities != null && user.identities!.isEmpty) {
+          _error = 'An account with this email already exists. Try signing in.';
+          return null;
+        }
+        if (response.session != null) {
+          // Signed in immediately (email confirmation off): make sure the
+          // profile has the details from the form. Role is never sent.
+          try {
+            await SupabaseService.client.from('profiles').upsert({
+              'id': user.id,
+              'full_name': fullName,
+              'phone': phone,
+            });
+          } catch (e) {
+            debugPrint('register: profile upsert failed: $e');
+          }
         }
         _error = null;
-        return true;
+        return user.id;
       }
 
       _error = 'Registration failed. Please try again.';
-      return false;
+      return null;
     } on AuthException catch (e) {
-      _error = e.message;
-      return false;
+      // handle_new_user rejects a phone number that's already registered;
+      // Supabase Auth reports that as a generic database error.
+      _error = e.message.contains('Database error saving new user')
+          ? 'This mobile number is already registered. Sign in instead, or use a different number.'
+          : e.message;
+      return null;
     } catch (_) {
-      _error = 'An unexpected error occurred. Please try again.';
-      return false;
+      _error = "Couldn't reach the server. Check your connection and try again.";
+      return null;
     } finally {
       _setBusy(false);
     }
@@ -116,6 +132,12 @@ class AuthProvider extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  /// `https://PROJECT.supabase.co/functions/v1/auth-callback`
+  static String get authCallbackUrl {
+    final api = Uri.parse(SupabaseService.client.rest.url);
+    return '${api.origin}/functions/v1/auth-callback';
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

@@ -11,6 +11,7 @@ import '../providers/alert_provider.dart';
 import '../providers/map_focus_provider.dart';
 import '../providers/safety_provider.dart';
 import '../services/activity_history_service.dart';
+import '../services/onboarding_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/alert_banner.dart';
 import '../widgets/safety_circle_request_banner.dart';
@@ -86,7 +87,13 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       ),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await context.read<AlertProvider>().init();
+      final uid = SupabaseService.currentUserId;
+      final declined = uid != null &&
+          await OnboardingService().notificationsDeclined(uid);
+      if (!mounted) return;
+      await context.read<AlertProvider>().init(
+        requestNotificationPermission: !declined,
+      );
       await _loadProfileAndZones();
       // Loads circle-member "last known location" markers ahead of time so
       // they're ready as soon as the citizen looks at the home map, not
@@ -187,7 +194,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         ],
       ),
       // Home tab only — on the other tabs it covers list content.
-      floatingActionButton: isAuthority && _tabIndex == 0
+      floatingActionButton: isAuthority && _tabIndex == 0 && !_loadingProfile
           ? FloatingActionButton.extended(
               heroTag: 'new-alert-fab',
               icon: const Icon(Icons.campaign),
@@ -207,7 +214,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           : null,
       // Left side, so it doesn't cover the map's zoom controls.
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
-      bottomNavigationBar: BottomNavBar(
+      // Hidden until the profile has loaded: the splash shouldn't look like
+      // a usable app, and the tab set depends on the user's role.
+      bottomNavigationBar: _loadingProfile ? null : BottomNavBar(
         currentIndex: _tabIndex >= tabs.length ? 0 : _tabIndex,
         isAuthority: isAuthority,
         onDestinationSelected: (i) {

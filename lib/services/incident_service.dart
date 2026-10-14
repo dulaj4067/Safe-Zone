@@ -180,10 +180,14 @@ class IncidentService {
     if (verifiedBy != null) {
       updates['verified_by'] = verifiedBy;
     }
-    await SupabaseService.client
+    // RLS turns a forbidden update into "0 rows" rather than an error, so
+    // check the row came back before reporting the change as done.
+    final rows = await SupabaseService.client
         .from('incidents')
         .update(updates)
-        .eq('id', incidentId);
+        .eq('id', incidentId)
+        .select('id');
+    requireRowsAffected(rows, 'change this incident’s status');
   }
 
   /// Deletes an incident record from Supabase (authorities or the original reporter).

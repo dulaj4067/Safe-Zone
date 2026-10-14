@@ -31,44 +31,10 @@ class LiveEtaSharingScreen extends StatefulWidget {
 class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
   bool _safeBroadcastSent = false;
 
-  final List<SessionHistoryEntry> _sessionHistory = [
-    SessionHistoryEntry(
-      id: 's1',
-      title: 'Risk-zone route check-in',
-      occurredAt: DateTime(2024, 1, 10, 8, 40),
-      subtitle: 'Shared safe route update',
-    ),
-    SessionHistoryEntry(
-      id: 's2',
-      title: 'Shelter arrival confirmation',
-      occurredAt: DateTime(2024, 1, 11, 7, 5),
-      subtitle: 'Reached safer ground',
-    ),
-    SessionHistoryEntry(
-      id: 's3',
-      title: 'Flood map refresh',
-      occurredAt: DateTime(2024, 1, 12, 9, 15),
-      subtitle: 'Updated nearest safe route',
-    ),
-    SessionHistoryEntry(
-      id: 's4',
-      title: 'Family ETA sync',
-      occurredAt: DateTime(2024, 1, 13, 18, 30),
-      subtitle: 'Live share to selected contacts',
-    ),
-    SessionHistoryEntry(
-      id: 's5',
-      title: 'Evening safety ping',
-      occurredAt: DateTime(2024, 1, 14, 21, 0),
-      subtitle: 'Checked in after commute',
-    ),
-    SessionHistoryEntry(
-      id: 's6',
-      title: 'Night watch update',
-      occurredAt: DateTime(2024, 1, 15, 22, 10),
-      subtitle: 'Location beacon remained active',
-    ),
-  ];
+  /// The signed-in user's own recent sharing activity, loaded from the
+  /// server when the history sheet opens.
+  late final Future<List<SessionHistoryEntry>> _sessionHistory =
+      context.read<SafetyProvider>().loadMySessionHistory();
 
   @override
   void initState() {
@@ -110,7 +76,7 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                       Text(member.name,
                           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                       Text(member.relationship,
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                          style: TextStyle(color: context.inkMuted, fontSize: 13)),
                     ],
                   ),
                 ),
@@ -131,7 +97,7 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                       : member.lastSeenAt != null
                           ? 'Last seen ${timeAgo(member.lastSeenAt!)}'
                           : 'Last seen location unknown',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                  style: TextStyle(fontSize: 13, color: context.inkMuted),
                 ),
               ],
             ),
@@ -374,9 +340,26 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                                 ],
                               ),
                               const SizedBox(height: 12),
-                              SessionHistoryList(
-                                sessions: _sessionHistory,
-                                pageSize: 3,
+                              FutureBuilder<List<SessionHistoryEntry>>(
+                                future: _sessionHistory,
+                                builder: (context, snap) {
+                                  if (snap.connectionState != ConnectionState.done) {
+                                    return const Padding(
+                                      padding: EdgeInsets.all(24),
+                                      child: Center(child: CircularProgressIndicator()),
+                                    );
+                                  }
+                                  if (snap.hasError) {
+                                    return const Padding(
+                                      padding: EdgeInsets.symmetric(vertical: 16),
+                                      child: Text("Couldn't load your history. Check your connection and try again."),
+                                    );
+                                  }
+                                  return SessionHistoryList(
+                                    sessions: snap.data ?? const [],
+                                    pageSize: 3,
+                                  );
+                                },
                               ),
                             ],
                           ),
@@ -402,16 +385,21 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                   ? null
                   : () async {
                       setState(() => _safeBroadcastSent = true);
-                      await context.read<SafetyProvider>().sendImSafeBroadcast(
+                      final safety = context.read<SafetyProvider>();
+                      final ok = await safety.sendImSafeBroadcast(
                         currentRiskZone: widget.currentRiskZone,
                       );
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Your safety circle has been notified that you are safe.'),
+                      if (!context.mounted) return;
+                      if (!ok) setState(() => _safeBroadcastSent = false);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            ok
+                                ? "Your family will see that you're safe."
+                                : safety.errorMessage ?? 'Couldn\'t send "I\'m Safe".',
                           ),
-                        );
-                      }
+                        ),
+                      );
                     },
               icon: Icon(
                 _safeBroadcastSent ? Icons.check_circle : Icons.check_circle_outline,

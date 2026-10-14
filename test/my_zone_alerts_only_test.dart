@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:safezone/models/alert.dart';
 import 'package:safezone/models/app_user.dart';
 import 'package:safezone/models/zone.dart';
+import 'package:safezone/providers/accessibility_provider.dart';
 import 'package:safezone/providers/alert_provider.dart';
 import 'package:safezone/providers/auth_provider.dart';
 import 'package:safezone/providers/incident_provider.dart';
@@ -19,7 +20,7 @@ class _MockNotificationService implements NotificationService {
   DisasterAlert? lastAlert;
 
   @override
-  Future<void> init() async {}
+  Future<void> init({bool requestPermission = true}) async {}
 
   @override
   Future<bool> requestPermissions() async => true;
@@ -247,6 +248,7 @@ void main() {
             ChangeNotifierProvider<AlertProvider>.value(value: provider),
             ChangeNotifierProvider<IncidentProvider>(create: (_) => IncidentProvider()),
             ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
+            ChangeNotifierProvider<AccessibilityProvider>(create: (_) => AccessibilityProvider()),
           ],
           child: MaterialApp(
             home: SettingsScreen(

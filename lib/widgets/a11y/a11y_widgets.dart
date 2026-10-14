@@ -21,7 +21,7 @@ class A11yFocus extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
               border: focused
-                  ? Border.all(color: AppColors.riverTeal, width: 2)
+                  ? Border.all(color: context.brandAccent, width: 2)
                   : Border.all(color: Colors.transparent, width: 2),
             ),
             child: child,
@@ -52,7 +52,7 @@ class A11yErrorBanner extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.sosBackground,
+          color: context.dangerTint,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: AppColors.severityRed.withValues(alpha: 0.45)),
         ),
@@ -124,7 +124,7 @@ class A11yEmptyState extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 48, color: AppColors.riverTeal, semanticLabel: message),
+              Icon(icon, size: 48, color: context.brandAccent, semanticLabel: message),
               const SizedBox(height: 12),
               Text(
                 message,
@@ -174,7 +174,7 @@ class A11yStepHeader extends StatelessWidget {
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: AppColors.riverTeal,
+                color: context.brandAccent,
               ),
         ),
         const SizedBox(height: 4),
@@ -188,7 +188,7 @@ class A11yStepHeader extends StatelessWidget {
               value: current / total,
               minHeight: 6,
               backgroundColor: AppColors.hairline,
-              color: AppColors.deepEstuary,
+              color: context.brandInk,
             ),
           ),
         ),
@@ -407,9 +407,9 @@ class _InclusionSheetContent extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.accessibility_new_rounded,
-                    color: AppColors.riverTeal,
+                    color: context.brandAccent,
                     size: 24,
                     semanticLabel: 'Inclusion and accessibility',
                   ),
@@ -477,7 +477,7 @@ class _InclusionSheetContent extends StatelessWidget {
               // Economic & Environmental: Data Saver
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
-                secondary: const Icon(Icons.data_saver_on_outlined, color: AppColors.riverTeal),
+                secondary: Icon(Icons.data_saver_on_outlined, color: context.brandAccent),
                 title: Text(strings.t('dataSaver'), style: const TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: Text(strings.t('dataSaverHint')),
                 value: a11y.dataSaver,
@@ -487,7 +487,7 @@ class _InclusionSheetContent extends StatelessWidget {
               // Visual: Glare-Aware High Contrast Boost
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
-                secondary: const Icon(Icons.wb_sunny_outlined, color: AppColors.riverTeal),
+                secondary: Icon(Icons.wb_sunny_outlined, color: context.brandAccent),
                 title: Text(strings.t('glareBoost'), style: const TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: Text(strings.t('glareBoostHint')),
                 value: a11y.glareBoost,
@@ -497,7 +497,7 @@ class _InclusionSheetContent extends StatelessWidget {
               // Auditory: Captions & Siren Transcripts
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
-                secondary: const Icon(Icons.closed_caption_outlined, color: AppColors.riverTeal),
+                secondary: Icon(Icons.closed_caption_outlined, color: context.brandAccent),
                 title: Text(strings.t('captions'), style: const TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: Text(strings.t('captionsHint')),
                 value: a11y.captionsEnabled,
@@ -507,7 +507,7 @@ class _InclusionSheetContent extends StatelessWidget {
               // Auditory & Motor: Haptic Notifications
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
-                secondary: const Icon(Icons.vibration_outlined, color: AppColors.riverTeal),
+                secondary: Icon(Icons.vibration_outlined, color: context.brandAccent),
                 title: Text(strings.t('haptics'), style: const TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: Text(strings.t('hapticsHint')),
                 value: a11y.hapticsEnabled,
@@ -540,9 +540,9 @@ class _LanguageChip extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: (_) => onSelected(),
-      selectedColor: AppColors.deepEstuary,
+      selectedColor: context.brandInk,
       labelStyle: TextStyle(
-        color: selected ? Colors.white : AppColors.slateInk,
+        color: selected ? Colors.white : context.inkStrong,
         fontWeight: selected ? FontWeight.bold : FontWeight.w500,
         fontSize: 13,
       ),

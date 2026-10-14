@@ -75,7 +75,7 @@ class _BroadcastDashboardScreenState extends State<BroadcastDashboardScreen> {
           ),
           if (provider.isOffline)
             Material(
-              color: AppColors.offlineAmber,
+              color: context.cautionTint,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 child: Row(
@@ -278,27 +278,27 @@ class _AlertDashboardCard extends StatelessWidget {
                   margin: const EdgeInsets.only(top: 6),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.seafoam,
+                    color: context.tintSoft,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.riverTeal.withValues(alpha: 0.2)),
+                    border: Border.all(color: context.brandAccent.withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.closed_caption,
                         size: 18,
-                        color: AppColors.deepEstuary,
+                        color: context.brandInk,
                         semanticLabel: 'Siren broadcast transcript',
                       ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           transcriptText,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.deepEstuary,
+                            color: context.brandInk,
                           ),
                         ),
                       ),
@@ -322,7 +322,7 @@ class _AlertDashboardCard extends StatelessWidget {
                     _buildChannelBadge(
                       icon: Icons.notifications_active,
                       label: 'Push',
-                      color: AppColors.riverTeal,
+                      color: context.brandAccent,
                     ),
                     const SizedBox(width: 4),
                     _buildChannelBadge(
@@ -372,40 +372,56 @@ class _AlertDashboardCard extends StatelessWidget {
             ),
 
             const SizedBox(height: 10),
-            // Wrap rather than Row: all four actions don't fit on one line
-            // on a phone, so Resolve/Archive drop to a second line.
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            // Two lines on purpose: the main actions share the full width
+            // (so they always fit, whatever the screen or text size), and the
+            // state changes sit right-aligned underneath.
+            Row(
               children: [
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  ),
-                  icon: const Icon(Icons.analytics_outlined, size: 16),
-                  label: const Text('Resident Breakdown', style: TextStyle(fontSize: 12)),
-                  onPressed: () => AlertEngagementSheet.show(
-                    context,
-                    alert: alert,
-                    zones: zones,
-                  ),
-                ),
-                OutlinedButton.icon(
-                  key: Key('escalate_btn_${alert.id}'),
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    foregroundColor: AppColors.severityOrange,
-                    side: BorderSide(
-                      color: AppColors.severityOrange.withValues(alpha: 0.5),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    ),
+                    icon: const Icon(Icons.analytics_outlined, size: 16),
+                    label: const Text(
+                      'Resident Breakdown',
+                      style: TextStyle(fontSize: 12),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onPressed: () => AlertEngagementSheet.show(
+                      context,
+                      alert: alert,
+                      zones: zones,
                     ),
                   ),
-                  icon: const Icon(Icons.trending_up_rounded, size: 16, semanticLabel: 'Escalate or edit this broadcast'),
-                  label: const Text('Escalate', style: TextStyle(fontSize: 12)),
-                  onPressed: () => _showEscalateSheet(context, alert),
                 ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: Key('escalate_btn_${alert.id}'),
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      foregroundColor: AppColors.severityOrange,
+                      side: BorderSide(
+                        color: AppColors.severityOrange.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    icon: const Icon(Icons.trending_up_rounded, size: 16, semanticLabel: 'Escalate or edit this broadcast'),
+                    label: const Text(
+                      'Escalate',
+                      style: TextStyle(fontSize: 12),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onPressed: () => _showEscalateSheet(context, alert),
+                  ),
+                ),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
                 TextButton(
                   onPressed: () => _confirmAndRun(
                     context,
@@ -479,7 +495,7 @@ class _AlertDashboardCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.mist,
+        color: context.surfaceSoft,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
       ),
@@ -492,14 +508,14 @@ class _AlertDashboardCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.share_location, size: 14, color: AppColors.deepEstuary),
+                  Icon(Icons.share_location, size: 14, color: context.brandInk),
                   const SizedBox(width: 4),
                   Text(
                     engagement.zoneName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
-                      color: AppColors.deepEstuary,
+                      color: context.brandInk,
                     ),
                   ),
                 ],
@@ -581,8 +597,8 @@ class _AlertDashboardCard extends StatelessWidget {
                       Container(
                         width: 8,
                         height: 8,
-                        decoration: const BoxDecoration(
-                          color: AppColors.deepEstuary,
+                        decoration: BoxDecoration(
+                          color: context.brandInk,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -596,10 +612,10 @@ class _AlertDashboardCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     '${engagement.seenPercentage.toStringAsFixed(1)}% (${engagement.seenCount}/${engagement.totalResidents})',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.deepEstuary,
+                      color: context.brandInk,
                     ),
                   ),
                 ],
@@ -818,19 +834,19 @@ class _EscalateSheetState extends State<_EscalateSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Escalate / Edit Broadcast',
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.slateInk,
+                        color: context.inkStrong,
                       ),
                     ),
                     Text(
                       'Changes are broadcast-wide immediately.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.slateMuted,
+                        color: context.inkMuted,
                       ),
                     ),
                   ],

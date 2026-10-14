@@ -40,3 +40,40 @@ class AppColors {
   static const offlineSlate = Color(0xFF5E6B78); // offline strip
   static const sosBackground = Color(0xFFFDECEA); // SOS row/card tint
 }
+
+/// Brand colours that work in both themes. The [AppColors] navy tokens are
+/// tuned for the cream light theme and nearly vanish on the dark navy
+/// background, so text, icons and borders should use these instead.
+extension ThemedBrandColors on BuildContext {
+  bool get isDarkMode => Theme.of(this).brightness == Brightness.dark;
+
+  /// Headings, icons, outlines (was [AppColors.deepEstuary]).
+  Color get brandInk => isDarkMode ? const Color(0xFFA9CBEA) : AppColors.deepEstuary;
+
+  /// Secondary accents (was [AppColors.riverTeal]).
+  Color get brandAccent => isDarkMode ? const Color(0xFF7FB3D9) : AppColors.riverTeal;
+
+  /// Body text (was [AppColors.slateInk]).
+  Color get inkStrong => isDarkMode ? AppColors.foamText : AppColors.slateInk;
+
+  /// Secondary text (was [AppColors.slateMuted]).
+  Color get inkMuted => isDarkMode ? const Color(0xFFB9C6D3) : AppColors.slateMuted;
+
+  /// Filled backgrounds that carry white text (buttons, chips).
+  Color get brandFill => isDarkMode ? const Color(0xFF2F6690) : AppColors.deepEstuary;
+
+  /// Page-tone panels (was [AppColors.mist]).
+  Color get surfaceSoft => isDarkMode ? AppColors.harborSurface : AppColors.mist;
+
+  /// Cards / chips on top of the page (was [AppColors.cloud] / white).
+  Color get surfaceCard => isDarkMode ? AppColors.harborSurface : AppColors.cloud;
+
+  /// Light brand tint (was [AppColors.seafoam]).
+  Color get tintSoft => isDarkMode ? const Color(0xFF1E3D5C) : AppColors.seafoam;
+
+  /// SOS / danger tint (was [AppColors.sosBackground]).
+  Color get dangerTint => isDarkMode ? const Color(0xFF4A2226) : AppColors.sosBackground;
+
+  /// Caution / offline tint (was [AppColors.offlineAmber]).
+  Color get cautionTint => isDarkMode ? const Color(0xFF4A3D14) : AppColors.offlineAmber;
+}

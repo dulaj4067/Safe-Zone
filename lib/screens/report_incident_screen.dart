@@ -365,11 +365,11 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                 color: _isSos
                     ? (isDark
                         ? AppColors.severityRed.withValues(alpha: 0.2)
-                        : AppColors.sosBackground)
+                        : context.dangerTint)
                     : (isDark ? AppColors.harborSurface : AppColors.cloud),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: _isSos ? AppColors.severityRed : AppColors.deepEstuary.withValues(alpha: 0.15),
+                  color: _isSos ? AppColors.severityRed : context.brandInk.withValues(alpha: 0.15),
                   width: _isSos ? 2 : 1,
                 ),
               ),
@@ -384,7 +384,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                     ),
                     child: Icon(
                       Icons.warning_amber_rounded,
-                      color: _isSos ? Colors.white : AppColors.slateMuted,
+                      color: _isSos ? Colors.white : context.inkMuted,
                       size: 24,
                     ),
                   ),
@@ -678,7 +678,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                           decoration: BoxDecoration(
                             color: isDark ? AppColors.harborSurface : AppColors.seafoam.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.riverTeal),
+                            border: Border.all(color: context.brandAccent),
                           ),
                           child: Stack(
                             children: [
@@ -686,7 +686,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Icon(Icons.video_file, color: AppColors.deepEstuary, size: 32),
+                                    Icon(Icons.video_file, color: context.brandInk, size: 32),
                                     const SizedBox(height: 4),
                                     Text(
                                       _videoFileName ?? 'Video selected',
@@ -743,7 +743,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             // ─── Submit Button ─────────────────────────────────────────────
             FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: _isSos ? AppColors.severityRed : AppColors.deepEstuary,
+                backgroundColor: _isSos ? AppColors.severityRed : context.brandFill,
                 minimumSize: const Size.fromHeight(50),
               ),
               onPressed: isSubmitting ? null : _checkDuplicateThenSubmit,
@@ -886,24 +886,24 @@ class _DuplicateDialog extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 7, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppColors.riverTeal.withValues(alpha: 0.12),
+                            color: context.brandAccent.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: AppColors.riverTeal.withValues(alpha: 0.3),
+                              color: context.brandAccent.withValues(alpha: 0.3),
                             ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.people_alt_outlined,
-                                  size: 12, color: AppColors.riverTeal),
+                              Icon(Icons.people_alt_outlined,
+                                  size: 12, color: context.brandAccent),
                               const SizedBox(width: 3),
                               Text(
                                 '${duplicate.credibilityScore}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.riverTeal,
+                                  color: context.brandAccent,
                                 ),
                               ),
                             ],
@@ -969,7 +969,7 @@ class _DuplicateDialog extends StatelessWidget {
             // Primary: confirm existing
             FilledButton.icon(
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.deepEstuary,
+                backgroundColor: context.brandFill,
                 minimumSize: const Size.fromHeight(44),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
@@ -990,7 +990,7 @@ class _DuplicateDialog extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
                 side:
-                    const BorderSide(color: AppColors.deepEstuary, width: 1.5),
+                    BorderSide(color: context.brandInk, width: 1.5),
               ),
               icon: const Icon(Icons.add_location_alt_outlined, size: 18),
               label: const Text('Still File a New Report'),
