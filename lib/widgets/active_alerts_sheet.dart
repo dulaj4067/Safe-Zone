@@ -58,7 +58,7 @@ class _ActiveAlertsSheet extends StatelessWidget {
                   '${alerts.length}',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: AppColors.slateMuted,
+                    color: context.inkMuted,
                   ),
                 ),
               ],

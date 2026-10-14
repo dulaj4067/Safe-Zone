@@ -28,7 +28,7 @@ class SafetyCircleRequestBanner extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.shield_outlined, color: AppColors.deepEstuary),
+              Icon(Icons.shield_outlined, color: context.brandInk),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -42,7 +42,7 @@ class SafetyCircleRequestBanner extends StatelessWidget {
                     Text(
                       'You\'ll see each other\'s location whenever either of you '
                       'shares it. Only confirm if you know them.',
-                      style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
+                      style: TextStyle(fontSize: 12.5, color: context.inkMuted),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -54,7 +54,7 @@ class SafetyCircleRequestBanner extends StatelessWidget {
                         const SizedBox(width: 4),
                         FilledButton(
                           style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.deepEstuary,
+                            backgroundColor: context.brandFill,
                             minimumSize: const Size(0, 36),
                           ),
                           onPressed: () => _respond(context, request, true),

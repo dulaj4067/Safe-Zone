@@ -76,7 +76,7 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                       Text(member.name,
                           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                       Text(member.relationship,
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                          style: TextStyle(color: context.inkMuted, fontSize: 13)),
                     ],
                   ),
                 ),
@@ -97,7 +97,7 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                       : member.lastSeenAt != null
                           ? 'Last seen ${timeAgo(member.lastSeenAt!)}'
                           : 'Last seen location unknown',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                  style: TextStyle(fontSize: 13, color: context.inkMuted),
                 ),
               ],
             ),

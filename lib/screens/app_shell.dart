@@ -194,7 +194,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         ],
       ),
       // Home tab only — on the other tabs it covers list content.
-      floatingActionButton: isAuthority && _tabIndex == 0
+      floatingActionButton: isAuthority && _tabIndex == 0 && !_loadingProfile
           ? FloatingActionButton.extended(
               heroTag: 'new-alert-fab',
               icon: const Icon(Icons.campaign),
@@ -214,7 +214,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           : null,
       // Left side, so it doesn't cover the map's zoom controls.
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
-      bottomNavigationBar: BottomNavBar(
+      // Hidden until the profile has loaded: the splash shouldn't look like
+      // a usable app, and the tab set depends on the user's role.
+      bottomNavigationBar: _loadingProfile ? null : BottomNavBar(
         currentIndex: _tabIndex >= tabs.length ? 0 : _tabIndex,
         isAuthority: isAuthority,
         onDestinationSelected: (i) {

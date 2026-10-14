@@ -490,7 +490,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
               decoration: BoxDecoration(
                 color: isDark
                     ? AppColors.severityRed.withValues(alpha: 0.2)
-                    : AppColors.sosBackground,
+                    : context.dangerTint,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.severityRed),
               ),
@@ -520,7 +520,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
             decoration: BoxDecoration(
               color: isDark ? AppColors.harborSurface : AppColors.cloud,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.deepEstuary.withValues(alpha: 0.1)),
+              border: Border.all(color: context.brandInk.withValues(alpha: 0.1)),
             ),
             child: Row(
               children: [
@@ -562,7 +562,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
             decoration: BoxDecoration(
               color: isDark ? AppColors.harborSurface : AppColors.cloud,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.deepEstuary.withValues(alpha: 0.1)),
+              border: Border.all(color: context.brandInk.withValues(alpha: 0.1)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -590,7 +590,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
               decoration: BoxDecoration(
                 color: isDark ? AppColors.harborSurface : AppColors.cloud,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.deepEstuary.withValues(alpha: 0.1)),
+                border: Border.all(color: context.brandInk.withValues(alpha: 0.1)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -634,7 +634,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.videocam, color: AppColors.deepEstuary),
+                          Icon(Icons.videocam, color: context.brandInk),
                           const SizedBox(width: 10),
                           const Expanded(
                             child: Text(
@@ -658,7 +658,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
             decoration: BoxDecoration(
               color: isDark ? AppColors.harborSurface : AppColors.cloud,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.deepEstuary.withValues(alpha: 0.1)),
+              border: Border.all(color: context.brandInk.withValues(alpha: 0.1)),
             ),
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -727,14 +727,14 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
             decoration: BoxDecoration(
               color: isDark ? AppColors.harborSurface : AppColors.cloud,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.deepEstuary.withValues(alpha: 0.1)),
+              border: Border.all(color: context.brandInk.withValues(alpha: 0.1)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.people_outline, size: 20, color: AppColors.deepEstuary),
+                    Icon(Icons.people_outline, size: 20, color: context.brandInk),
                     const SizedBox(width: 8),
                     // Expanded so the title wraps instead of pushing the
                     // confirmations chip off the edge on narrow phones.
@@ -748,14 +748,14 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.deepEstuary.withValues(alpha: 0.1),
+                        color: context.brandInk.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         '${_incident.credibilityScore} Confirmations',
                         style: AppTheme.dataText(context).copyWith(
                           fontWeight: FontWeight.bold,
-                          color: AppColors.deepEstuary,
+                          color: context.brandInk,
                         ),
                       ),
                     ),
@@ -817,7 +817,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                 color: isDark ? AppColors.harborSurface : AppColors.cloud,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: AppColors.deepEstuary.withValues(alpha: 0.35),
+                  color: context.brandInk.withValues(alpha: 0.35),
                   width: 1.5,
                 ),
               ),
@@ -826,7 +826,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.person_pin_circle_outlined, color: AppColors.deepEstuary, size: 20),
+                      Icon(Icons.person_pin_circle_outlined, color: context.brandInk, size: 20),
                       const SizedBox(width: 8),
                       const Text(
                         'Your Incident Report Controls',
@@ -836,15 +836,15 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: AppColors.deepEstuary.withValues(alpha: 0.12),
+                          color: context.brandInk.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Reporter',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.deepEstuary,
+                            color: context.brandInk,
                           ),
                         ),
                       ),
@@ -916,20 +916,22 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                 color: isDark ? AppColors.harborSurface : AppColors.cloud,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: AppColors.riverTeal.withValues(alpha: 0.4),
+                  color: context.brandAccent.withValues(alpha: 0.4),
                   width: 1.5,
                 ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.admin_panel_settings_outlined, color: AppColors.riverTeal, size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        'Authority Verification & Moderation',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      Icon(Icons.admin_panel_settings_outlined, color: context.brandAccent, size: 20),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Authority Verification & Moderation',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
                       ),
                     ],
                   ),

@@ -343,7 +343,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
               decoration: BoxDecoration(
                 color: isDark ? AppColors.harborSurface : AppColors.cloud,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.deepEstuary.withValues(alpha: 0.15)),
+                border: Border.all(color: context.brandInk.withValues(alpha: 0.15)),
               ),
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -351,7 +351,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.info_outline, color: AppColors.deepEstuary, size: 20),
+                      Icon(Icons.info_outline, color: context.brandInk, size: 20),
                       const SizedBox(width: 8),
                       const Text(
                         'Incident Status',
@@ -420,11 +420,11 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
                 color: _isSos
                     ? (isDark
                         ? AppColors.severityRed.withValues(alpha: 0.2)
-                        : AppColors.sosBackground)
+                        : context.dangerTint)
                     : (isDark ? AppColors.harborSurface : AppColors.cloud),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: _isSos ? AppColors.severityRed : AppColors.deepEstuary.withValues(alpha: 0.15),
+                  color: _isSos ? AppColors.severityRed : context.brandInk.withValues(alpha: 0.15),
                   width: _isSos ? 2 : 1,
                 ),
               ),
@@ -439,7 +439,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
                     ),
                     child: Icon(
                       Icons.warning_amber_rounded,
-                      color: _isSos ? Colors.white : AppColors.slateMuted,
+                      color: _isSos ? Colors.white : context.inkMuted,
                       size: 24,
                     ),
                   ),
@@ -726,7 +726,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
                           decoration: BoxDecoration(
                             color: isDark ? AppColors.harborSurface : AppColors.seafoam.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.riverTeal),
+                            border: Border.all(color: context.brandAccent),
                           ),
                           child: Stack(
                             children: [
@@ -734,7 +734,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Icon(Icons.video_file, color: AppColors.deepEstuary, size: 32),
+                                    Icon(Icons.video_file, color: context.brandInk, size: 32),
                                     const SizedBox(height: 4),
                                     Text(
                                       _newVideoFileName ?? 'Video Attached',
@@ -775,7 +775,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
             // ─── Save Changes Button ───────────────────────────────────────
             FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: _isSos ? AppColors.severityRed : AppColors.deepEstuary,
+                backgroundColor: _isSos ? AppColors.severityRed : context.brandFill,
                 minimumSize: const Size.fromHeight(50),
               ),
               onPressed: isSubmitting ? null : _saveChanges,

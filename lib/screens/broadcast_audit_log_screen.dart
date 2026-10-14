@@ -270,7 +270,7 @@ class _AuditLogCard extends StatelessWidget {
                     entry.details,
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey.shade800,
+                      color: context.inkStrong,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -279,14 +279,14 @@ class _AuditLogCard extends StatelessWidget {
                       Icon(
                         Icons.person_outline,
                         size: 14,
-                        color: Colors.grey.shade600,
+                        color: context.inkMuted,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         'By ${entry.performedBy}',
                         style: TextStyle(
                           fontSize: 11,
-                          color: Colors.grey.shade600,
+                          color: context.inkMuted,
                         ),
                       ),
                       if (entry.zoneName != null && entry.zoneName!.isNotEmpty) ...[
@@ -294,14 +294,14 @@ class _AuditLogCard extends StatelessWidget {
                         Icon(
                           Icons.location_on_outlined,
                           size: 14,
-                          color: Colors.grey.shade600,
+                          color: context.inkMuted,
                         ),
                         const SizedBox(width: 2),
                         Text(
                           entry.zoneName!,
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey.shade600,
+                            color: context.inkMuted,
                           ),
                         ),
                       ],

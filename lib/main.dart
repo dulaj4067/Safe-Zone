@@ -127,7 +127,11 @@ class _ThemedApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: light,
       darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
+      themeMode: a11y.themeMode,
+      // Switch themes instantly: with the default cross-fade, button labels
+      // that take theme-dependent colours kept the old theme's colour after
+      // a live Light/Dark switch.
+      themeAnimationDuration: Duration.zero,
       locale: a11y.locale,
       supportedLocales: const [
         Locale('en'),

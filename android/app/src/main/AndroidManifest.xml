@@ -41,6 +41,15 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="safezone" android:host="family-invite"/>
             </intent-filter>
+            <!-- Email confirmation: the auth-callback Edge Function sends
+                 safezone://login-callback?code=..., which supabase_flutter
+                 exchanges for a session. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="safezone" android:host="login-callback"/>
+            </intent-filter>
             <!-- Links are handled by app_links, not Flutter's router. -->
             <meta-data
               android:name="flutter_deeplinking_enabled"

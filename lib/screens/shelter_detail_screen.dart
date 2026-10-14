@@ -425,16 +425,19 @@ class ShelterStatusPill extends StatelessWidget {
       'closed' => ('CLOSED', AppColors.severityRed),
       _ => (status.toUpperCase(), AppColors.slateMuted),
     };
+    // The saturated status colours are too dark as text on the dark theme's
+    // navy, so lighten the text (and strengthen the tint) there.
+    final dark = context.isDarkMode;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: dark ? 0.25 : 0.12),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: color,
+          color: dark ? Color.lerp(color, Colors.white, 0.5) : color,
           fontSize: 12,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.3,
@@ -586,13 +589,13 @@ class _ShelterMiniMap extends StatelessWidget {
                       BoxShadow(color: Colors.black26, blurRadius: 3),
                     ],
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.map_outlined,
                         size: 16,
-                        color: AppColors.riverTeal,
+                        color: context.brandAccent,
                       ),
                       SizedBox(width: 6),
                       Text(
@@ -600,7 +603,7 @@ class _ShelterMiniMap extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.riverTeal,
+                          color: context.brandAccent,
                         ),
                       ),
                     ],
@@ -817,7 +820,7 @@ class _EmptyNote extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        leading: Icon(icon, color: AppColors.slateMuted),
+        leading: Icon(icon, color: context.inkMuted),
         title: Text(text, style: Theme.of(context).textTheme.bodyMedium),
       ),
     );

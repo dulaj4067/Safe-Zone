@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'package:provider/provider.dart';
 
 import '../models/alert.dart';
@@ -157,7 +158,7 @@ void showAlertDetailSheet(BuildContext context, DisasterAlert alert) {
             const SizedBox(height: 8),
             Text(
               'Type: ${alert.alertType.toUpperCase()} · Radius: ${alert.radiusMeters}m',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 12, color: context.inkMuted),
             ),
             Builder(
               builder: (ctx) {

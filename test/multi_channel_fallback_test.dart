@@ -216,6 +216,7 @@ void main() {
             ChangeNotifierProvider<AlertProvider>.value(value: provider),
             ChangeNotifierProvider<IncidentProvider>(create: (_) => IncidentProvider()),
             ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
+            ChangeNotifierProvider<AccessibilityProvider>(create: (_) => AccessibilityProvider()),
           ],
           child: MaterialApp(
             home: SettingsScreen(

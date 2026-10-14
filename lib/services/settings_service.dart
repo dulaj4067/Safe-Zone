@@ -1,16 +1,15 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Persistence for the handful of Settings toggles that don't have an
-/// existing home in a domain service (compare [AlertService], which
-/// backs the alert-delivery preferences).
+/// Device-local persistence for display and inclusion preferences (theme,
+/// language, data saver, haptics, captions, glare boost) that don't belong
+/// to a domain service (compare [AlertService], which owns the
+/// alert-delivery preferences).
 ///
-/// NOTE: unlike the alert-delivery preferences, none of these three currently
-/// gate any real behaviour elsewhere in the app — there's no background
-/// high-accuracy location beacon, no auto-escalation pipeline, and no
-/// external dispatch-relay integration to turn on or off. Persisting them
-/// here at least means the toggle a citizen/authority sets survives an app
-/// restart instead of silently resetting, but building the underlying
-/// features is separate, larger work.
+/// The live-location-beacon, auto-escalate-SOS and auto-relay getters below
+/// are legacy: their Settings toggles were removed because no feature ever
+/// acted on them, and a switch that does nothing in a safety app is worse
+/// than no switch. They're kept only so existing stored values aren't
+/// orphaned; wire them to real behaviour before surfacing them again.
 class SettingsService {
   static const String _prefLiveLocationBeacon = 'pref_live_location_beacon';
   static const String _prefAutoEscalateSos = 'pref_auto_escalate_sos';
@@ -20,6 +19,18 @@ class SettingsService {
   static const String _prefCaptions = 'pref_a11y_captions';
   static const String _prefGlareBoost = 'pref_a11y_glare_boost';
   static const String _prefLocale = 'pref_a11y_locale';
+  static const String _prefThemeMode = 'pref_theme_mode';
+
+  /// 'system' (default), 'light' or 'dark'.
+  Future<String> getThemeMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_prefThemeMode) ?? 'system';
+  }
+
+  Future<void> saveThemeMode(String mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefThemeMode, mode);
+  }
 
   Future<bool> getLiveLocationBeacon() async {
     final prefs = await SharedPreferences.getInstance();

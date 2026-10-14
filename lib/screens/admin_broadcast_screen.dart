@@ -121,7 +121,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: AppColors.deepEstuary,
+        backgroundColor: context.brandFill,
         duration: const Duration(seconds: 4),
       ),
     );
@@ -193,7 +193,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                   child: FilledButton.icon(
                     key: const Key('broadcast_submit_btn'),
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.deepEstuary,
+                      backgroundColor: context.brandFill,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     icon: form.isSubmitting
@@ -399,7 +399,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
   Widget _buildDeliveryChannelsCard(BuildContext context, AlertFormProvider form) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.mist,
+        color: context.surfaceSoft,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
       ),
@@ -412,19 +412,19 @@ class _BroadcastFormState extends State<_BroadcastForm> {
             children: [
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.cell_tower,
                     size: 20,
-                    color: AppColors.deepEstuary,
+                    color: context.brandInk,
                     semanticLabel: 'Delivery channels',
                   ),
                   const SizedBox(width: 8),
-                  const Text(
+                  Text(
                     'Delivery Channels',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
-                      color: AppColors.slateInk,
+                      color: context.inkStrong,
                     ),
                   ),
                 ],
@@ -469,9 +469,9 @@ class _BroadcastFormState extends State<_BroadcastForm> {
             ],
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Simultaneously dispatch across online, cellular, and acoustic channels to guarantee reach regardless of citizen connectivity:',
-            style: TextStyle(fontSize: 12, color: AppColors.slateMuted),
+            style: TextStyle(fontSize: 12, color: context.inkMuted),
           ),
           const SizedBox(height: 12),
 
@@ -482,7 +482,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
             title: 'Push Notification',
             subtitle: 'Instant in-app alerts and OS-level lock screen notifications',
             icon: Icons.notifications_active_outlined,
-            iconColor: AppColors.riverTeal,
+            iconColor: context.brandAccent,
             value: form.dispatchPush,
             onChanged: (v) => context.read<AlertFormProvider>().togglePush(v ?? false),
           ),
@@ -550,7 +550,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
       child: CheckboxListTile(
         value: value,
         onChanged: onChanged,
-        activeColor: AppColors.deepEstuary,
+        activeColor: context.brandInk,
         dense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
         secondary: CircleAvatar(
@@ -563,14 +563,14 @@ class _BroadcastFormState extends State<_BroadcastForm> {
           style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 13,
-            color: value ? AppColors.slateInk : Colors.grey.shade600,
+            color: value ? context.inkStrong : Colors.grey.shade600,
           ),
         ),
         subtitle: Text(
           subtitle,
           style: TextStyle(
             fontSize: 11,
-            color: value ? AppColors.slateMuted : Colors.grey.shade500,
+            color: value ? context.inkMuted : Colors.grey.shade500,
           ),
         ),
       ),

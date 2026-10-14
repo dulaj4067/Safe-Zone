@@ -6,7 +6,10 @@ import 'package:provider/provider.dart';
 import '../l10n/admin_strings.dart';
 import '../services/settings_service.dart';
 
-/// Inclusion preferences used by authority/admin screens.
+/// App-wide display and inclusion preferences: theme mode, language,
+/// data saver, haptics, captions and glare boost. Read by [MaterialApp] (theme
+/// and locale) and by the admin screens' inclusion controls. Values are
+/// persisted per device through [SettingsService].
 class AccessibilityProvider extends ChangeNotifier {
   AccessibilityProvider({SettingsService? settings})
       : _settings = settings ?? SettingsService() {
@@ -20,6 +23,7 @@ class AccessibilityProvider extends ChangeNotifier {
   bool captionsEnabled = true;
   bool glareBoost = false;
   String localeCode = 'en';
+  ThemeMode themeMode = ThemeMode.system;
   bool _loaded = false;
 
   bool get isLoaded => _loaded;
@@ -36,6 +40,11 @@ class AccessibilityProvider extends ChangeNotifier {
     captionsEnabled = await _settings.getCaptions();
     glareBoost = await _settings.getGlareBoost();
     localeCode = await _settings.getLocaleCode();
+    final savedTheme = await _settings.getThemeMode();
+    themeMode = ThemeMode.values.firstWhere(
+      (m) => m.name == savedTheme,
+      orElse: () => ThemeMode.system,
+    );
     _loaded = true;
     notifyListeners();
   }
@@ -62,6 +71,14 @@ class AccessibilityProvider extends ChangeNotifier {
     glareBoost = value;
     notifyListeners();
     await _settings.saveGlareBoost(value);
+  }
+
+  /// Light, dark, or follow the phone ([ThemeMode.system], the default).
+  /// Notifies first so the switch is instant, then persists.
+  Future<void> setThemeMode(ThemeMode mode) async {
+    themeMode = mode;
+    notifyListeners();
+    await _settings.saveThemeMode(mode.name);
   }
 
   Future<void> setLocaleCode(String code) async {

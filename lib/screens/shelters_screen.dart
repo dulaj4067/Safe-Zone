@@ -303,7 +303,7 @@ class _Message extends StatelessWidget {
     return ListView(
       children: [
         const SizedBox(height: 80),
-        Icon(icon, size: 48, color: AppColors.slateMuted),
+        Icon(icon, size: 48, color: context.inkMuted),
         const SizedBox(height: 12),
         Center(child: Text(text, textAlign: TextAlign.center)),
       ],

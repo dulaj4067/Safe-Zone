@@ -44,7 +44,7 @@ class ActiveRouteBanner extends StatelessWidget {
                 route.mode == TravelMode.walking
                     ? Icons.directions_walk
                     : Icons.directions_car,
-                color: AppColors.deepEstuary,
+                color: context.brandInk,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -94,9 +94,9 @@ class ActiveRouteBanner extends StatelessWidget {
                 IconButton(
                   tooltip: 'Open directions',
                   visualDensity: VisualDensity.compact,
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.directions,
-                    color: AppColors.riverTeal,
+                    color: context.brandAccent,
                   ),
                   onPressed: onOpenDirections,
                 ),

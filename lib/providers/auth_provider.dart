@@ -63,6 +63,9 @@ class AuthProvider extends ChangeNotifier {
       final response = await SupabaseService.client.auth.signUp(
         email: email,
         password: password,
+        // The link in the confirmation email lands on the auth-callback
+        // Edge Function, which opens the app (not the project's Site URL).
+        emailRedirectTo: authCallbackUrl,
         data: {
           'full_name': fullName,
           'phone': phone,
@@ -129,6 +132,12 @@ class AuthProvider extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  /// `https://PROJECT.supabase.co/functions/v1/auth-callback`
+  static String get authCallbackUrl {
+    final api = Uri.parse(SupabaseService.client.rest.url);
+    return '${api.origin}/functions/v1/auth-callback';
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

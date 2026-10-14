@@ -81,6 +81,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 20),
             ],
 
+            // ─── Appearance ────────────────────────────────────────────────
+            _buildSectionHeader('Appearance', Icons.palette_outlined),
+            const SizedBox(height: 8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<ThemeMode>(
+                    key: const Key('theme_mode_selector'),
+                    segments: const [
+                      ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_outlined), label: Text('Light')),
+                      ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto_outlined), label: Text('System')),
+                      ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_outlined), label: Text('Dark')),
+                    ],
+                    selected: {context.watch<AccessibilityProvider>().themeMode},
+                    onSelectionChanged: (s) =>
+                        context.read<AccessibilityProvider>().setThemeMode(s.first),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
             // ─── Emergency & Alert Preferences ────────────────────────────
             _buildSectionHeader('Emergency & Warning Notifications', Icons.notifications_active_outlined),
             const SizedBox(height: 8),
@@ -109,6 +133,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSectionHeader('Network & System Status', Icons.info_outline),
             const SizedBox(height: 8),
             _buildSystemStatusCard(context),
+            const SizedBox(height: 28),
+
+            // ─── Privacy & Data ────────────────────────────────────────────
+            _buildSectionHeader('Privacy & Data', Icons.privacy_tip_outlined),
+            const SizedBox(height: 8),
+            Card(
+              child: ListTile(
+                key: const Key('privacy_settings_tile'),
+                leading: Icon(Icons.privacy_tip_outlined, color: context.brandInk),
+                title: const Text('Privacy & data'),
+                subtitle: const Text('Policies, what you share, app tour, delete account'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PrivacySettingsScreen()),
+                ),
+              ),
+            ),
             const SizedBox(height: 28),
 
             // ─── Logout Button ─────────────────────────────────────────────
@@ -144,9 +186,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       null => 'Civilian',
     };
 
-    final roleBadgeColor = isAuthority
-        ? AppColors.riverTeal
-        : AppColors.deepEstuary;
+    final roleBadgeColor = isAuthority ? context.brandAccent : context.brandInk;
 
     return Container(
       decoration: BoxDecoration(
@@ -213,7 +253,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         user.phone,
                         style: AppTheme.dataText(context).copyWith(
                           fontSize: 12,
-                          color: isDark ? AppColors.foamText : AppColors.slateMuted,
+                          color: isDark ? AppColors.foamText : context.inkMuted,
                         ),
                       )
                     else if (user != null)
@@ -322,8 +362,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.broadcast_on_personal,
-                    color: AppColors.riverTeal, size: 20),
+                Icon(Icons.broadcast_on_personal,
+                    color: context.brandAccent, size: 20),
                 const SizedBox(width: 8),
                 Text(
                   'Emergency Broadcast Controls',
@@ -348,7 +388,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   '${draftRadiusKm.toStringAsFixed(1)} km',
                   style: AppTheme.dataText(context).copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppColors.riverTeal,
+                    color: context.brandAccent,
                   ),
                 ),
               ],
@@ -358,7 +398,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               max: 25.0,
               divisions: 24,
               value: draftRadiusKm,
-              activeColor: AppColors.riverTeal,
+              activeColor: context.brandAccent,
               onChanged: (v) => setState(() => _draftBroadcastRadiusKm = v),
               onChangeEnd: (v) {
                 setState(() => _draftBroadcastRadiusKm = null);
@@ -368,8 +408,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 8),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.riverTeal,
-                side: const BorderSide(color: AppColors.riverTeal),
+                foregroundColor: context.brandAccent,
+                side: BorderSide(color: context.brandAccent),
                 minimumSize: const Size.fromHeight(42),
               ),
               icon: const Icon(Icons.campaign, size: 18),
@@ -409,13 +449,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 8),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.deepEstuary,
-                side: const BorderSide(color: AppColors.deepEstuary),
+                foregroundColor: context.brandInk,
+                side: BorderSide(color: context.brandInk),
                 minimumSize: const Size.fromHeight(42),
               ),
               icon: const Icon(Icons.accessibility_new_rounded, size: 18),
               label: const Text('Inclusion & Accessibility Settings'),
               onPressed: () => showA11yInclusionSheet(context),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              key: const Key('deletion_requests_button'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: context.brandInk,
+                side: BorderSide(color: context.brandInk),
+                minimumSize: const Size.fromHeight(42),
+              ),
+              icon: const Icon(Icons.person_remove_outlined, size: 18),
+              label: const Text('Account Deletion Requests'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DeletionRequestsScreen()),
+              ),
             ),
           ],
         ),
@@ -475,7 +530,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     : widget.zones.first.id,
                 decoration: InputDecoration(
                   labelText: 'Designated Safety Zone',
-                  prefixIcon: const Icon(Icons.location_on, color: AppColors.riverTeal),
+                  prefixIcon: Icon(Icons.location_on, color: context.brandAccent),
                   filled: true,
                   fillColor: isDark ? AppColors.harborSurface : AppColors.cloud,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -677,7 +732,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         children: [
           ListTile(
-            leading: const Icon(Icons.person_pin_circle_outlined, color: AppColors.deepEstuary),
+            leading: Icon(Icons.person_pin_circle_outlined, color: context.brandInk),
             title: const Text('My Reported Incidents'),
             subtitle: const Text('View, edit details, or resolve your incident reports'),
             trailing: Row(
@@ -686,14 +741,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.deepEstuary.withValues(alpha: 0.12),
+                    color: context.brandInk.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     '$myIncidentsCount',
                     style: AppTheme.dataText(context).copyWith(
                       fontWeight: FontWeight.bold,
-                      color: AppColors.deepEstuary,
+                      color: context.brandInk,
                     ),
                   ),
                 ),
@@ -714,7 +769,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(height: 1),
           ListTile(
-            leading: const Icon(Icons.cached_outlined, color: AppColors.deepEstuary),
+            leading: Icon(Icons.cached_outlined, color: context.brandInk),
             title: const Text('Offline Safe-Zone Maps Cache'),
             subtitle: const Text('Stores district flood zones and evacuation shelters offline'),
             trailing: TextButton(
@@ -797,7 +852,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         children: [
           ListTile(
-            leading: const Icon(Icons.chat_bubble_outline, color: AppColors.deepEstuary),
+            leading: Icon(Icons.chat_bubble_outline, color: context.brandInk),
             title: const Text('Messages'),
             subtitle: const Text('Conversations with shelter managers'),
             trailing: const Icon(Icons.chevron_right, size: 20),
@@ -808,7 +863,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(height: 1),
           ListTile(
-            leading: const Icon(Icons.volunteer_activism_outlined, color: AppColors.deepEstuary),
+            leading: Icon(Icons.volunteer_activism_outlined, color: context.brandInk),
             title: const Text('Volunteer'),
             subtitle: const Text('Sign up to help at shelters near you'),
             trailing: const Icon(Icons.chevron_right, size: 20),
@@ -821,7 +876,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(height: 1),
           ListTile(
-            leading: const Icon(Icons.rate_review_outlined, color: AppColors.deepEstuary),
+            leading: Icon(Icons.rate_review_outlined, color: context.brandInk),
             title: const Text('Send Feedback'),
             subtitle: const Text('Rate the support you\'re getting and tell us what you need'),
             trailing: const Icon(Icons.chevron_right, size: 20),
@@ -883,14 +938,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: AppColors.deepEstuary.withValues(alpha: 0.1),
+          color: context.brandInk.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
           number,
           style: AppTheme.dataText(context).copyWith(
             fontWeight: FontWeight.bold,
-            color: AppColors.deepEstuary,
+            color: context.brandInk,
             fontSize: 14,
           ),
         ),
@@ -1145,7 +1200,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: AppColors.deepEstuary),
+        Icon(icon, size: 18, color: context.brandInk),
         const SizedBox(width: 8),
         Text(
           title,
