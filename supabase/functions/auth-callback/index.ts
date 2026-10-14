@@ -1,12 +1,12 @@
 // Where Supabase Auth sends people after they click the link in a sign-up
-// confirmation (or password reset) email:
+// confirmation or password-reset email:
 //   https://<project>.supabase.co/functions/v1/auth-callback?code=...
 //
 // By the time the browser lands here, Supabase has already verified the
-// email. On Android this hands the one-time code to the SafeZone app
-// (safezone://login-callback), which signs the person in when they confirmed
-// on the same phone they signed up on. Anywhere else it just says the email
-// is confirmed and to sign in from the app.
+// link. On Android this hands the one-time code to the SafeZone app
+// (safezone://login-callback), which signs the person in — or, for a reset
+// link, asks for a new password. The code only works on the phone that
+// started the flow (PKCE), so other devices get instructions instead.
 //
 // Like family-invite, it never touches the database. Deploy with verify_jwt
 // disabled (the person clicking the email link has no session). Add this URL
@@ -29,8 +29,9 @@ Deno.serve((req: Request) => {
   if (error) {
     return text(
       `SafeZone couldn't confirm this link: ${error.slice(0, 200)}\n\n` +
-        "The link may have expired or already been used. Open the SafeZone app " +
-        "and sign in — if your email isn't confirmed yet, sign up again to get a new link.",
+        "The link may have expired or already been used. Open the SafeZone app: " +
+        "use 'Resend confirmation email' on the sign-in screen, or 'Forgot password?' " +
+        "to get a new reset link.",
       400,
     );
   }
@@ -39,7 +40,7 @@ Deno.serve((req: Request) => {
   const isAndroid = /android/i.test(req.headers.get("user-agent") ?? "");
 
   if (isAndroid && CODE_PATTERN.test(code)) {
-    return new Response("Email confirmed. Opening SafeZone...", {
+    return new Response("Opening SafeZone...", {
       status: 302,
       headers: {
         Location:
@@ -52,7 +53,9 @@ Deno.serve((req: Request) => {
   }
 
   return text(
-    "Your email is confirmed.\n\nOpen the SafeZone app on your phone and sign in " +
-      "with your email and password.",
+    "Your email link worked.\n\n" +
+      "Signing up? Your email is confirmed - open the SafeZone app and sign in.\n\n" +
+      "Resetting your password? Open the reset link from the email on the phone " +
+      "where you asked for it, so SafeZone can let you choose a new password.",
   );
 });

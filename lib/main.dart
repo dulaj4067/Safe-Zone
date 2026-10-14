@@ -8,6 +8,7 @@ import 'providers/accessibility_provider.dart';
 import 'providers/alert_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/incident_provider.dart';
+import 'screens/set_new_password_screen.dart';
 import 'screens/signed_in_gate.dart';
 import 'screens/login_screen.dart';
 import 'services/supabase_service.dart';
@@ -174,8 +175,13 @@ class _AuthGate extends StatelessWidget {
     final isSignedIn = context.select<AuthProvider, bool>(
       (auth) => auth.isSignedIn,
     );
+    final isPasswordRecovery = context.select<AuthProvider, bool>(
+      (auth) => auth.isPasswordRecovery,
+    );
 
     if (!isSignedIn) return const LoginScreen();
+    // Opened from a password-reset email: set the new password first.
+    if (isPasswordRecovery) return const SetNewPasswordScreen();
     // Keyed by user so switching accounts re-runs the policy/onboarding checks.
     return SignedInGate(key: ValueKey(SupabaseService.currentUserId));
   }
