@@ -186,8 +186,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             ),
         ],
       ),
-      floatingActionButton: isAuthority
+      // Home tab only — on the other tabs it covers list content.
+      floatingActionButton: isAuthority && _tabIndex == 0
           ? FloatingActionButton.extended(
+              heroTag: 'new-alert-fab',
               icon: const Icon(Icons.campaign),
               label: const Text('New Alert'),
               onPressed: () {
@@ -203,6 +205,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
               },
             )
           : null,
+      // Left side, so it doesn't cover the map's zoom controls.
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       bottomNavigationBar: BottomNavBar(
         currentIndex: _tabIndex >= tabs.length ? 0 : _tabIndex,
         isAuthority: isAuthority,
