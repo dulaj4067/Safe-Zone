@@ -151,6 +151,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
       );
     } else {
       body = ListView.separated(
+        // Room under the last row so the New message button never covers it.
+        padding: EdgeInsets.only(bottom: _contacts.isEmpty ? 0 : 88),
         itemCount: conversations.length,
         separatorBuilder: (_, _) => const Divider(height: 1),
         itemBuilder: (context, i) {

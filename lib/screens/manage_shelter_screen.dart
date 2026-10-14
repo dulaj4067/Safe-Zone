@@ -180,6 +180,12 @@ class _MyShelterCard extends StatelessWidget {
     required this.onMessages,
   });
 
+  /// Buttons in a card are small by default; keep every tap target at least
+  /// 48dp tall (Android guidance) without changing how they look.
+  static final ButtonStyle _tapTarget = ButtonStyle(
+    minimumSize: WidgetStatePropertyAll(const Size(48, 48)),
+  );
+
   Color get _color => switch (shelter.approval) {
         ShelterApproval.approved => AppColors.severityGreen,
         ShelterApproval.pending => AppColors.severityOrange,
@@ -208,21 +214,28 @@ class _MyShelterCard extends StatelessWidget {
               children: [
                 Expanded(child: Text(shelter.name, style: textTheme.titleMedium)),
                 const SizedBox(width: 8),
-                // Icon and words, not colour alone.
+                // Icon and words, not colour alone. The text uses the theme's
+                // ink colour (>= 4.5:1 on the tint in light and dark); the
+                // status colour lives in the icon and border.
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: _color.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: _color.withValues(alpha: 0.5)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(_icon, size: 14, color: _color),
+                      Icon(_icon, size: 16, color: _color),
                       const SizedBox(width: 4),
                       Text(
                         shelter.approval.label,
-                        style: TextStyle(color: _color, fontSize: 12, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          color: context.inkStrong,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),
@@ -265,29 +278,37 @@ class _MyShelterCard extends StatelessWidget {
               children: [
                 if (approved) ...[
                   FilledButton.icon(
+                    style: _tapTarget,
                     onPressed: onOpen,
                     icon: const Icon(Icons.inventory_2_outlined, size: 18),
                     label: const Text('Manage'),
                   ),
                   OutlinedButton.icon(
+                    style: _tapTarget,
                     onPressed: onEdit,
                     icon: const Icon(Icons.edit_outlined, size: 18),
                     label: const Text('Edit details'),
                   ),
                   OutlinedButton.icon(
+                    style: _tapTarget,
                     onPressed: onMessages,
                     icon: const Icon(Icons.chat_bubble_outline, size: 18),
                     label: const Text('Messages'),
                   ),
                 ] else ...[
                   OutlinedButton.icon(
+                    style: _tapTarget,
                     onPressed: onEdit,
                     icon: const Icon(Icons.edit_outlined, size: 18),
                     label: Text(
                       shelter.approval == ShelterApproval.rejected ? 'Fix and resubmit' : 'Edit',
                     ),
                   ),
-                  TextButton(onPressed: onWithdraw, child: const Text('Withdraw')),
+                  TextButton(
+                    style: _tapTarget,
+                    onPressed: onWithdraw,
+                    child: const Text('Withdraw'),
+                  ),
                 ],
               ],
             ),
