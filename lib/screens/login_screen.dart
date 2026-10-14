@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -73,11 +74,41 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     onSubmitted: (_) => _submit(context),
                   ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      key: const Key('forgot_password_link'),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ForgotPasswordScreen(
+                            initialEmail: _emailController.text.trim(),
+                          ),
+                        ),
+                      ),
+                      child: const Text('Forgot password?'),
+                    ),
+                  ),
                   if (auth.error != null) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 4),
                     Text(
                       auth.error!,
-                      style: const TextStyle(color: Colors.red, fontSize: 13),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                  if (auth.unconfirmedEmail != null) ...[
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        key: const Key('resend_confirmation'),
+                        icon: const Icon(Icons.forward_to_inbox_outlined, size: 18),
+                        label: const Text('Resend confirmation email'),
+                        onPressed: auth.isBusy ? null : () => _resend(context),
+                      ),
                     ),
                   ],
                   const SizedBox(height: 20),
@@ -111,6 +142,18 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _resend(BuildContext context) async {
+    final auth = context.read<AuthProvider>();
+    final email = auth.unconfirmedEmail;
+    if (email == null) return;
+    final ok = await auth.resendConfirmation(email);
+    if (ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Confirmation email sent to $email.')),
+      );
+    }
   }
 
   Future<void> _submit(BuildContext context) async {
