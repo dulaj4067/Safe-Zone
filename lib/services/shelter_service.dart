@@ -1,14 +1,151 @@
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
+
 import '../models/shelter.dart';
 import '../models/shelter_resource.dart';
 import 'profile_service.dart';
 import 'supabase_service.dart';
 
 class ShelterService {
+  /// True when a query failed only because the approval columns do not exist
+  /// yet (the workflow migration has not been run on this backend).
+  static bool _missingApprovalColumn(PostgrestException e) =>
+      e.code == '42703' || e.code == 'PGRST204';
+
+  /// The public list: approved shelters only. RLS also lets owners and
+  /// authorities read unapproved rows, so the filter is applied here too.
   Future<List<Shelter>> fetchShelters() async {
-    final rows = await SupabaseService.client.from('shelters').select();
-    return (rows as List)
+    final List rows;
+    try {
+      rows = await SupabaseService.client
+          .from('shelters')
+          .select()
+          .eq('approval_status', 'approved');
+    } on PostgrestException catch (e) {
+      if (!_missingApprovalColumn(e)) rethrow;
+      final all = await SupabaseService.client.from('shelters').select();
+      return (all as List)
+          .map((row) => Shelter.fromMap(row as Map<String, dynamic>))
+          .toList();
+    }
+    return rows
         .map((row) => Shelter.fromMap(row as Map<String, dynamic>))
         .toList();
+  }
+
+  // ─── Submission & review workflow ──────────────────────────────────────────
+
+  /// Every shelter the signed-in user submitted or manages, any status.
+  Future<List<Shelter>> fetchMyShelters() async {
+    final me = SupabaseService.currentUserId;
+    if (me == null) return [];
+    final rows = await SupabaseService.client
+        .from('shelters')
+        .select()
+        .or('submitted_by.eq.$me,managed_by.eq.$me')
+        .order('created_at', ascending: false);
+    return (rows as List)
+        .map((r) => Shelter.fromMap(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Submissions waiting for an authority (oldest first).
+  Future<List<Shelter>> fetchPendingShelters() async {
+    final rows = await SupabaseService.client
+        .from('shelters')
+        .select()
+        .eq('approval_status', 'pending')
+        .order('created_at', ascending: true);
+    return (rows as List)
+        .map((r) => Shelter.fromMap(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// PostGIS accepts extended WKT for a geography column; note lng first.
+  static String _point(double lat, double lng) => 'SRID=4326;POINT($lng $lat)';
+
+  /// Files a new shelter as `pending`. It stays invisible to the public
+  /// until an authority approves it.
+  Future<void> submitShelter({
+    required String name,
+    required String type,
+    required double latitude,
+    required double longitude,
+    required int capacity,
+    String? address,
+    String? description,
+    String? contactPhone,
+  }) async {
+    final me = SupabaseService.currentUserId;
+    if (me == null) throw StateError('Sign in to submit a shelter.');
+    await SupabaseService.client.from('shelters').insert({
+      'name': name,
+      'type': type,
+      'location': _point(latitude, longitude),
+      'capacity': capacity,
+      'address': address,
+      'description': description,
+      'contact_phone': contactPhone,
+      'approval_status': 'pending',
+      'submitted_by': me,
+    });
+  }
+
+  /// Edits a shelter's details. For an approved shelter the owner may also
+  /// change [status] and [occupancy]; for a pending / rejected one, saving
+  /// re-queues it for review (the database trigger enforces that).
+  Future<void> updateShelter(
+    String id, {
+    required String name,
+    required String type,
+    required double latitude,
+    required double longitude,
+    required int capacity,
+    String? address,
+    String? description,
+    String? contactPhone,
+    String? status,
+    int? occupancy,
+  }) async {
+    final updated = await SupabaseService.client.from('shelters').update({
+      'name': name,
+      'type': type,
+      'location': _point(latitude, longitude),
+      'capacity': capacity,
+      'address': address,
+      'description': description,
+      'contact_phone': contactPhone,
+      'status': ?status,
+      'occupancy': ?occupancy,
+    }).eq('id', id).select();
+    requireRowsAffected(updated, 'edit this shelter');
+  }
+
+  Future<void> approveShelter(String id) async {
+    final updated = await SupabaseService.client
+        .from('shelters')
+        .update({'approval_status': 'approved'})
+        .eq('id', id)
+        .select();
+    requireRowsAffected(updated, 'approve this shelter');
+  }
+
+  Future<void> rejectShelter(String id, String reason) async {
+    final updated = await SupabaseService.client
+        .from('shelters')
+        .update({'approval_status': 'rejected', 'rejection_reason': reason})
+        .eq('id', id)
+        .select();
+    requireRowsAffected(updated, 'reject this shelter');
+  }
+
+  /// Submitter takes back a pending or rejected submission.
+  Future<void> withdrawSubmission(String id) async {
+    final deleted = await SupabaseService.client
+        .from('shelters')
+        .delete()
+        .eq('id', id)
+        .select();
+    requireRowsAffected(deleted, 'withdraw this shelter');
   }
 
   /// One shelter's current row — the shelter page re-reads this on
