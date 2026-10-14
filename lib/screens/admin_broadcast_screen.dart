@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/admin_strings.dart';
@@ -10,6 +11,9 @@ import '../providers/accessibility_provider.dart';
 import '../providers/alert_form_provider.dart';
 import '../providers/alert_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/map_tile_config.dart';
+import '../utils/map_tile_sources.dart';
+import '../utils/sri_lanka_bounds.dart';
 import '../widgets/a11y/a11y_widgets.dart';
 
 /// Story 3: authority-only screen for creating a geo-targeted broadcast.
@@ -70,6 +74,22 @@ class _BroadcastFormState extends State<_BroadcastForm> {
   late final TextEditingController _title;
   late final TextEditingController _instructions;
   late final TextEditingController _transcript;
+
+  // Built once: a new MapOptions on every form rebuild makes flutter_map
+  // re-apply its options and the camera jumps away from where it was.
+  late final MapOptions _mapOptions = MapOptions(
+    initialCenter: const LatLng(7.4167, 81.8206),
+    initialZoom: 11,
+    minZoom: kSriLankaMinZoom,
+    cameraConstraint: kSriLankaCameraConstraint,
+    interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
+    onTap: (_, latLng) {
+      context.read<AlertFormProvider>().setCustomCenter(
+            latLng.latitude,
+            latLng.longitude,
+          );
+    },
+  );
 
   @override
   void initState() {
@@ -267,7 +287,6 @@ class _BroadcastFormState extends State<_BroadcastForm> {
       DropdownButtonFormField<Zone>(
         decoration: InputDecoration(
           labelText: '${strings.t('zone')} *',
-          helperText: strings.t('zoneHint'),
           border: const OutlineInputBorder(),
         ),
         initialValue: form.selectedZone,
@@ -288,25 +307,35 @@ class _BroadcastFormState extends State<_BroadcastForm> {
           height: 220,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: GoogleMap(
-              initialCameraPosition: const CameraPosition(
-                target: LatLng(7.4167, 81.8206),
-                zoom: 11,
-              ),
-              onTap: (latLng) {
-                context.read<AlertFormProvider>().setCustomCenter(
-                      latLng.latitude,
-                      latLng.longitude,
-                    );
-              },
-              markers: form.customLat != null
-                  ? {
+            // flutter_map + the app's Carto tiles, like every other map in
+            // the app — GoogleMap here needed its own Android API key.
+            child: FlutterMap(
+              options: _mapOptions,
+              children: [
+                buildBaseTileLayer(BaseMapStyle.street),
+                if (form.customLat != null)
+                  MarkerLayer(
+                    markers: [
                       Marker(
-                        markerId: const MarkerId('custom_center'),
-                        position: LatLng(form.customLat!, form.customLng!),
+                        point: LatLng(form.customLat!, form.customLng!),
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.topCenter,
+                        child: const Icon(
+                          Icons.location_on,
+                          color: AppColors.severityRed,
+                          size: 40,
+                        ),
                       ),
-                    }
-                  : {},
+                    ],
+                  ),
+                RichAttributionWidget(
+                  alignment: AttributionAlignment.bottomLeft,
+                  attributions: [
+                    TextSourceAttribution(attributionFor(BaseMapStyle.street)),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
