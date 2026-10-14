@@ -55,6 +55,35 @@ class VolunteerService {
     });
   }
 
+  /// Edits a task's details (not its status or sign-ups).
+  Future<void> updateTask(
+    String taskId, {
+    required String title,
+    String? description,
+    String? shelterId,
+    String? zoneId,
+    required int volunteersNeeded,
+  }) async {
+    final updated = await SupabaseService.client.from('volunteer_tasks').update({
+      'title': title,
+      'description': description,
+      'shelter_id': shelterId,
+      'zone_id': zoneId,
+      'volunteers_needed': volunteersNeeded,
+    }).eq('id', taskId).select();
+    requireRowsAffected(updated, 'edit this task');
+  }
+
+  /// Removes a task; its sign-ups go with it (foreign key cascade).
+  Future<void> deleteTask(String taskId) async {
+    final deleted = await SupabaseService.client
+        .from('volunteer_tasks')
+        .delete()
+        .eq('id', taskId)
+        .select();
+    requireRowsAffected(deleted, 'delete this task');
+  }
+
   Future<void> updateStatus(String taskId, VolunteerTaskStatus status) async {
     final updated = await SupabaseService.client
         .from('volunteer_tasks')
