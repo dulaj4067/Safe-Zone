@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/alert.dart';
@@ -60,8 +62,9 @@ class AlertProvider extends ChangeNotifier {
   NotificationService get notificationService => _notificationService;
   AlertEngagementService get engagementService => _engagementService;
 
-  Future<void> init() async {
-    await _notificationService.init();
+  Future<void> init({bool requestNotificationPermission = true}) async {
+    await _notificationService.init(requestPermission: requestNotificationPermission);
+    unawaited(_engagementService.flushPending());
     _myZoneOnly = await _service.getMyZoneAlertsOnly();
     _userZoneId = await _service.getSavedZoneId();
     _multiChannelFallback = await _service.getMultiChannelFallback();

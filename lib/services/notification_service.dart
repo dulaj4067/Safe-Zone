@@ -26,20 +26,23 @@ class NotificationService {
   static const String generalChannelDescription =
       'Standard advisory and informational disaster warnings.';
 
-  Future<void> init() async {
+  /// Sets up channels. Asks for the notification permission only when
+  /// [requestPermission] is true — onboarding explains it first, and a user
+  /// who chose "Not now" isn't prompted again by the app on its own.
+  Future<void> init({bool requestPermission = true}) async {
     if (_isInitialized) return;
 
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
     );
-    const darwinSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-      requestCriticalPermission: true,
+    final darwinSettings = DarwinInitializationSettings(
+      requestAlertPermission: requestPermission,
+      requestBadgePermission: requestPermission,
+      requestSoundPermission: requestPermission,
+      requestCriticalPermission: requestPermission,
     );
 
-    const initSettings = InitializationSettings(
+    final initSettings = InitializationSettings(
       android: androidSettings,
       iOS: darwinSettings,
     );
@@ -48,8 +51,8 @@ class NotificationService {
 
     if (Platform.isAndroid) {
       await _setupAndroidChannels();
-      await requestPermissions();
-    } else if (Platform.isIOS) {
+      if (requestPermission) await requestPermissions();
+    } else if (Platform.isIOS && requestPermission) {
       await requestPermissions();
     }
 
@@ -99,6 +102,9 @@ class NotificationService {
     await android.createNotificationChannel(generalChannel);
   }
 
+  /// Shows the OS notification-permission prompt (Android 13+ / iOS) and
+  /// returns whether it was granted. Called from onboarding after the app has
+  /// explained why warnings need it; on older Android it's a no-op `true`.
   Future<bool> requestPermissions() async {
     if (Platform.isAndroid) {
       final android = _plugin

@@ -8,11 +8,12 @@ import 'providers/accessibility_provider.dart';
 import 'providers/alert_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/incident_provider.dart';
-import 'screens/app_shell.dart';
+import 'screens/signed_in_gate.dart';
 import 'screens/login_screen.dart';
 import 'services/supabase_service.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
+import 'utils/app_config.dart';
 import 'providers/safety_provider.dart';
 import 'providers/map_focus_provider.dart';
 import 'providers/active_route_provider.dart';
@@ -29,14 +30,57 @@ Future<void> main() async {
   GoogleFonts.notoSansTamil();
   GoogleFonts.notoNaskhArabic();
 
+  final AppConfig config;
+  try {
+    config = AppConfig.load();
+  } on StateError catch (e) {
+    runApp(_ConfigErrorApp(message: e.message));
+    return;
+  }
+
   await SupabaseService.init(
-    url: 'https://frkwsgriwdezkvrmgsgf.supabase.co',
-    publishableKey: 'sb_publishable_1Ax1SZF9hldmiJ1kyi338w_BvOL4Gxd',
+    url: config.supabaseUrl,
+    publishableKey: config.supabasePublishableKey,
   );
 
   runApp(const DisasterApp());
 }
 
+/// Shown instead of the app when the build's configuration is invalid, so a
+/// bad `--dart-define` fails loudly at startup rather than as network errors.
+class _ConfigErrorApp extends StatelessWidget {
+  final String message;
+  const _ConfigErrorApp({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "SafeZone can't start",
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                Text('This build is misconfigured: $message'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Root widget: registers the app-wide providers, then hands off to
+/// [_ThemedApp] for theming and the sign-in gate.
 class DisasterApp extends StatelessWidget {
   const DisasterApp({super.key});
 
@@ -127,6 +171,8 @@ class _AuthGate extends StatelessWidget {
       (auth) => auth.isSignedIn,
     );
 
-    return isSignedIn ? const AppShell() : const LoginScreen();
+    if (!isSignedIn) return const LoginScreen();
+    // Keyed by user so switching accounts re-runs the policy/onboarding checks.
+    return SignedInGate(key: ValueKey(SupabaseService.currentUserId));
   }
 }

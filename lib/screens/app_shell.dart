@@ -11,6 +11,7 @@ import '../providers/alert_provider.dart';
 import '../providers/map_focus_provider.dart';
 import '../providers/safety_provider.dart';
 import '../services/activity_history_service.dart';
+import '../services/onboarding_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/alert_banner.dart';
 import '../widgets/safety_circle_request_banner.dart';
@@ -86,7 +87,13 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       ),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await context.read<AlertProvider>().init();
+      final uid = SupabaseService.currentUserId;
+      final declined = uid != null &&
+          await OnboardingService().notificationsDeclined(uid);
+      if (!mounted) return;
+      await context.read<AlertProvider>().init(
+        requestNotificationPermission: !declined,
+      );
       await _loadProfileAndZones();
       // Loads circle-member "last known location" markers ahead of time so
       // they're ready as soon as the citizen looks at the home map, not

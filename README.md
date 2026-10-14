@@ -47,17 +47,23 @@ Built on [Supabase](https://supabase.com) (Postgres + PostGIS, Auth, Realtime, S
    - `sql/incident_migration.sql` — incidents, confirmations, credibility scoring, storage bucket for incident media
    - `sql/safety_circle_migration.sql` — safety circle contacts, live ETA location sharing, "I'm Safe" broadcasts, and the view backing the map's "last known location" markers
    - `sql/coordination_features_migration.sql` — access rules, constraints, and realtime for shelter supplies, volunteer tasks, messaging, and feedback (see [docs/features/coordination_features.md](docs/features/coordination_features.md))
+   - `sql/security_hardening_migration.sql` — locks down profiles/PII, server-managed roles, authority-only incident review fields
+   - `sql/privacy_consent_onboarding_migration.sql` — policy acceptances, deletion requests, onboarding state, alert engagement
+   - `sql/account_deletion_and_notifications_migration.sql` — deletion processing, duplicate-phone sign-ups, "I'm Safe" emails (moves the webhook secret into Vault)
 
-3. **Configure your Supabase connection.** The URL and publishable key are set in `lib/main.dart` — replace them with your own project's values.
+   Then deploy the Edge Functions: `notify-safety-circle-request` and `notify-im-safe` with **verify JWT off** (called by database triggers with a shared secret), and `process-account-deletion` with **verify JWT on**. They need the secrets `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` and `SAFETY_CIRCLE_WEBHOOK_SECRET`.
 
-4. **Configure your CARTO API key.** Create `config/dev.json`:
+3. **Configure the app.** Copy `config/dev.example.json` to `config/dev.json` and fill it in:
    ```json
    {
-     "CARTO_API_KEY": "your-carto-api-key"
+     "CARTO_API_KEY": "your-carto-api-key",
+     "SUPABASE_URL": "https://<project-ref>.supabase.co",
+     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_..."
    }
    ```
+   `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` are optional and default to the shared project (see `lib/utils/app_config.dart`). Only ever use the **publishable** key — every value here is compiled into the APK, and the app refuses to start with a secret/service-role key.
 
-5. **Run the app**
+4. **Run the app**
    ```bash
    flutter run --dart-define-from-file=config/dev.json
    ```
@@ -87,6 +93,5 @@ docs/features/     # Design notes for individual features
 
 - Dulaj Serasinghe
 - Dewmini Rathnayake
-- D.V. Malliyawatta
+- Dinuka Malliyawatta
 - Dewmina Wanninayake
-- Dinuka

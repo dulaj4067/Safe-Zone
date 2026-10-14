@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../legal/policy_documents.dart';
 import '../providers/auth_provider.dart';
+import '../services/consent_service.dart';
+import '../utils/validators.dart';
+import 'policy_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -11,11 +15,14 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscure = true;
+  bool _agreedToTerms = false; // must be ticked by the user, never preset
+  bool _showTermsError = false;
 
   @override
   void dispose() {
@@ -35,78 +42,128 @@ class _RegisterScreenState extends State<RegisterScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Citizen accounts only',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Authority and volunteer-org accounts are set up by an '
-                  'administrator, not through self-registration.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Full name'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone',
-                    hintText: '+947XXXXXXXX',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: _obscure,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    helperText: 'At least 6 characters',
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscure
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined),
-                      onPressed: () => setState(() => _obscure = !_obscure),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Form(
+                key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Citizen accounts only',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
-                  ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Authority and volunteer-org accounts are set up by an '
+                      'administrator, not through self-registration.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _nameController,
+                      textCapitalization: TextCapitalization.words,
+                      autofillHints: const [AutofillHints.name],
+                      maxLength: kMaxNameLength,
+                      decoration: const InputDecoration(labelText: 'Full name', counterText: ''),
+                      validator: validateFullName,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      autofillHints: const [AutofillHints.telephoneNumber],
+                      decoration: const InputDecoration(
+                        labelText: 'Mobile number',
+                        hintText: '0771234567',
+                      ),
+                      validator: validatePhone,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
+                      decoration: const InputDecoration(labelText: 'Email'),
+                      validator: validateEmail,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscure,
+                      autofillHints: const [AutofillHints.newPassword],
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        helperText: 'At least $kMinPasswordLength characters',
+                        suffixIcon: IconButton(
+                          tooltip: _obscure ? 'Show password' : 'Hide password',
+                          icon: Icon(_obscure
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined),
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                        ),
+                      ),
+                      validator: validatePassword,
+                    ),
+                    const SizedBox(height: 12),
+                    CheckboxListTile(
+                      key: const Key('register_terms_checkbox'),
+                      value: _agreedToTerms,
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      onChanged: auth.isBusy
+                          ? null
+                          : (v) => setState(() {
+                                _agreedToTerms = v ?? false;
+                                _showTermsError = false;
+                              }),
+                      title: const Text('I agree to the Terms of Use and have read the Privacy Policy'),
+                      subtitle: _showTermsError
+                          ? Text(
+                              'Please accept to create an account',
+                              style: TextStyle(color: Theme.of(context).colorScheme.error),
+                            )
+                          : null,
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        TextButton(
+                          onPressed: () => PolicyScreen.open(context, termsOfUse),
+                          child: const Text('Terms of Use'),
+                        ),
+                        TextButton(
+                          onPressed: () => PolicyScreen.open(context, privacyPolicy),
+                          child: const Text('Privacy Policy'),
+                        ),
+                      ],
+                    ),
+                    if (auth.error != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        auth.error!,
+                        style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 13),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    FilledButton(
+                      onPressed: auth.isBusy ? null : () => _submit(context),
+                      child: auth.isBusy
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Create account'),
+                    ),
+                  ],
                 ),
-                if (auth.error != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    auth.error!,
-                    style: const TextStyle(color: Colors.red, fontSize: 13),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: auth.isBusy ? null : () => _submit(context),
-                  child: auth.isBusy
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Create account'),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -115,35 +172,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _submit(BuildContext context) async {
-    final name = _nameController.text.trim();
-    final phone = _phoneController.text.trim();
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
+    final formOk = _formKey.currentState?.validate() ?? false;
+    if (!_agreedToTerms) setState(() => _showTermsError = true);
+    if (!formOk || !_agreedToTerms) return;
 
-    if (name.isEmpty || phone.isEmpty || email.isEmpty || password.length < 6) {
-      return;
-    }
+    final auth = context.read<AuthProvider>();
+    final userId = await auth.register(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+      fullName: _nameController.text.trim(),
+      phone: normalizePhone(_phoneController.text)!,
+    );
+    if (userId == null || !context.mounted) return;
 
-    final success = await context.read<AuthProvider>().register(
-          email: email,
-          password: password,
-          fullName: name,
-          phone: phone,
-        );
+    // Kept on this device and uploaded on first sign-in (there's no session
+    // yet while email confirmation is pending).
+    await ConsentService().accept(userId, requiredPolicies);
+    if (!context.mounted) return;
 
-    if (success && context.mounted) {
-      // Supabase's default project settings require email confirmation
-      // before a session is issued — if that's on, signUp succeeds but
-      // the user isn't signed in yet. Let them know either way rather
-      // than silently sitting on the register screen.
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Account created. Check your email to confirm, then sign in.',
-          ),
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          auth.isSignedIn
+              ? 'Account created.'
+              : 'Account created. Check your email to confirm, then sign in.',
         ),
-      );
-      Navigator.pop(context);
-    }
+      ),
+    );
+    if (Navigator.of(context).canPop()) Navigator.pop(context);
   }
 }

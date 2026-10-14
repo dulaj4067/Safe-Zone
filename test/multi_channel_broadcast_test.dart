@@ -20,7 +20,7 @@ class _MockNotificationService implements NotificationService {
   DisasterAlert? lastAlert;
 
   @override
-  Future<void> init() async {}
+  Future<void> init({bool requestPermission = true}) async {}
 
   @override
   Future<bool> requestPermissions() async => true;

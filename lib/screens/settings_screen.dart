@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../models/alert.dart';
 import '../models/app_user.dart';
 import '../models/zone.dart';
+import '../providers/accessibility_provider.dart';
 import '../providers/alert_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/incident_provider.dart';
@@ -15,11 +16,13 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
+import '../utils/validators.dart';
 import '../widgets/feedback_sheet.dart';
 import 'admin_broadcast_screen.dart';
 import 'admin_incident_review_screen.dart';
 import 'incidents_screen.dart';
 import 'messages_screen.dart';
+import 'privacy_settings_screen.dart';
 import 'volunteer_tasks_screen.dart';
 import '../widgets/a11y/a11y_widgets.dart';
 
@@ -204,7 +207,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                     ),
                     const SizedBox(height: 4),
-                    if (user?.phone.isNotEmpty == true && !_looksLikeUuid(user!.phone))
+                    if (user?.phone.isNotEmpty == true && !looksLikeAccountId(user!.phone))
                       Text(
                         user.phone,
                         style: AppTheme.dataText(context).copyWith(
@@ -329,6 +332,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
+            // Auto-escalate SOS and direct relay toggles were removed: they
+            // saved a preference that no code acted on, so authorities could
+            // believe escalation was happening when it wasn't.
             const SizedBox(height: 14),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1007,7 +1013,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final storedPhone = user?.phone ?? '';
     final nameCtrl = TextEditingController(text: user?.fullName ?? '');
     final phoneCtrl = TextEditingController(
-      text: _looksLikeUuid(storedPhone) ? '' : storedPhone,
+      text: looksLikeAccountId(storedPhone) ? '' : storedPhone,
     );
     bool saving = false;
     String? submitError;
@@ -1047,7 +1053,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     labelText: 'Full Name',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
-                  validator: _validateFullName,
+                  validator: validateFullName,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                 ),
                 const SizedBox(height: 12),
@@ -1059,7 +1065,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     hintText: '+94 77 123 4567',
                     prefixIcon: Icon(Icons.phone_outlined),
                   ),
-                  validator: _validatePhoneNumber,
+                  validator: validatePhone,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                 ),
                 if (submitError != null) ...[
@@ -1078,7 +1084,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           if (!(formKey.currentState?.validate() ?? false)) return;
 
                           final newName = nameCtrl.text.trim();
-                          final newPhone = phoneCtrl.text.trim();
+                          final newPhone = normalizePhone(phoneCtrl.text)!;
 
                           setModalState(() => saving = true);
                           try {
@@ -1134,32 +1140,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
-
-  static final RegExp _uuidPattern = RegExp(
-    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-  );
-
-  bool _looksLikeUuid(String value) => _uuidPattern.hasMatch(value.trim());
-
-  String? _validateFullName(String? value) {
-    final trimmed = (value ?? '').trim();
-    if (trimmed.isEmpty) return 'Full name is required';
-    if (trimmed.length < 2) return 'Name is too short';
-    return null;
-  }
-
-  String? _validatePhoneNumber(String? value) {
-    final trimmed = (value ?? '').trim();
-    if (trimmed.isEmpty) return 'Phone number is required';
-    if (_looksLikeUuid(trimmed)) {
-      return 'That looks like an account ID, not a phone number';
-    }
-    final digitsOnly = trimmed.replaceAll(RegExp(r'[\s-]'), '');
-    if (!RegExp(r'^\+?[0-9]{7,15}$').hasMatch(digitsOnly)) {
-      return 'Enter a valid phone number';
-    }
-    return null;
-  }
 
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
