@@ -21,7 +21,10 @@ import '../providers/map_focus_provider.dart';
 import '../providers/safety_provider.dart';
 import '../theme/app_colors.dart';
 import '../services/activity_history_service.dart';
+import '../l10n/app_strings.dart';
+import '../providers/accessibility_provider.dart';
 import '../services/location_service.dart';
+import '../widgets/offline_strip.dart';
 import '../services/place_name_service.dart';
 import '../services/shelter_service.dart';
 import '../widgets/severity_badge.dart';
@@ -274,6 +277,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final incidents = context.watch<IncidentProvider>().sortedIncidents;
     final activeAlerts = context.watch<AlertProvider>().activeAlerts;
+    final isAlertsOffline = context.watch<AlertProvider>().isOffline;
+    final strings = appStringsOf(context);
     // District chip and the alert banner's relevance ranking should both
     // reflect where the person actually is once we have a GPS fix,
     // falling back to the district default until then.
@@ -318,6 +323,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             if (activeAlerts.isNotEmpty)
               LocationAlertBanner(userLocation: effectiveCenter),
             if (_locationDenied) const _LocationDeniedBanner(),
+            if (isAlertsOffline) const OfflineStrip(),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
               child: SizedBox(
@@ -333,7 +339,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     );
                   },
                   icon: const Icon(Icons.share_location_rounded),
-                  label: const Text('Share my ETA'),
+                  label: Text(strings.t('shareEta')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1F6F8B),
                     foregroundColor: Colors.white,
@@ -410,6 +416,7 @@ class _HeaderRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final strings = appStringsOf(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
       child: Row(
@@ -422,7 +429,7 @@ class _HeaderRow extends StatelessWidget {
                 Text('SafeZone', style: textTheme.headlineMedium),
                 const SizedBox(height: 2),
                 Text(
-                  'Sri Lanka Disaster Early Warning',
+                  strings.t('tagline'),
                   style: textTheme.bodySmall,
                 ),
               ],
@@ -443,6 +450,7 @@ class _HeaderRow extends StatelessWidget {
             child: IconButton(
               icon: const Icon(Icons.notifications_none_rounded),
               color: const Color(0xFF2A2A2A),
+              tooltip: strings.t('activeAlerts'),
               onPressed: () => showActiveAlertsSheet(context),
             ),
           ),
@@ -609,13 +617,12 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
   /// Asks once first, since a stray tap would page rescuers for nothing.
   Future<void> _sendSos() async {
     final messenger = ScaffoldMessenger.of(context);
+    final strings = appStringsOf(context, listen: false);
     final location = widget.liveLocation;
     if (location == null) {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Waiting for your GPS location — turn on location to send an SOS.',
-          ),
+        SnackBar(
+          content: Text(strings.t('sosNeedGps')),
           backgroundColor: AppColors.severityRed,
         ),
       );
@@ -630,15 +637,12 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
           color: AppColors.severityRed,
           size: 36,
         ),
-        title: const Text('Send Emergency SOS?'),
-        content: const Text(
-          'Rescuers will get a high-priority "Trapped Person" report at your '
-          'current location. No description needed.',
-        ),
+        title: Text(strings.t('sosConfirmTitle')),
+        content: Text(strings.t('sosConfirmBody')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(strings.t('cancel')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -646,7 +650,7 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
               minimumSize: const Size(0, 40),
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('SEND SOS'),
+            child: Text(strings.t('sendSos').toUpperCase()),
           ),
         ],
       ),
@@ -664,12 +668,14 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
     );
     if (!mounted) return;
     setState(() => _sendingSos = false);
+    // Optional vibration confirms the send without relying on sound or sight.
+    if (success) pulseHapticOf(context);
     messenger.showSnackBar(
       SnackBar(
         content: Text(
           success
-              ? 'Emergency SOS sent from your location. Help is being alerted.'
-              : provider.errorMessage ?? 'Could not send SOS. Try again.',
+              ? strings.t('sosSent')
+              : provider.errorMessage ?? strings.t('sosFailed'),
         ),
         backgroundColor: success
             ? AppColors.severityRed

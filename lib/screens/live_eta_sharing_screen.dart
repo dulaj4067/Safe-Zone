@@ -2,6 +2,8 @@
 import 'package:flutter_map/flutter_map.dart';
 import 'package:provider/provider.dart';
 import 'package:latlong2/latlong.dart';
+import '../l10n/app_strings.dart';
+import '../providers/accessibility_provider.dart';
 import '../providers/safety_provider.dart';
 import '../models/circle_member_location.dart';
 import '../models/family_member.dart';
@@ -391,6 +393,7 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                       );
                       if (!context.mounted) return;
                       if (!ok) setState(() => _safeBroadcastSent = false);
+                      if (ok) pulseHapticOf(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
@@ -404,7 +407,9 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
               icon: Icon(
                 _safeBroadcastSent ? Icons.check_circle : Icons.check_circle_outline,
               ),
-              label: Text(_safeBroadcastSent ? 'Broadcast sent' : "I'm Safe"),
+              label: Text(
+                appStringsOf(context).t(_safeBroadcastSent ? 'broadcastSent' : 'imSafeTitle'),
+              ),
             ),
           ),
           SafeArea(

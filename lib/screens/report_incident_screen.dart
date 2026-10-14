@@ -7,7 +7,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/incident.dart';
+import '../providers/accessibility_provider.dart';
 import '../providers/incident_provider.dart';
 import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
@@ -126,6 +128,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   }
 
   void _showMediaSourceSheet({required bool isVideo}) {
+    final strings = appStringsOf(context, listen: false);
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -138,13 +141,13 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isVideo ? 'Attach Video Evidence' : 'Attach Photo Evidence',
+                strings.t(isVideo ? 'attachVideo' : 'attachPhoto'),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 12),
               ListTile(
                 leading: const Icon(Icons.camera_alt_outlined),
-                title: Text(isVideo ? 'Record Video' : 'Take Photo'),
+                title: Text(strings.t(isVideo ? 'recordVideo' : 'takePhoto')),
                 onTap: () {
                   Navigator.pop(ctx);
                   if (isVideo) {
@@ -156,7 +159,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined),
-                title: Text(isVideo ? 'Choose from Gallery' : 'Choose Photo from Gallery'),
+                title: Text(strings.t(isVideo ? 'chooseGallery' : 'choosePhotoGallery')),
                 onTap: () {
                   Navigator.pop(ctx);
                   if (isVideo) {
@@ -214,6 +217,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   /// incident we skip the insert and navigate directly with an informational
   /// message instead of letting Supabase throw a unique-constraint error.
   Future<void> _confirmExistingAndNavigate(Incident existing) async {
+    final strings = appStringsOf(context, listen: false);
     final uid = SupabaseService.currentUserId;
     if (uid == null) return;
 
@@ -228,15 +232,13 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
 
     if (alreadyConfirmed) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
-              Icon(Icons.info_outline, color: Colors.white),
-              SizedBox(width: 10),
+              const Icon(Icons.info_outline, color: Colors.white),
+              const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  "You've already confirmed this report — your vote is counted!",
-                ),
+                child: Text(strings.t('alreadyConfirmed')),
               ),
             ],
           ),
@@ -262,14 +264,12 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Row(
+          content: Row(
             children: [
-              Icon(Icons.check_circle_outline, color: Colors.white),
-              SizedBox(width: 10),
+              const Icon(Icons.check_circle_outline, color: Colors.white),
+              const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  'Thanks! Your confirmation has been added to the existing report.',
-                ),
+                child: Text(strings.t('confirmAdded')),
               ),
             ],
           ),
@@ -298,6 +298,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   /// The actual Supabase submission — called either directly (no duplicate) or
   /// after the citizen chooses "Report Anyway" in the duplicate dialog.
   Future<void> _doSubmit() async {
+    final strings = appStringsOf(context, listen: false);
     final provider = context.read<IncidentProvider>();
     final success = await provider.submitIncident(
       category: _selectedCategory,
@@ -311,6 +312,8 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
 
     if (mounted) {
       if (success) {
+        // Optional vibration as a non-visual, non-audible confirmation.
+        pulseHapticOf(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -319,9 +322,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    _isSos
-                        ? 'Emergency SOS reported! Awaiting priority verification.'
-                        : 'Incident reported successfully. Awaiting admin verification.',
+                    strings.t(_isSos ? 'reportedSos' : 'reportedOk'),
                   ),
                 ),
               ],
@@ -335,7 +336,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              provider.errorMessage ?? 'Failed to submit report. Please try again.',
+              provider.errorMessage ?? strings.t('reportFailed'),
             ),
             backgroundColor: AppColors.severityRed,
           ),
@@ -348,10 +349,11 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   Widget build(BuildContext context) {
     final isSubmitting = context.watch<IncidentProvider>().isSubmitting;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final strings = appStringsOf(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Report Incident'),
+        title: Text(strings.t('reportTitle')),
         elevation: 0,
       ),
       body: Form(
@@ -393,15 +395,15 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "I'm Trapped / Emergency SOS",
-                          style: TextStyle(
+                        Text(
+                          strings.t('sosToggle'),
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
                           ),
                         ),
                         Text(
-                          'Flags this report as critical high-priority rescue emergency',
+                          strings.t('sosToggleHint'),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
@@ -432,9 +434,9 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
 
             // ─── Incident Category Dropdown ───────────────────────────────
             DropdownButtonFormField<IncidentCategory>(
-              decoration: const InputDecoration(
-                labelText: 'Incident Category *',
-                prefixIcon: Icon(Icons.category_outlined),
+              decoration: InputDecoration(
+                labelText: strings.t('categoryLabel'),
+                prefixIcon: const Icon(Icons.category_outlined),
               ),
               initialValue: _selectedCategory,
               items: IncidentCategory.values.map((cat) {
@@ -444,7 +446,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                     children: [
                       Icon(categoryIcon(cat), color: categoryColor(cat), size: 18),
                       const SizedBox(width: 10),
-                      Text(cat.label),
+                      Flexible(child: Text(strings.category(cat))),
                     ],
                   ),
                 );
@@ -470,8 +472,8 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               decoration: InputDecoration(
                 // An SOS shouldn't be held up by typing — description is
                 // optional while the SOS switch is on.
-                labelText: _isSos ? 'Description (optional)' : 'Description *',
-                hintText: 'Explain what happened, water depth, roadblocks, or trapped individuals...',
+                labelText: strings.t(_isSos ? 'descriptionOptional' : 'description'),
+                hintText: strings.t('descriptionHint'),
                 alignLabelWithHint: true,
                 prefixIcon: const Padding(
                   padding: EdgeInsets.only(bottom: 50),
@@ -481,7 +483,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               maxLines: 3,
               validator: (val) {
                 if (!_isSos && (val == null || val.trim().isEmpty)) {
-                  return 'Please provide a short description';
+                  return strings.t('descriptionRequired');
                 }
                 return null;
               },
@@ -492,13 +494,20 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Incident Location *',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                // Flexible: longer translations must wrap, not overflow.
+                Flexible(
+                  child: Text(
+                    strings.t('locationLabel'),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                 ),
-                Text(
-                  'Tap map to set pin',
-                  style: Theme.of(context).textTheme.bodySmall,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    strings.t('tapMapPin'),
+                    textAlign: TextAlign.end,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ),
               ],
             ),
@@ -611,9 +620,9 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             const SizedBox(height: 20),
 
             // ─── Photo & Video Evidence Upload ───────────────────────────
-            const Text(
-              'Evidence (Optional)',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            Text(
+              strings.t('evidence'),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             const SizedBox(height: 8),
             Row(
@@ -627,7 +636,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           icon: const Icon(Icons.add_a_photo_outlined),
-                          label: const Text('Add Photo'),
+                          label: Text(strings.t('addPhoto')),
                           onPressed: () => _showMediaSourceSheet(isVideo: false),
                         )
                       : Stack(
@@ -669,7 +678,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           icon: const Icon(Icons.videocam_outlined),
-                          label: const Text('Add Video'),
+                          label: Text(strings.t('addVideo')),
                           onPressed: () => _showMediaSourceSheet(isVideo: true),
                         )
                       : Container(
@@ -689,7 +698,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                                     Icon(Icons.video_file, color: context.brandInk, size: 32),
                                     const SizedBox(height: 4),
                                     Text(
-                                      _videoFileName ?? 'Video selected',
+                                      _videoFileName ?? strings.t('videoSelected'),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(fontSize: 11),
@@ -754,14 +763,14 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : Text(
-                      _isSos ? 'SUBMIT EMERGENCY SOS REPORT' : 'SUBMIT INCIDENT REPORT',
+                      strings.t(_isSos ? 'submitSos' : 'submitReport'),
                       style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
                     ),
             ),
             const SizedBox(height: 12),
             Center(
               child: Text(
-                'Newly submitted reports will begin as Pending verification by authorities.',
+                strings.t('pendingNote'),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -816,6 +825,7 @@ class _DuplicateDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = categoryColor(duplicate.category);
+    final strings = appStringsOf(context);
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -843,7 +853,7 @@ class _DuplicateDialog extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Similar Report Found',
+                    strings.t('similarFound'),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -873,7 +883,7 @@ class _DuplicateDialog extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          duplicate.category.label,
+                          strings.category(duplicate.category),
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
@@ -956,8 +966,9 @@ class _DuplicateDialog extends StatelessWidget {
             const SizedBox(height: 14),
 
             Text(
-              'A nearby ${duplicate.category.label.toLowerCase()} report already exists. '
-              'Would you like to confirm it (adds credibility) or still file a new report?',
+              strings.f('similarQuestion', {
+                'category': strings.category(duplicate.category).toLowerCase(),
+              }),
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
@@ -975,7 +986,7 @@ class _DuplicateDialog extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10)),
               ),
               icon: const Icon(Icons.thumb_up_alt_outlined, size: 18),
-              label: const Text('Confirm Existing Report'),
+              label: Text(strings.t('confirmExisting')),
               onPressed: () {
                 Navigator.of(context).pop();
                 onConfirmExisting();
@@ -993,7 +1004,7 @@ class _DuplicateDialog extends StatelessWidget {
                     BorderSide(color: context.brandInk, width: 1.5),
               ),
               icon: const Icon(Icons.add_location_alt_outlined, size: 18),
-              label: const Text('Still File a New Report'),
+              label: Text(strings.t('stillFile')),
               onPressed: () {
                 Navigator.of(context).pop();
                 onReportAnyway();
@@ -1007,7 +1018,7 @@ class _DuplicateDialog extends StatelessWidget {
                 minimumSize: const Size.fromHeight(40),
               ),
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(strings.t('cancel')),
             ),
           ],
         ),
@@ -1057,6 +1068,7 @@ class _ProximityBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = appStringsOf(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -1086,7 +1098,7 @@ class _ProximityBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Similar report nearby',
+                  strings.t('similarNearby'),
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
@@ -1095,7 +1107,7 @@ class _ProximityBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${duplicate.category.label} • '
+                  '${strings.category(duplicate.category)} • '
                   '~${distanceLabel(_distanceMetres())} away • '
                   '${timeAgo(duplicate.createdAt)}',
                   style: Theme.of(context)
@@ -1111,25 +1123,38 @@ class _ProximityBanner extends StatelessWidget {
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              GestureDetector(
-                onTap: onView,
-                child: Text(
-                  'View',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.severityOrange,
-                    decoration: TextDecoration.underline,
-                    decorationColor: AppColors.severityOrange,
+              // Both controls get a 44x44dp touch target and a screen-reader
+              // name (they were a 12sp text link and a bare 16dp icon).
+              Semantics(
+                button: true,
+                label: strings.t('view'),
+                child: InkWell(
+                  onTap: onView,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                    child: Center(
+                      child: Text(
+                        strings.t('view'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.severityOrange,
+                          decoration: TextDecoration.underline,
+                          decorationColor: AppColors.severityOrange,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 4),
-              GestureDetector(
-                onTap: onDismiss,
-                child: Icon(
+              IconButton(
+                onPressed: onDismiss,
+                tooltip: strings.t('dismiss'),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                icon: Icon(
                   Icons.close_rounded,
-                  size: 16,
+                  size: 18,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),

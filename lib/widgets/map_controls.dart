@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../utils/map_tile_config.dart';
 
 /// Circular +/- zoom button, styled to match the map card's floating
@@ -11,16 +12,23 @@ class ZoomButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      shape: const CircleBorder(),
-      elevation: 2,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Icon(icon, size: 20, color: const Color(0xFF2A2A2A)),
+    // Icon-only control: name it for screen readers. 12dp padding around a
+    // 20dp icon gives the 44dp minimum touch target.
+    final strings = appStringsOf(context);
+    return Semantics(
+      button: true,
+      label: strings.t(icon == Icons.add ? 'zoomIn' : 'zoomOut'),
+      child: Material(
+        color: Colors.white,
+        shape: const CircleBorder(),
+        elevation: 2,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Icon(icon, size: 20, color: const Color(0xFF2A2A2A)),
+          ),
         ),
       ),
     );
@@ -36,7 +44,7 @@ class MyLocationButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: 'My location',
+      message: appStringsOf(context).t('myLocation'),
       child: Material(
         color: Colors.white,
         shape: const CircleBorder(),
@@ -45,7 +53,7 @@ class MyLocationButton extends StatelessWidget {
           customBorder: const CircleBorder(),
           onTap: onTap,
           child: const Padding(
-            padding: EdgeInsets.all(10),
+            padding: EdgeInsets.all(12),
             child: Icon(Icons.my_location, size: 20, color: Color(0xFF1A73E8)),
           ),
         ),
@@ -95,7 +103,7 @@ class _SosMapButtonState extends State<SosMapButton>
   Widget build(BuildContext context) {
     const red = Color(0xFFD32F2F);
     return Tooltip(
-      message: 'Emergency SOS',
+      message: appStringsOf(context).t('emergencySos'),
       child: AnimatedBuilder(
         animation: _pulse,
         builder: (context, child) => DecoratedBox(
@@ -152,19 +160,28 @@ class MapLayerToggleButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isTopo = style == BaseMapStyle.topo;
-    return Material(
-      color: Colors.white,
-      shape: const CircleBorder(),
-      elevation: 2,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Icon(
-            isTopo ? Icons.map_outlined : Icons.terrain,
-            size: 20,
-            color: const Color(0xFF2A2A2A),
+    // The icon shows what a tap switches *to*; the label says the same.
+    final label = appStringsOf(context).t(isTopo ? 'switchToStreet' : 'switchToTopo');
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: Material(
+          color: Colors.white,
+          shape: const CircleBorder(),
+          elevation: 2,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Icon(
+                isTopo ? Icons.map_outlined : Icons.terrain,
+                size: 20,
+                color: const Color(0xFF2A2A2A),
+              ),
+            ),
           ),
         ),
       ),

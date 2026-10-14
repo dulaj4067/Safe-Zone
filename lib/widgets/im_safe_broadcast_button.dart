@@ -1,5 +1,8 @@
 ﻿import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+import '../providers/accessibility_provider.dart';
+
 class ImSafeBroadcastButton extends StatefulWidget {
   /// Returns true once the broadcast is actually saved. On false the button
   /// resets so the user can hold again.
@@ -39,7 +42,13 @@ class _ImSafeBroadcastButtonState extends State<ImSafeBroadcastButton>
       _isSending = false;
       _sent = ok;
     });
-    if (!ok) _controller.reverse();
+    if (ok) {
+      // Optional vibration; the visible "Broadcast sent" state is the primary
+      // confirmation and nothing relies on sound.
+      pulseHapticOf(context);
+    } else {
+      _controller.reverse();
+    }
   }
 
   void _onPressStart(_) {
@@ -51,6 +60,14 @@ class _ImSafeBroadcastButtonState extends State<ImSafeBroadcastButton>
     if (_controller.status != AnimationStatus.completed) _controller.reverse();
   }
 
+  /// Screen-reader / switch-access path: the visual control needs a 900ms
+  /// press-and-hold, which assistive technology can't perform, so it also
+  /// exposes tap and long-press as semantic actions that send right away.
+  void _sendViaAssistiveAction() {
+    if (_sent || _isSending) return;
+    _triggerBroadcast();
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -59,24 +76,39 @@ class _ImSafeBroadcastButtonState extends State<ImSafeBroadcastButton>
 
   @override
   Widget build(BuildContext context) {
+    final strings = appStringsOf(context);
     if (_sent) {
       return Container(
         width: 220,
         height: 220,
         decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.green.shade600),
         alignment: Alignment.center,
-        child: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle, color: Colors.white, size: 48),
-            SizedBox(height: 8),
-            Text('Broadcast sent', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-          ],
+        // The circle is a fixed size; scaleDown keeps long labels inside it.
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 48),
+                const SizedBox(height: 8),
+                Text(strings.t('broadcastSent'), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
         ),
       );
     }
 
-    return GestureDetector(
+    return Semantics(
+      button: true,
+      excludeSemantics: true,
+      label: strings.t('imSafeTitle'),
+      hint: strings.t('imSafeHint'),
+      onTap: _sendViaAssistiveAction,
+      onLongPress: _sendViaAssistiveAction,
+      child: GestureDetector(
       onLongPressStart: _onPressStart,
       onLongPressEnd: _onPressEnd,
       onLongPressCancel: () => _controller.reverse(),
@@ -101,23 +133,30 @@ class _ImSafeBroadcastButtonState extends State<ImSafeBroadcastButton>
                     valueColor: AlwaysStoppedAnimation(Colors.green.shade600),
                   ),
                 ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(_isSending ? Icons.hourglass_top : Icons.shield_outlined,
-                        size: 40, color: Colors.green.shade700),
-                    const SizedBox(height: 8),
-                    Text(
-                      _isSending ? 'Sending...' : 'Hold to say\n"I\'m Safe"',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontWeight: FontWeight.w700, color: Colors.green.shade800),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_isSending ? Icons.hourglass_top : Icons.shield_outlined,
+                            size: 40, color: Colors.green.shade700),
+                        const SizedBox(height: 8),
+                        Text(
+                          _isSending ? strings.t('sending') : strings.t('holdToSay'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.green.shade800),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
           );
         },
+      ),
       ),
     );
   }

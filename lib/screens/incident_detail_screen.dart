@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/app_user.dart';
 import '../models/incident.dart';
 import '../providers/incident_provider.dart';
@@ -12,6 +13,7 @@ import '../theme/app_theme.dart';
 import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
 import '../utils/sri_lanka_bounds.dart';
+import '../widgets/a11y/a11y_widgets.dart';
 import '../widgets/incident_card.dart';
 import '../widgets/status_badge.dart';
 import 'edit_incident_screen.dart';
@@ -601,26 +603,24 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                   ),
                   const SizedBox(height: 12),
                   if (_incident.photoUrl != null) ...[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.network(
-                        _incident.photoUrl!,
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (ctx, child, progress) {
-                          if (progress == null) return child;
-                          return Container(
-                            height: 200,
-                            color: Colors.grey.withValues(alpha: 0.2),
-                            child: const Center(child: CircularProgressIndicator()),
-                          );
-                        },
-                        errorBuilder: (ctx, err, st) => Container(
-                          height: 100,
+                    // Data Saver loads a small thumbnail first with a
+                    // "Load sharper image" link; the photo gets a spoken name.
+                    A11yAdaptiveImage(
+                      url: _incident.photoUrl!,
+                      height: 200,
+                      semanticLabel: appStringsOf(context).t('photoEvidence'),
+                      loadingBuilder: (ctx, child, progress) {
+                        if (progress == null) return child;
+                        return Container(
+                          height: 200,
                           color: Colors.grey.withValues(alpha: 0.2),
-                          child: const Center(child: Text('Photo could not be loaded')),
-                        ),
+                          child: const Center(child: CircularProgressIndicator()),
+                        );
+                      },
+                      errorBuilder: (ctx, err, st) => Container(
+                        height: 100,
+                        color: Colors.grey.withValues(alpha: 0.2),
+                        child: Center(child: Text(appStringsOf(ctx).t('photoFailed'))),
                       ),
                     ),
                   ],

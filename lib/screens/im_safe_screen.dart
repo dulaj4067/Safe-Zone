@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_strings.dart';
 import '../providers/safety_provider.dart';
 import '../models/risk_zone.dart';
 import '../widgets/im_safe_broadcast_button.dart';
@@ -27,19 +28,22 @@ class _ImSafeScreenState extends State<ImSafeScreen> {
   Widget build(BuildContext context) {
     final safety = context.watch<SafetyProvider>();
     final family = safety.confirmedFamily;
+    final strings = appStringsOf(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('I\'m Safe')),
+      appBar: AppBar(title: Text(strings.t('imSafeTitle'))),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Column(
+          // A ListView, not a Column: longer translations and large text
+          // scale push the content past the screen, so the page must scroll.
+          child: ListView(
             children: [
               const SizedBox(height: 8),
-              Text('Let your safety circle know you\'re okay',
+              Text(strings.t('imSafeHeading'),
                   textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 4),
-              Text('Everyone below will see "Marked safe" in their Family circle.',
+              Text(strings.t('imSafeSub'),
                   textAlign: TextAlign.center, style: TextStyle(color: context.inkMuted)),
               const SizedBox(height: 32),
               Center(
@@ -54,41 +58,37 @@ class _ImSafeScreenState extends State<ImSafeScreen> {
                 Text(safety.errorMessage!, style: const TextStyle(color: Colors.red)),
               if (safety.lastBroadcastAt != null)
                 Text(
-                  'Sent at ${safety.lastBroadcastAt!.hour.toString().padLeft(2, '0')}:${safety.lastBroadcastAt!.minute.toString().padLeft(2, '0')}',
+                  strings.f('sentAt', {
+                    'time': '${safety.lastBroadcastAt!.hour.toString().padLeft(2, '0')}:${safety.lastBroadcastAt!.minute.toString().padLeft(2, '0')}',
+                  }),
                   style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.w600),
                 ),
               const SizedBox(height: 24),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Your family circle (${family.length})',
+                child: Text(strings.f('familyCount', {'n': family.length}),
                     style: Theme.of(context).textTheme.titleSmall),
               ),
               const SizedBox(height: 8),
-              Expanded(
-                child: safety.isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : family.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No family members yet — invite them from the '
-                          'Family circle screen.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: context.inkMuted),
-                        ),
-                      )
-                    : ListView.separated(
-                        itemCount: family.length,
-                        separatorBuilder: (_, _) => const Divider(height: 1),
-                        itemBuilder: (context, i) {
-                          final c = family[i];
-                          return ListTile(
-                            leading: CircleAvatar(child: Text(c.initials)),
-                            title: Text(c.name),
-
-                          );
-                        },
-                      ),
-              ),
+              if (safety.isLoading)
+                const Center(child: CircularProgressIndicator())
+              else if (family.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Text(
+                    strings.t('noFamily'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: context.inkMuted),
+                  ),
+                )
+              else
+                for (var i = 0; i < family.length; i++) ...[
+                  if (i > 0) const Divider(height: 1),
+                  ListTile(
+                    leading: CircleAvatar(child: Text(family[i].initials)),
+                    title: Text(family[i].name),
+                  ),
+                ],
             ],
           ),
         ),

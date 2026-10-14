@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import '../widgets/a11y/a11y_widgets.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
@@ -91,13 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   if (auth.error != null) ...[
                     const SizedBox(height: 4),
-                    Text(
-                      auth.error!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                        fontSize: 13,
-                      ),
-                    ),
+                    A11yErrorBanner(message: auth.error!),
                   ],
                   if (auth.unconfirmedEmail != null) ...[
                     const SizedBox(height: 4),

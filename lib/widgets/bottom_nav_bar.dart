@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+
 class BottomNavBar extends StatelessWidget {
   const BottomNavBar({
     super.key,
@@ -21,6 +23,17 @@ class BottomNavBar extends StatelessWidget {
       height: 1.2,
     );
 
+    final strings = appStringsOf(context);
+
+    BottomNavigationBarItem item(IconData off, IconData on, String key) {
+      final label = strings.t(key);
+      return BottomNavigationBarItem(
+        icon: _DestinationContent(icon: off, label: label, selected: false),
+        activeIcon: _DestinationContent(icon: on, label: label, selected: true),
+        label: label,
+      );
+    }
+
     return BottomNavigationBar(
       type: BottomNavigationBarType.fixed,
       currentIndex: currentIndex,
@@ -36,85 +49,13 @@ class BottomNavBar extends StatelessWidget {
       unselectedItemColor: colors.onSurfaceVariant,
       backgroundColor: colors.surface,
       items: [
-        const BottomNavigationBarItem(
-          icon: _DestinationContent(
-            icon: Icons.home_outlined,
-            label: 'Home',
-            selected: false,
-          ),
-          activeIcon: _DestinationContent(
-            icon: Icons.home,
-            label: 'Home',
-            selected: true,
-          ),
-          label: 'Home',
-        ),
-        const BottomNavigationBarItem(
-          icon: _DestinationContent(
-            icon: Icons.report_outlined,
-            label: 'Incidents',
-            selected: false,
-          ),
-          activeIcon: _DestinationContent(
-            icon: Icons.report,
-            label: 'Incidents',
-            selected: true,
-          ),
-          label: 'Incidents',
-        ),
-        const BottomNavigationBarItem(
-          icon: _DestinationContent(
-            icon: Icons.alt_route_outlined,
-            label: 'Shelters',
-            selected: false,
-          ),
-          activeIcon: _DestinationContent(
-            icon: Icons.alt_route,
-            label: 'Shelters',
-            selected: true,
-          ),
-          label: 'Shelters',
-        ),
-        const BottomNavigationBarItem(
-          icon: _DestinationContent(
-            icon: Icons.health_and_safety_outlined,
-            label: 'Prep Hub',
-            selected: false,
-          ),
-          activeIcon: _DestinationContent(
-            icon: Icons.health_and_safety,
-            label: 'Prep Hub',
-            selected: true,
-          ),
-          label: 'Prep Hub',
-        ),
+        item(Icons.home_outlined, Icons.home, 'navHome'),
+        item(Icons.report_outlined, Icons.report, 'navIncidents'),
+        item(Icons.alt_route_outlined, Icons.alt_route, 'navShelters'),
+        item(Icons.health_and_safety_outlined, Icons.health_and_safety, 'navPrepHub'),
         if (isAuthority)
-          const BottomNavigationBarItem(
-            icon: _DestinationContent(
-              icon: Icons.dashboard_outlined,
-              label: 'Dashboard',
-              selected: false,
-            ),
-            activeIcon: _DestinationContent(
-              icon: Icons.dashboard,
-              label: 'Dashboard',
-              selected: true,
-            ),
-            label: 'Dashboard',
-          ),
-        const BottomNavigationBarItem(
-          icon: _DestinationContent(
-            icon: Icons.settings_outlined,
-            label: 'Settings',
-            selected: false,
-          ),
-          activeIcon: _DestinationContent(
-            icon: Icons.settings,
-            label: 'Settings',
-            selected: true,
-          ),
-          label: 'Settings',
-        ),
+          item(Icons.dashboard_outlined, Icons.dashboard, 'navDashboard'),
+        item(Icons.settings_outlined, Icons.settings, 'navSettings'),
       ],
     );
   }
@@ -148,6 +89,9 @@ class _DestinationContent extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
+              // The bar is a fixed 52dp tall; capping tab labels at 1.6x keeps
+              // them inside it at the largest text size the app allows.
+              textScaler: MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.6),
               style: TextStyle(
                 color: selected ? colors.primary : colors.onSurfaceVariant,
                 fontWeight: FontWeight.w500,

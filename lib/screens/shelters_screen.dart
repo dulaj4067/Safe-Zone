@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/app_user.dart';
 import '../models/shelter.dart';
 import '../services/location_service.dart';
@@ -123,6 +124,7 @@ class _SheltersScreenState extends State<SheltersScreen> {
                     ? null
                     : IconButton(
                         icon: const Icon(Icons.clear),
+                        tooltip: appStringsOf(context).t('clearSearch'),
                         onPressed: _search.clear,
                       ),
               ),

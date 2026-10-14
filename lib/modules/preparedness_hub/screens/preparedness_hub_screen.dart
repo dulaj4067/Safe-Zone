@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../l10n/app_strings.dart';
 import '../../../models/app_user.dart';
 import '../../../models/zone.dart';
 import '../../../screens/volunteer_tasks_screen.dart';
@@ -83,9 +84,12 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
               ),
             ),
           if (provider.isOffline)
-            const Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: Icon(Icons.cloud_off_outlined),
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Icon(
+                Icons.cloud_off_outlined,
+                semanticLabel: appStringsOf(context).t('offlineBanner'),
+              ),
             ),
         ],
       ),

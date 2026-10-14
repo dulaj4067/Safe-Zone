@@ -59,12 +59,31 @@ final RegExp _uuidPattern = RegExp(
 /// Returns the number as `+digits` (Sri Lankan mobiles as +947XXXXXXXX), or
 /// null if it isn't a valid mobile number.
 String? normalizePhone(String value) {
-  final compact = value.replaceAll(RegExp(r'[\s\-()]'), '');
+  final compact = _asciiDigits(value).replaceAll(RegExp(r'[\s\-()]'), '');
   final sriLankan = RegExp(r'^(?:\+94|0094|94|0)?(7\d{8})$').firstMatch(compact);
   if (sriLankan != null) return '+94${sriLankan.group(1)}';
   final international = RegExp(r'^\+([1-9]\d{7,14})$').firstMatch(compact);
   if (international != null) return '+${international.group(1)}';
   return null;
+}
+
+/// Rewrites Arabic-Indic, Extended Arabic-Indic, Tamil and Sinhala digits as
+/// 0-9, so a number typed on an Arabic, Tamil or Sinhala keyboard validates
+/// and is stored the same way as one typed with Latin digits.
+String _asciiDigits(String input) {
+  const starts = [0x0660, 0x06F0, 0x0BE6, 0x0DE6];
+  final out = StringBuffer();
+  for (final rune in input.runes) {
+    var mapped = rune;
+    for (final start in starts) {
+      if (rune >= start && rune <= start + 9) {
+        mapped = 0x30 + (rune - start);
+        break;
+      }
+    }
+    out.writeCharCode(mapped);
+  }
+  return out.toString();
 }
 
 String? validatePassword(String? value) {
