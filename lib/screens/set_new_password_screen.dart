@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../utils/validators.dart';
+import '../widgets/a11y/a11y_widgets.dart';
 
 /// Shown after a password-reset link opens the app (the user is signed in
 /// with a recovery session). Nothing else in the app is reachable until a
@@ -40,7 +41,6 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Choose a new password'), automaticallyImplyLeading: false),
       body: SafeArea(
@@ -81,7 +81,7 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
                     ),
                     if (auth.error != null) ...[
                       const SizedBox(height: 12),
-                      Text(auth.error!, style: TextStyle(color: theme.colorScheme.error, fontSize: 13)),
+                      A11yErrorBanner(message: auth.error!),
                     ],
                     const SizedBox(height: 20),
                     FilledButton(

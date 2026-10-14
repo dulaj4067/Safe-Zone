@@ -239,11 +239,20 @@ class A11yAdaptiveImage extends StatefulWidget {
     required this.url,
     this.semanticLabel,
     this.height = 140,
+    this.borderRadius = 10,
+    this.loadingBuilder,
+    this.errorBuilder,
   });
 
   final String url;
   final String? semanticLabel;
   final double height;
+  final double borderRadius;
+
+  /// Optional spinner while the full image loads, and a custom failure view;
+  /// when omitted the plain image / broken-image icon are used.
+  final ImageLoadingBuilder? loadingBuilder;
+  final ImageErrorWidgetBuilder? errorBuilder;
 
   @override
   State<A11yAdaptiveImage> createState() => _A11yAdaptiveImageState();
@@ -273,18 +282,20 @@ class _A11yAdaptiveImageState extends State<A11yAdaptiveImage> {
           SizedBox(
             height: widget.height,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(widget.borderRadius),
               child: Image.network(
                 widget.url,
                 fit: BoxFit.cover,
                 cacheWidth: showThumb ? 240 : null,
                 filterQuality:
                     showThumb ? FilterQuality.low : FilterQuality.medium,
-                errorBuilder: (_, _, _) => Container(
-                  color: AppColors.seafoam,
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.broken_image_outlined, semanticLabel: 'Image unavailable'),
-                ),
+                loadingBuilder: widget.loadingBuilder,
+                errorBuilder: widget.errorBuilder ??
+                    (_, _, _) => Container(
+                          color: context.tintSoft,
+                          alignment: Alignment.center,
+                          child: const Icon(Icons.broken_image_outlined, semanticLabel: 'Image unavailable'),
+                        ),
               ),
             ),
           ),

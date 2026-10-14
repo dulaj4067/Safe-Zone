@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/incident.dart';
 import '../theme/app_theme.dart';
+import '../widgets/a11y/a11y_widgets.dart';
 import '../widgets/status_badge.dart';
 import '../widgets/incident_card.dart';
 
@@ -48,15 +50,12 @@ class IncidentDetailSheet extends StatelessWidget {
           if (incident.description != null) Text(incident.description!),
           const SizedBox(height: 12),
           if (incident.photoUrl != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                incident.photoUrl!,
-                height: 180,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (ctx, err, st) => const SizedBox.shrink(),
-              ),
+            A11yAdaptiveImage(
+              url: incident.photoUrl!,
+              height: 180,
+              borderRadius: 8,
+              semanticLabel: appStringsOf(context).t('photoEvidence'),
+              errorBuilder: (ctx, err, st) => const SizedBox.shrink(),
             ),
           const SizedBox(height: 12),
           Row(

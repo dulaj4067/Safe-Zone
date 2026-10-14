@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../models/alert.dart';
 import '../models/app_user.dart';
 import '../models/zone.dart';
+import '../l10n/app_strings.dart';
 import '../providers/accessibility_provider.dart';
 import '../providers/alert_provider.dart';
 import '../providers/auth_provider.dart';
@@ -101,6 +102,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         context.read<AccessibilityProvider>().setThemeMode(s.first),
                   ),
                 ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Language, data saver, captions, glare contrast and haptics were
+            // only reachable from admin screens; everyone gets them here.
+            Card(
+              child: ListTile(
+                key: const Key('inclusion_settings_tile'),
+                leading: Icon(Icons.accessibility_new_rounded, color: context.brandInk),
+                title: Text(appStringsOf(context).t('inclusionTitle')),
+                subtitle: Text(appStringsOf(context).t('inclusionSubtitle')),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => showA11yInclusionSheet(context),
               ),
             ),
             const SizedBox(height: 20),

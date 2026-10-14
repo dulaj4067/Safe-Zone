@@ -5,6 +5,7 @@ import '../legal/policy_documents.dart';
 import '../providers/auth_provider.dart';
 import '../services/consent_service.dart';
 import '../utils/validators.dart';
+import '../widgets/a11y/a11y_widgets.dart';
 import 'policy_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -142,10 +143,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     if (auth.error != null) ...[
                       const SizedBox(height: 12),
-                      Text(
-                        auth.error!,
-                        style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 13),
-                      ),
+                      A11yErrorBanner(message: auth.error!),
                     ],
                     const SizedBox(height: 20),
                     FilledButton(

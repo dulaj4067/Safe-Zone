@@ -94,6 +94,15 @@ class AccessibilityProvider extends ChangeNotifier {
   }
 }
 
+/// Plays the optional haptic pulse for a key action (SOS sent, "I'm Safe",
+/// alert acknowledged) unless the user turned haptics off. Silent no-op when
+/// the provider isn't in the tree (some tests).
+Future<void> pulseHapticOf(BuildContext context) async {
+  try {
+    await Provider.of<AccessibilityProvider>(context, listen: false).pulseHaptic();
+  } catch (_) {}
+}
+
 AdminStrings adminStringsOf(BuildContext context) {
   try {
     return context.watch<AccessibilityProvider>().strings;

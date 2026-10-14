@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/alert.dart';
 import '../providers/alert_provider.dart';
 import '../theme/app_colors.dart';
@@ -32,6 +33,7 @@ class _ActiveAlertsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = appStringsOf(context);
     final alerts = [...context.watch<AlertProvider>().activeAlerts]
       ..sort((a, b) => _severityOrder
           .indexOf(a.severity)
@@ -47,13 +49,15 @@ class _ActiveAlertsSheet extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(
-                  'Active Alerts',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                Expanded(
+                  child: Text(
+                    strings.t('activeAlerts'),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Text(
                   '${alerts.length}',
                   style: TextStyle(
@@ -65,10 +69,10 @@ class _ActiveAlertsSheet extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (alerts.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 32),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 32),
                 child: Center(
-                  child: Text('No active alerts right now.'),
+                  child: Text(strings.t('noActiveAlerts')),
                 ),
               )
             else
@@ -88,7 +92,7 @@ class _ActiveAlertsSheet extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
-                      subtitle: Text(_relativeTime(alert.createdAt)),
+                      subtitle: Text(strings.timeAgo(alert.createdAt)),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () {
                         Navigator.pop(context);
@@ -102,13 +106,5 @@ class _ActiveAlertsSheet extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _relativeTime(DateTime time) {
-    final diff = DateTime.now().difference(time);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
   }
 }

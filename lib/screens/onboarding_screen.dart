@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/zone.dart';
+import '../providers/accessibility_provider.dart';
 import '../providers/alert_provider.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
@@ -107,7 +109,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       if (!mounted) return;
       setState(() {
         _zonesLoading = false;
-        _zonesError = 'Couldn\'t load areas. You can set this later in Settings.';
+        _zonesError = 'obAreasError';
       });
     }
   }
@@ -140,10 +142,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           .select('id');
       requireRowsAffected(rows, 'save your area');
       if (mounted) await context.read<AlertProvider>().setUserZoneId(zoneId);
-      if (mounted) setState(() => _zoneSavedMessage = 'Saved');
+      if (mounted) setState(() => _zoneSavedMessage = 'obSaved');
     } catch (_) {
       if (mounted) {
-        setState(() => _zoneSavedMessage = 'Couldn\'t save — check your connection and try again.');
+        setState(() => _zoneSavedMessage = 'obSaveFailed');
       }
     } finally {
       if (mounted) setState(() => _savingZone = false);
@@ -179,6 +181,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final isLast = _step == _stepCount - 1;
+    final strings = appStringsOf(context);
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -188,7 +191,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: Row(
                 children: [
                   Semantics(
-                    label: 'Step ${_step + 1} of $_stepCount',
+                    label: adminStringsOf(context).stepOf(_step + 1, _stepCount),
                     child: Row(
                       children: [
                         for (var i = 0; i < _stepCount; i++)
@@ -206,9 +209,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   const Spacer(),
                   if (!isLast)
-                    TextButton(
-                      onPressed: _finishing ? null : () => _goTo(_stepCount - 1),
-                      child: const Text('Skip'),
+                    Flexible(
+                      child: TextButton(
+                        onPressed: _finishing ? null : () => _goTo(_stepCount - 1),
+                        child: Text(strings.t('obSkip')),
+                      ),
                     ),
                 ],
               ),
@@ -229,16 +234,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Row(
                 children: [
+                  // Flexible lets long translations wrap instead of overflowing.
                   if (_step > 0)
-                    TextButton(
-                      onPressed: _finishing ? null : () => _goTo(_step - 1),
-                      child: const Text('Back'),
+                    Flexible(
+                      child: TextButton(
+                        onPressed: _finishing ? null : () => _goTo(_step - 1),
+                        child: Text(strings.t('obBack')),
+                      ),
                     ),
                   const Spacer(),
-                  FilledButton(
-                    key: const Key('onboarding_next'),
-                    onPressed: _finishing ? null : (isLast ? _finish : () => _goTo(_step + 1)),
-                    child: Text(isLast ? (widget.replay ? 'Done' : 'Start using SafeZone') : 'Next'),
+                  Flexible(
+                    flex: 2,
+                    child: FilledButton(
+                      key: const Key('onboarding_next'),
+                      onPressed: _finishing ? null : (isLast ? _finish : () => _goTo(_step + 1)),
+                      child: Text(
+                        isLast
+                            ? strings.t(widget.replay ? 'obDone' : 'obStart')
+                            : strings.t('obNext'),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -270,102 +286,139 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         subtitle: Text(body),
       );
 
-  Widget _welcomePage(BuildContext context) => _page(
-        context,
-        icon: Icons.shield_outlined,
-        title: 'Welcome to SafeZone',
-        children: [
-          const Text(
-            'Early warnings and help during floods and other disasters in Sri Lanka.',
-          ),
-          const SizedBox(height: 12),
-          _feature(Icons.campaign_outlined, 'Warnings for your area',
-              'Alerts from the authorities, kept available offline.'),
-          _feature(Icons.report_outlined, 'Report incidents',
-              'Flooded roads, damage or people trapped — others can confirm what they see.'),
-          _feature(Icons.night_shelter_outlined, 'Find shelters',
-              'Open shelters near you, with directions.'),
-          _feature(Icons.family_restroom_outlined, 'Family circle',
-              'Share your location and say "I\'m Safe" to family you invite.'),
-          if (_isAuthority)
-            _feature(Icons.admin_panel_settings_outlined, 'Authority tools',
-                'Send broadcast alerts, review reports and track who an alert has reached from the Dashboard.'),
-          const SizedBox(height: 8),
-          Text(
-            'SafeZone supports, but doesn\'t replace, official warnings. In an emergency call 117, 119 or 1990.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
-      );
+  static const _languages = [
+    ('en', 'English'),
+    ('si', 'සිංහල'),
+    ('ta', 'தமிழ்'),
+    ('ar', 'العربية'),
+  ];
 
-  Widget _areaPage(BuildContext context) => _page(
-        context,
-        icon: Icons.location_city_outlined,
-        title: 'Your area',
-        children: [
-          const Text(
-            'Choose where you live to see the warnings that affect you first. '
-            'Optional — you can change it any time in Settings.',
-          ),
-          const SizedBox(height: 16),
-          if (_zonesLoading)
-            const Center(child: CircularProgressIndicator())
-          else if (_zonesError != null) ...[
-            Text(_zonesError!, style: const TextStyle(color: AppColors.severityRed)),
-            TextButton(onPressed: _loadZones, child: const Text('Try again')),
-          ] else if (_zones.isEmpty)
-            const Text('No areas are set up yet.')
-          else
-            DropdownButtonFormField<String>(
-              key: const Key('onboarding_zone_dropdown'),
-              initialValue: _selectedZoneId,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Home area',
-                border: OutlineInputBorder(),
+  /// Language choice, first thing on the welcome page, so someone who can't
+  /// read the default English can switch before reading anything else.
+  /// Hidden when there's no [AccessibilityProvider] (some tests).
+  Widget _languagePicker(BuildContext context) {
+    AccessibilityProvider? a11y;
+    try {
+      a11y = Provider.of<AccessibilityProvider>(context);
+    } catch (_) {}
+    if (a11y == null) return const SizedBox.shrink();
+    final provider = a11y;
+    final strings = appStringsOf(context);
+    return Semantics(
+      container: true,
+      label: strings.t('obLanguage'),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final (code, name) in _languages)
+              ChoiceChip(
+                label: Text(name),
+                selected: provider.localeCode == code,
+                onSelected: (_) => provider.setLocaleCode(code),
               ),
-              items: [
-                for (final z in _zones)
-                  DropdownMenuItem(value: z.id, child: Text(z.name, overflow: TextOverflow.ellipsis)),
-              ],
-              onChanged: _savingZone ? null : (id) => id == null ? null : _saveZone(id),
-            ),
-          if (_zoneSavedMessage != null) ...[
-            const SizedBox(height: 8),
-            Text(_zoneSavedMessage!),
           ],
-        ],
-      );
+        ),
+      ),
+    );
+  }
 
-  Widget _permissionsPage(BuildContext context) => _page(
-        context,
-        icon: Icons.notifications_active_outlined,
-        title: 'Stay reachable',
-        children: [
-          const Text(
-            'Your phone will ask for permission. You can say no and change it later in your phone\'s settings.',
+  Widget _welcomePage(BuildContext context) {
+    final strings = appStringsOf(context);
+    return _page(
+      context,
+      icon: Icons.shield_outlined,
+      title: strings.t('obWelcome'),
+      children: [
+        _languagePicker(context),
+        Text(strings.t('obIntro')),
+        const SizedBox(height: 12),
+        _feature(Icons.campaign_outlined, strings.t('obWarnings'), strings.t('obWarningsBody')),
+        _feature(Icons.report_outlined, strings.t('obReport'), strings.t('obReportBody')),
+        _feature(Icons.night_shelter_outlined, strings.t('obShelters'), strings.t('obSheltersBody')),
+        _feature(Icons.family_restroom_outlined, strings.t('obFamily'), strings.t('obFamilyBody')),
+        if (_isAuthority)
+          _feature(Icons.admin_panel_settings_outlined, strings.t('obAuthority'),
+              strings.t('obAuthorityBody')),
+        const SizedBox(height: 8),
+        Text(
+          strings.t('obDisclaimer'),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+
+  Widget _areaPage(BuildContext context) {
+    final strings = appStringsOf(context);
+    return _page(
+      context,
+      icon: Icons.location_city_outlined,
+      title: strings.t('obArea'),
+      children: [
+        Text(strings.t('obAreaBody')),
+        const SizedBox(height: 16),
+        if (_zonesLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (_zonesError != null) ...[
+          Text(strings.t(_zonesError!), style: const TextStyle(color: AppColors.severityRed)),
+          TextButton(onPressed: _loadZones, child: Text(strings.t('obTryAgain'))),
+        ] else if (_zones.isEmpty)
+          Text(strings.t('obNoAreas'))
+        else
+          DropdownButtonFormField<String>(
+            key: const Key('onboarding_zone_dropdown'),
+            initialValue: _selectedZoneId,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: strings.t('obHomeArea'),
+              border: const OutlineInputBorder(),
+            ),
+            items: [
+              for (final z in _zones)
+                DropdownMenuItem(value: z.id, child: Text(z.name, overflow: TextOverflow.ellipsis)),
+            ],
+            onChanged: _savingZone ? null : (id) => id == null ? null : _saveZone(id),
           ),
-          const SizedBox(height: 16),
-          _permissionCard(
-            icon: Icons.notifications_outlined,
-            title: 'Notifications',
-            body: 'Needed to warn you about floods and other dangers, even when the app is closed.',
-            granted: _notificationsGranted,
-            onAllow: _allowNotifications,
-            onSkip: _skipNotifications,
-          ),
-          const SizedBox(height: 12),
-          _permissionCard(
-            icon: Icons.my_location,
-            title: 'Location',
-            body: 'Used for nearby shelters, directions, and when you choose to share your location with family. '
-                'If you skip this, the app asks again only when you use one of those features.',
-            granted: _locationGranted,
-            onAllow: _allowLocation,
-            onSkip: () => setState(() => _locationGranted = false),
-          ),
+        if (_zoneSavedMessage != null) ...[
+          const SizedBox(height: 8),
+          Text(strings.t(_zoneSavedMessage!)),
         ],
-      );
+      ],
+    );
+  }
+
+  Widget _permissionsPage(BuildContext context) {
+    final strings = appStringsOf(context);
+    return _page(
+      context,
+      icon: Icons.notifications_active_outlined,
+      title: strings.t('obReachable'),
+      children: [
+        Text(strings.t('obReachableBody')),
+        const SizedBox(height: 16),
+        _permissionCard(
+          icon: Icons.notifications_outlined,
+          title: strings.t('obNotifications'),
+          body: strings.t('obNotificationsBody'),
+          granted: _notificationsGranted,
+          onAllow: _allowNotifications,
+          onSkip: _skipNotifications,
+        ),
+        const SizedBox(height: 12),
+        _permissionCard(
+          icon: Icons.my_location,
+          title: strings.t('obLocation'),
+          body: strings.t('obLocationBody'),
+          granted: _locationGranted,
+          onAllow: _allowLocation,
+          onSkip: () => setState(() => _locationGranted = false),
+        ),
+      ],
+    );
+  }
 
   Widget _permissionCard({
     required IconData icon,
@@ -375,6 +428,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     required Future<void> Function() onAllow,
     required VoidCallback onSkip,
   }) {
+    final strings = appStringsOf(context);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -391,12 +445,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             const SizedBox(height: 8),
             if (granted == null)
               Wrap(spacing: 8, children: [
-                FilledButton.tonal(onPressed: onAllow, child: const Text('Allow')),
-                TextButton(onPressed: onSkip, child: const Text('Not now')),
+                FilledButton.tonal(onPressed: onAllow, child: Text(strings.t('obAllow'))),
+                TextButton(onPressed: onSkip, child: Text(strings.t('obNotNow'))),
               ])
             else
               Text(
-                granted ? 'Allowed' : 'Not allowed — you can turn this on later.',
+                strings.t(granted ? 'obAllowed' : 'obNotAllowed'),
                 style: TextStyle(
                   color: granted ? AppColors.severityGreen : context.inkMuted,
                   fontWeight: FontWeight.w600,
@@ -408,31 +462,34 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _readyPage(BuildContext context) => _page(
-        context,
-        icon: Icons.check_circle_outline,
-        title: 'You\'re set',
-        children: const [
-          Text('A few things worth doing next:'),
-          SizedBox(height: 8),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.group_add_outlined),
-            title: Text('Invite your family'),
-            subtitle: Text('Home → Share my ETA → Family circle'),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.download_for_offline_outlined),
-            title: Text('Save maps for offline use'),
-            subtitle: Text('Settings → Offline Safe-Zone Maps Cache'),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.privacy_tip_outlined),
-            title: Text('Review your privacy settings'),
-            subtitle: Text('Settings → Privacy & data. You can replay this tour there too.'),
-          ),
-        ],
-      );
+  Widget _readyPage(BuildContext context) {
+    final strings = appStringsOf(context);
+    return _page(
+      context,
+      icon: Icons.check_circle_outline,
+      title: strings.t('obReady'),
+      children: [
+        Text(strings.t('obNext3')),
+        const SizedBox(height: 8),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.group_add_outlined),
+          title: Text(strings.t('obInvite')),
+          subtitle: Text(strings.t('obInvitePath')),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.download_for_offline_outlined),
+          title: Text(strings.t('obOffline')),
+          subtitle: Text(strings.t('obOfflinePath')),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.privacy_tip_outlined),
+          title: Text(strings.t('obPrivacy')),
+          subtitle: Text(strings.t('obPrivacyPath')),
+        ),
+      ],
+    );
+  }
 }

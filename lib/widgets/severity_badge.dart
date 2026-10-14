@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/alert.dart';
 import '../theme/app_colors.dart';
 
@@ -39,7 +40,7 @@ class SeverityBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        severity.label,
+        appStringsOf(context).t('sev_${severity.name}'),
         style: TextStyle(
           color: severity == AlertSeverity.yellow
               ? AppColors.slateInk

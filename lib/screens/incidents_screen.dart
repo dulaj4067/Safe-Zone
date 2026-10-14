@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/app_user.dart';
 import '../models/incident.dart';
 import '../providers/alert_provider.dart';
@@ -11,6 +12,7 @@ import '../providers/incident_provider.dart';
 import '../services/location_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/incident_card.dart';
+import '../widgets/offline_strip.dart';
 import '../widgets/location_alert_banner.dart';
 import '../widgets/context_recall_card.dart';
 import 'incident_detail_screen.dart';
@@ -427,21 +429,13 @@ class _OfflineBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = appStringsOf(context);
     final label = lastUpdated != null
-        ? 'Showing cached data from ${lastUpdated!.hour.toString().padLeft(2, '0')}:${lastUpdated!.minute.toString().padLeft(2, '0')}'
-        : 'Offline — no cached data available';
-    return Container(
-      width: double.infinity,
-      color: Colors.amber.shade100,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          const Icon(Icons.cloud_off, size: 16),
-          const SizedBox(width: 8),
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 13))),
-        ],
-      ),
-    );
+        ? strings.f('cachedFrom', {
+            'time': '${lastUpdated!.hour.toString().padLeft(2, '0')}:${lastUpdated!.minute.toString().padLeft(2, '0')}',
+          })
+        : strings.t('offlineNoCache');
+    return OfflineStrip(message: label);
   }
 }
 

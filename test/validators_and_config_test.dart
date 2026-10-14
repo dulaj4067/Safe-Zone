@@ -39,6 +39,18 @@ void main() {
     test('international numbers with a leading + are kept', () {
       expect(normalizePhone('+44 7700 900123'), '+447700900123');
     });
+    test('digits typed on Arabic, Tamil and Sinhala keyboards are accepted', () {
+      // Re-script the ASCII digits 0-9 into each zero-based digit block.
+      String inScript(int zero, String ascii) =>
+          String.fromCharCodes(ascii.codeUnits.map((c) => zero + (c - 0x30)));
+      for (final zero in [0x0660, 0x06F0, 0x0BE6, 0x0DE6]) {
+        final typed = inScript(zero, '0771234567');
+        expect(typed, isNot('0771234567'), reason: 'sanity: really non-ASCII');
+        expect(normalizePhone(typed), '+94771234567', reason: 'U+${zero.toRadixString(16)}');
+        expect(validatePhone(typed), isNull);
+      }
+    });
+
     test('rejects landlines without +, short numbers and letters', () {
       for (final bad in ['0112345678', '12345', 'phone', '+0123456789']) {
         expect(normalizePhone(bad), isNull, reason: bad);

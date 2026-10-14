@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../utils/validators.dart';
+import '../widgets/a11y/a11y_widgets.dart';
 
 /// Requests a password-reset email. The link opens the app on this phone,
 /// signs the user in with a recovery session, and [SetNewPasswordScreen]
@@ -102,7 +103,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ),
                           if (auth.error != null) ...[
                             const SizedBox(height: 12),
-                            Text(auth.error!, style: TextStyle(color: theme.colorScheme.error, fontSize: 13)),
+                            A11yErrorBanner(message: auth.error!),
                           ],
                           const SizedBox(height: 20),
                           FilledButton(
