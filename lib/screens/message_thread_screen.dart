@@ -68,6 +68,7 @@ class _MessageThreadScreenState extends State<MessageThreadScreen> {
         _messages = messages;
         _error = null;
       });
+      _markRead();
       _scrollToEnd();
     } catch (e) {
       if (mounted) setState(() => _error = 'Couldn\'t load messages.');
@@ -81,8 +82,15 @@ class _MessageThreadScreenState extends State<MessageThreadScreen> {
     if (current.any((m) => m.id == message.id)) return;
     if (!mounted) return;
     setState(() => _messages = [...current, message]);
+    // A message arriving while the thread is open is read as it lands.
+    if (message.senderId == widget.otherUserId) _markRead();
     _scrollToEnd();
   }
+
+  void _markRead() => _service.markThreadRead(
+        shelterId: widget.shelterId,
+        otherUserId: widget.otherUserId,
+      );
 
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
