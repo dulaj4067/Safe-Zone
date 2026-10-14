@@ -22,6 +22,10 @@ class FamilyMember {
   final bool isSharingNow;
   final DateTime? lastSeenAt;
 
+  /// When they last pressed "I'm Safe" (from safety_broadcasts, which RLS
+  /// only lets confirmed family read). Null if never, or not readable.
+  final DateTime? lastSafeAt;
+
   const FamilyMember({
     required this.linkId,
     required this.memberId,
@@ -32,7 +36,21 @@ class FamilyMember {
     this.lng,
     this.isSharingNow = false,
     this.lastSeenAt,
+    this.lastSafeAt,
   });
+
+  FamilyMember withLastSafeAt(DateTime? at) => FamilyMember(
+    linkId: linkId,
+    memberId: memberId,
+    name: name,
+    status: status,
+    invitedByMe: invitedByMe,
+    lat: lat,
+    lng: lng,
+    isSharingNow: isSharingNow,
+    lastSeenAt: lastSeenAt,
+    lastSafeAt: at,
+  );
 
   bool get isPending => status == 'pending';
   bool get isConfirmed => status == 'confirmed';

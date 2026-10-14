@@ -1,7 +1,9 @@
 ﻿import 'package:flutter/material.dart';
 
 class ImSafeBroadcastButton extends StatefulWidget {
-  final Future<void> Function() onConfirmed;
+  /// Returns true once the broadcast is actually saved. On false the button
+  /// resets so the user can hold again.
+  final Future<bool> Function() onConfirmed;
   final Duration holdDuration;
 
   const ImSafeBroadcastButton({
@@ -31,12 +33,13 @@ class _ImSafeBroadcastButtonState extends State<ImSafeBroadcastButton>
 
   Future<void> _triggerBroadcast() async {
     setState(() => _isSending = true);
-    await widget.onConfirmed();
+    final ok = await widget.onConfirmed();
     if (!mounted) return;
     setState(() {
       _isSending = false;
-      _sent = true;
+      _sent = ok;
     });
+    if (!ok) _controller.reverse();
   }
 
   void _onPressStart(_) {

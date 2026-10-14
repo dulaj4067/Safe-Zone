@@ -117,21 +117,28 @@ void main() {
     expect(link.queryParameters['code'], 'ABC123DEF456');
   });
 
-  test('Sharing can start in local demo mode without auth or GPS', () async {
+  // Previously these asserted that signed-out "demo" shares and broadcasts
+  // reported success. A safety app must not claim family can see you, or
+  // that "I'm Safe" was sent, when nothing reached the server.
+  test("Signed-out ETA runs locally but says family can't see it", () async {
     final provider = SafetyProvider();
     await provider.startSharingEta(currentRiskZone: sampleRiskZones.first);
 
     expect(provider.isSharing, isTrue);
     expect(provider.latestUpdate, isNotNull);
-    expect(provider.errorMessage, isNull);
+    expect(provider.isSharingWithFamily, isFalse);
+    expect(provider.errorMessage, isNotNull);
   });
 
-  test('Broadcast can be sent in demo mode when auth is unavailable', () async {
+  test('"I am Safe" is not reported as sent when signed out', () async {
     final provider = SafetyProvider();
-    await provider.sendImSafeBroadcast(currentRiskZone: sampleRiskZones.first);
+    final sent = await provider.sendImSafeBroadcast(
+      currentRiskZone: sampleRiskZones.first,
+    );
 
-    expect(provider.lastBroadcastAt, isNotNull);
-    expect(provider.errorMessage, isNull);
+    expect(sent, isFalse);
+    expect(provider.lastBroadcastAt, isNull);
+    expect(provider.errorMessage, isNotNull);
   });
 
   testWidgets('Session history is paginated manually and never auto-loads on scroll', (WidgetTester tester) async {

@@ -10,7 +10,6 @@ import '../providers/alert_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/incident_provider.dart';
 import '../services/notification_service.dart';
-import '../services/settings_service.dart';
 import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
@@ -43,14 +42,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final SettingsService _settingsService = SettingsService();
-
-  // These three have no functional consumer yet (see SettingsService's
-  // doc comment) — persisted so the toggle survives a restart, but they
-  // don't turn any real feature on or off.
-  bool _liveLocationBeacon = true;
-  bool _autoEscalateSos = true;
-  bool _autoRelayDispatch = false;
 
   /// Local value while the broadcast-radius slider is being dragged, so it
   /// doesn't round-trip through [AlertProvider]/SharedPreferences on every
@@ -58,24 +49,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   double? _draftBroadcastRadiusKm;
 
   bool _syncingCache = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUnwiredPreferences();
-  }
-
-  Future<void> _loadUnwiredPreferences() async {
-    final beacon = await _settingsService.getLiveLocationBeacon();
-    final escalate = await _settingsService.getAutoEscalateSos();
-    final relay = await _settingsService.getAutoRelayDispatch();
-    if (!mounted) return;
-    setState(() {
-      _liveLocationBeacon = beacon;
-      _autoEscalateSos = escalate;
-      _autoRelayDispatch = relay;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -357,33 +330,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Auto-Escalate High-Risk SOS'),
-              subtitle: const Text(
-                'Automatically flag incidents with 3+ citizen confirmations for instant review',
-              ),
-              value: _autoEscalateSos,
-              onChanged: (v) {
-                setState(() => _autoEscalateSos = v);
-                _settingsService.saveAutoEscalateSos(v);
-              },
-            ),
-            const Divider(),
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Direct Disaster Relay'),
-              subtitle: const Text(
-                'Forward verified critical alerts to regional disaster responder units',
-              ),
-              value: _autoRelayDispatch,
-              onChanged: (v) {
-                setState(() => _autoRelayDispatch = v);
-                _settingsService.saveAutoRelayDispatch(v);
-              },
-            ),
-            const Divider(),
-            const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -757,18 +703,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   builder: (_) => IncidentsScreen(currentUser: widget.currentUser),
                 ),
               );
-            },
-          ),
-          const Divider(height: 1),
-          SwitchListTile.adaptive(
-            title: const Text('Live GPS Safety Beacon'),
-            subtitle: const Text(
-              'Attach high-accuracy coordinates when submitting SOS flood reports',
-            ),
-            value: _liveLocationBeacon,
-            onChanged: (v) {
-              setState(() => _liveLocationBeacon = v);
-              _settingsService.saveLiveLocationBeacon(v);
             },
           ),
           const Divider(height: 1),

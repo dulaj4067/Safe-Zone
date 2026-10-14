@@ -242,9 +242,13 @@ class _MemberTile extends StatelessWidget {
 
   String get _status {
     if (member.isPending) return 'Waiting for them to confirm';
-    if (member.isSharingNow) return 'Sharing their location now';
-    if (member.lastSeenAt != null) return 'Last seen ${timeAgo(member.lastSeenAt!)}';
-    return 'Hasn\'t shared a location yet';
+    final location = member.isSharingNow
+        ? 'Sharing their location now'
+        : member.lastSeenAt != null
+        ? 'Last seen ${timeAgo(member.lastSeenAt!)}'
+        : 'Hasn\'t shared a location yet';
+    if (member.lastSafeAt == null) return location;
+    return 'Marked safe ${timeAgo(member.lastSafeAt!)} · $location';
   }
 
   @override

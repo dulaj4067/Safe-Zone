@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -165,9 +166,12 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                       _buildAdminActionsSection(context, engagement),
                       const SizedBox(height: 16),
 
-                      // 4. Resident Response Simulation Tool (for Testing/Demo)
-                      _buildSimulationSection(context, engagement),
-                      const SizedBox(height: 20),
+                      // 4. Resident Response Simulation Tool — debug builds
+                      //    only, so real responders never see fake numbers.
+                      if (kDebugMode) ...[
+                        _buildSimulationSection(context, engagement),
+                        const SizedBox(height: 20),
+                      ],
 
                       // 5. Resident Roster Header & Search
                       _buildResidentRosterHeader(context, engagement),
@@ -353,7 +357,12 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                // Wrap: the label and badge don't fit side by side on a
+                // narrow phone or with larger text.
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       eng.urgency.label.toUpperCase(),
@@ -365,7 +374,6 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                       ),
                     ),
                     if (eng.needsFurtherAction) ...[
-                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),

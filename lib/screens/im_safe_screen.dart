@@ -83,9 +83,7 @@ class _ImSafeScreenState extends State<ImSafeScreen> {
                           return ListTile(
                             leading: CircleAvatar(child: Text(c.initials)),
                             title: Text(c.name),
-                            trailing: safety.lastBroadcastAt != null
-                                ? const Icon(Icons.check_circle, color: Colors.green)
-                                : null,
+
                           );
                         },
                       ),
