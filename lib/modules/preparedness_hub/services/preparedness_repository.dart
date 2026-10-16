@@ -9,6 +9,7 @@ import '../models/disaster_history_record.dart';
 import '../models/evacuation_route.dart';
 import '../models/preparedness_guide.dart';
 import '../models/preparedness_reminder.dart';
+import 'disaster_history_samples.dart';
 
 abstract class PreparednessRepository {
   Future<List<PreparednessGuide>> getGuides();
@@ -17,6 +18,7 @@ abstract class PreparednessRepository {
   Future<List<EvacuationRoute>> getRoutes();
   Future<void> saveRoute(EvacuationRoute route);
   Future<List<DisasterHistoryRecord>> getHistory(String zoneId);
+  Future<List<DisasterHistoryRecord>> getCountryHistory();
   Future<void> saveHistoryRecord(DisasterHistoryRecord record);
   Future<String?> getActiveAlertForZone(String zoneId);
   Future<List<ChecklistItem>> getChecklistItems();
@@ -562,15 +564,43 @@ Remain in a safe location until authorities issue an all-clear. The first wave m
   }
 
   @override
-  Future<List<DisasterHistoryRecord>> getHistory(String zoneId) async =>
-      (await _readContent(
+  Future<List<DisasterHistoryRecord>> getHistory(
+    String zoneId,
+  ) async => _mergeHistorySamples(
+    await _readContent('history', _historyKey, DisasterHistoryRecord.fromJson),
+  ).where((record) => record.zoneId == zoneId || record.isNational).toList();
+
+  @override
+  Future<List<DisasterHistoryRecord>> getCountryHistory() async {
+    final records = _mergeHistorySamples(
+      await _readContent(
         'history',
         _historyKey,
         DisasterHistoryRecord.fromJson,
-      )).where((record) => record.zoneId == zoneId).toList();
+      ),
+    );
+    final uniqueEvents = <String, DisasterHistoryRecord>{};
+    for (final record in records) {
+      uniqueEvents.putIfAbsent(record.sourceEventId ?? record.id, () => record);
+    }
+    return uniqueEvents.values.toList();
+  }
+
+  List<DisasterHistoryRecord> _mergeHistorySamples(
+    List<DisasterHistoryRecord> records,
+  ) {
+    final recordsById = {
+      for (final sample in disasterHistorySamples) sample.id: sample,
+      for (final record in records) record.id: record,
+    };
+    return recordsById.values.toList();
+  }
 
   @override
   Future<void> saveHistoryRecord(DisasterHistoryRecord record) async {
+    if (record.isSample) {
+      throw StateError('Demo sample records cannot be saved or synced.');
+    }
     final preferences = await _preferences;
     final records = await _readContent(
       'history',
