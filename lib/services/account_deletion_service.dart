@@ -1,12 +1,36 @@
 import 'package:supabase_flutter/supabase_flutter.dart'
     show FunctionException, PostgrestException;
 
+import '../utils/error_messages.dart';
 import 'supabase_service.dart';
 
 /// Status of the signed-in user's account-deletion request.
 /// [awaitingEmail]: asked for, but the citizen hasn't opened the link in the
 /// confirmation email yet, so no administrator can see it.
 enum DeletionStatus { none, awaitingEmail, received, processing, completed, cancelled }
+
+/// What the server said about a typed confirmation code.
+enum DeletionCodeResult {
+  confirmed,
+  wrong,
+  expired,
+  tooManyTries,
+  noCode,
+  noRequest;
+
+  static DeletionCodeResult fromServer(Object? value) => switch (value) {
+        'confirmed' => DeletionCodeResult.confirmed,
+        'wrong' => DeletionCodeResult.wrong,
+        'expired' => DeletionCodeResult.expired,
+        'too_many' => DeletionCodeResult.tooManyTries,
+        'no_code' => DeletionCodeResult.noCode,
+        _ => DeletionCodeResult.noRequest,
+      };
+}
+
+/// A code is exactly six digits; anything else never needs a server call.
+bool isValidDeletionCode(String? value) =>
+    RegExp(r'^\d{6}$').hasMatch((value ?? '').trim());
 
 class DeletionRequest {
   final DeletionStatus status;
@@ -71,8 +95,20 @@ class AccountDeletionService {
     }
   }
 
-  /// Emails the signed-in citizen the link that confirms their request. Safe
-  /// to call again to resend (the server allows one email a minute).
+  /// Checks the 6-digit code from the confirmation email. On success the
+  /// request goes to the administrators.
+  Future<DeletionCodeResult> confirmWithCode(String code) async {
+    try {
+      final result = await SupabaseService.client
+          .rpc('confirm_account_deletion', params: {'code': code.trim()});
+      return DeletionCodeResult.fromServer(result);
+    } on PostgrestException catch (e) {
+      throw DeletionException(_friendly(e));
+    }
+  }
+
+  /// Emails the signed-in citizen the 6-digit code that confirms their
+  /// request. Safe to call again to resend (one email a minute).
   Future<void> sendConfirmationEmail() async {
     try {
       await SupabaseService.client.functions.invoke('send-deletion-confirmation');
@@ -81,7 +117,7 @@ class AccountDeletionService {
       throw DeletionException(
         details is Map && details['error'] is String
             ? details['error'] as String
-            : 'Could not send the confirmation email (${e.status}). Please try again.',
+            : 'Could not send the confirmation email. Please try again.',
       );
     }
   }
@@ -117,14 +153,14 @@ class AccountDeletionService {
       );
       final data = res.data;
       if (data is! Map || data['status'] != 'completed') {
-        throw DeletionException('The server didn’t confirm the deletion.');
+        throw DeletionException("The server didn't confirm the deletion.");
       }
     } on FunctionException catch (e) {
       final details = e.details;
       throw DeletionException(
         details is Map && details['error'] is String
             ? details['error'] as String
-            : 'Deletion failed (${e.status}). It can be retried safely.',
+            : 'Deletion failed. It can be retried safely.',
       );
     }
   }
@@ -135,7 +171,7 @@ class AccountDeletionService {
       return 'Account deletion isn\'t available on this server yet. '
           'Please contact the operator through Give feedback in Settings.';
     }
-    return e.message;
+    return friendlyError(e);
   }
 }
 
@@ -168,7 +204,8 @@ class OpenDeletionRequest {
   );
 }
 
-class DeletionException implements Exception {
+class DeletionException implements Exception, UserMessage {
+  @override
   final String message;
   DeletionException(this.message);
   @override

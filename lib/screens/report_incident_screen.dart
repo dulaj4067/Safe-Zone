@@ -24,6 +24,8 @@ import '../utils/sri_lanka_bounds.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/incident_card.dart';
 import 'incident_detail_screen.dart';
+import '../l10n/ui_text.dart';
+import '../utils/error_messages.dart';
 
 class ReportIncidentScreen extends StatefulWidget {
   final LatLng? initialLocation;
@@ -145,9 +147,9 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to pick photo: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.tr('Failed to pick photo: {e}', {'e': context.tr(friendlyError(e))}))),
+        );
       }
     }
   }
@@ -159,6 +161,15 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
         maxDuration: const Duration(minutes: 2),
       );
       if (picked != null) {
+        // Large videos fail partway through the upload; stop them here.
+        if (await File(picked.path).length() > 100 * 1024 * 1024) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(context.tr('That video is too large. Choose one under 100 MB.'))),
+            );
+          }
+          return;
+        }
         setState(() {
           _videoFile = File(picked.path);
           _videoFileName = picked.name;
@@ -166,9 +177,9 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to pick video: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.tr('Failed to pick video: {e}', {'e': context.tr(friendlyError(e))}))),
+        );
       }
     }
   }
@@ -332,7 +343,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Could not confirm: $e'),
+          content: Text(context.tr('Could not confirm: {e}', {'e': context.tr(friendlyError(e))})),
           backgroundColor: AppColors.severityRed,
         ),
       );
@@ -384,7 +395,11 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(provider.errorMessage ?? strings.t('reportFailed')),
+            content: Text(
+              provider.errorMessage != null
+                  ? context.tr(provider.errorMessage!)
+                  : strings.t('reportFailed'),
+            ),
             backgroundColor: AppColors.severityRed,
           ),
         );
@@ -537,6 +552,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                 ),
               ),
               maxLines: 3,
+              maxLength: 1000,
               validator: (val) {
                 if (!_isSos && (val == null || val.trim().isEmpty)) {
                   return strings.t('descriptionRequired');
@@ -1082,11 +1098,9 @@ class _DuplicateDialog extends StatelessWidget {
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        '~${distanceLabel(_distanceMetres())} away',
-                        style: AppTheme.dataText(
-                          context,
-                        ).copyWith(fontSize: 11),
+                      Text(context.tr('~{p0} away', {'p0': distanceLabel(_distanceMetres())}),
+                        style:
+                            AppTheme.dataText(context).copyWith(fontSize: 11),
                       ),
                     ],
                   ),
@@ -1236,13 +1250,11 @@ class _ProximityBanner extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '${strings.category(duplicate.category)} • '
-                  '~${distanceLabel(_distanceMetres())} away • '
-                  '${timeAgo(duplicate.createdAt)}',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(height: 1.4),
+                Text(context.tr('{p0} • ~{p1} away • {p2}', {'p0': strings.category(duplicate.category), 'p1': distanceLabel(_distanceMetres()), 'p2': timeAgo(duplicate.createdAt)}),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(height: 1.4),
                 ),
               ],
             ),

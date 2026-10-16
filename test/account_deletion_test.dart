@@ -35,6 +35,26 @@ void main() {
     });
   });
 
+  group('confirmation code', () {
+    test('only exactly six digits are valid', () {
+      expect(isValidDeletionCode('123456'), isTrue);
+      expect(isValidDeletionCode(' 123456 '), isTrue);
+      for (final bad in ['12345', '1234567', '12345a', '12 456', '', null]) {
+        expect(isValidDeletionCode(bad), isFalse, reason: '$bad');
+      }
+    });
+
+    test('server results map to outcomes; anything unknown is never "confirmed"', () {
+      expect(DeletionCodeResult.fromServer('confirmed'), DeletionCodeResult.confirmed);
+      expect(DeletionCodeResult.fromServer('wrong'), DeletionCodeResult.wrong);
+      expect(DeletionCodeResult.fromServer('expired'), DeletionCodeResult.expired);
+      expect(DeletionCodeResult.fromServer('too_many'), DeletionCodeResult.tooManyTries);
+      expect(DeletionCodeResult.fromServer('no_code'), DeletionCodeResult.noCode);
+      expect(DeletionCodeResult.fromServer(null), DeletionCodeResult.noRequest);
+      expect(DeletionCodeResult.fromServer('surprise'), isNot(DeletionCodeResult.confirmed));
+    });
+  });
+
   group('OpenDeletionRequest', () {
     test('falls back to a neutral name when the profile is gone', () {
       final r = OpenDeletionRequest.fromRow({

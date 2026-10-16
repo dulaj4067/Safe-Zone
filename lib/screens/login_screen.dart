@@ -5,6 +5,8 @@ import '../providers/auth_provider.dart';
 import '../widgets/a11y/a11y_widgets.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
+import '../l10n/ui_text.dart';
+import '../utils/validators.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,6 +19,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscure = true;
+  String? _emailError;
+  String? _passwordError;
 
   @override
   void dispose() {
@@ -39,14 +43,12 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'Sign in',
+                  Text(context.tr('Sign in'),
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    'View alerts and report incidents in your area.',
+                  Text(context.tr('View alerts and report incidents in your area.'),
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
@@ -54,17 +56,22 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
+                    decoration: InputDecoration(
+                      labelText: context.tr('Email'),
                       prefixIcon: Icon(Icons.email_outlined),
+                      errorText: _emailError,
                     ),
+                    onChanged: (_) {
+                      if (_emailError != null) setState(() => _emailError = null);
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _passwordController,
                     obscureText: _obscure,
                     decoration: InputDecoration(
-                      labelText: 'Password',
+                      labelText: context.tr('Password'),
+                      errorText: _passwordError,
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(_obscure
@@ -73,6 +80,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: () => setState(() => _obscure = !_obscure),
                       ),
                     ),
+                    onChanged: (_) {
+                      if (_passwordError != null) setState(() => _passwordError = null);
+                    },
                     onSubmitted: (_) => _submit(context),
                   ),
                   Align(
@@ -87,12 +97,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      child: const Text('Forgot password?'),
+                      child: Text(context.tr('Forgot password?')),
                     ),
                   ),
                   if (auth.error != null) ...[
                     const SizedBox(height: 4),
-                    A11yErrorBanner(message: auth.error!),
+                    A11yErrorBanner(message: context.tr(auth.error!)),
                   ],
                   if (auth.unconfirmedEmail != null) ...[
                     const SizedBox(height: 4),
@@ -101,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: TextButton.icon(
                         key: const Key('resend_confirmation'),
                         icon: const Icon(Icons.forward_to_inbox_outlined, size: 18),
-                        label: const Text('Resend confirmation email'),
+                        label: Text(context.tr('Resend confirmation email')),
                         onPressed: auth.isBusy ? null : () => _resend(context),
                       ),
                     ),
@@ -118,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text('Sign in'),
+                        : Text(context.tr('Sign in')),
                   ),
                   const SizedBox(height: 12),
                   TextButton(
@@ -128,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         builder: (_) => const RegisterScreen(),
                       ),
                     ),
-                    child: const Text("Don't have an account? Register"),
+                    child: Text(context.tr('Don\'t have an account? Register')),
                   ),
                 ],
               ),
@@ -146,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final ok = await auth.resendConfirmation(email);
     if (ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Confirmation email sent to $email.')),
+        SnackBar(content: Text(context.tr('Confirmation email sent to {email}.', {'email': email}))),
       );
     }
   }
@@ -154,7 +164,15 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _submit(BuildContext context) async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    if (email.isEmpty || password.isEmpty) return;
+    final emailError = validateEmail(email, tr: context.tr);
+    final passwordError = password.isEmpty ? context.tr('Enter your password') : null;
+    if (emailError != null || passwordError != null) {
+      setState(() {
+        _emailError = emailError;
+        _passwordError = passwordError;
+      });
+      return;
+    }
     await context.read<AuthProvider>().login(email, password);
   }
 }

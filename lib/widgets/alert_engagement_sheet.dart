@@ -8,6 +8,7 @@ import '../models/zone.dart';
 import '../providers/alert_provider.dart';
 import '../theme/app_colors.dart';
 import 'severity_badge.dart';
+import '../l10n/ui_text.dart';
 
 /// Authority Admin modal bottom sheet displaying in-depth resident seen and
 /// acknowledged percentage analytics for a specific broadcast alert and zone.
@@ -209,8 +210,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                     const Icon(Icons.verified_user_rounded,
                         size: 16, color: AppColors.severityGreen),
                     const SizedBox(width: 6),
-                    const Text(
-                      'Acknowledged',
+                    Text(context.tr('Acknowledged'),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -229,8 +229,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '${eng.acknowledgedCount} of ${eng.totalResidents} residents',
+                Text(context.tr('{p0} of {p1} residents', {'p0': eng.acknowledgedCount, 'p1': eng.totalResidents}),
                   style: TextStyle(
                     fontSize: 11,
                     color: context.inkMuted,
@@ -271,8 +270,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                     Icon(Icons.visibility_rounded,
                         size: 16, color: context.brandInk),
                     const SizedBox(width: 6),
-                    Text(
-                      'Seen / Viewed',
+                    Text(context.tr('Seen / Viewed'),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -291,8 +289,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '${eng.seenCount} of ${eng.totalResidents} residents',
+                Text(context.tr('{p0} of {p1} residents', {'p0': eng.seenCount, 'p1': eng.totalResidents}),
                   style: TextStyle(
                     fontSize: 11,
                     color: context.inkMuted,
@@ -381,8 +378,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                           color: AppColors.severityRed,
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text(
-                          'FURTHER ACTION NEEDED',
+                        child: Text(context.tr('FURTHER ACTION NEEDED'),
                           style: TextStyle(
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
@@ -415,8 +411,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Recommended Further Actions',
+        Text(context.tr('Recommended Further Actions'),
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
@@ -431,12 +426,11 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                   ),
                 ),
                 icon: const Icon(Icons.sms_outlined, size: 16),
-                label: const Text('SMS Push', style: TextStyle(fontSize: 12)),
+                label: Text(context.tr('SMS Push'), style: TextStyle(fontSize: 12)),
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        'Emergency SMS broadcast queued for ${eng.unreachedCount} unreached residents in ${eng.zoneName}.',
+                      content: Text(context.tr('Emergency SMS broadcast queued for {p0} unreached residents in {p1}.', {'p0': eng.unreachedCount, 'p1': eng.zoneName}),
                       ),
                       backgroundColor: context.brandFill,
                     ),
@@ -454,12 +448,11 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
                   ),
                 ),
                 icon: const Icon(Icons.group_outlined, size: 16),
-                label: const Text('Ground Team', style: TextStyle(fontSize: 12)),
+                label: Text(context.tr('Ground Team'), style: TextStyle(fontSize: 12)),
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        'Ground volunteer response unit notified for ${eng.zoneName}.',
+                      content: Text(context.tr('Ground volunteer response unit notified for {p0}.', {'p0': eng.zoneName}),
                       ),
                       backgroundColor: context.brandFill,
                     ),
@@ -489,8 +482,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
             children: [
               Icon(Icons.tune_rounded, size: 15, color: context.inkMuted),
               const SizedBox(width: 6),
-              Text(
-                'Test / Response Simulation Tool',
+              Text(context.tr('Test / Response Simulation Tool'),
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -500,18 +492,17 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            'Simulate zone response rates to test alert thresholds:',
+          Text(context.tr('Simulate zone response rates to test alert thresholds:'),
             style: TextStyle(fontSize: 11, color: context.inkMuted),
           ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 6,
             children: [
-              _buildSimChip(context, label: 'Low (20%)', ack: 0.2, seen: 0.3),
-              _buildSimChip(context, label: 'Moderate (50%)', ack: 0.5, seen: 0.65),
-              _buildSimChip(context, label: 'High (80%)', ack: 0.8, seen: 0.9),
-              _buildSimChip(context, label: 'Full (100%)', ack: 1.0, seen: 1.0),
+              _buildSimChip(context, label: context.tr('Low (20%)'), ack: 0.2, seen: 0.3),
+              _buildSimChip(context, label: context.tr('Moderate (50%)'), ack: 0.5, seen: 0.65),
+              _buildSimChip(context, label: context.tr('High (80%)'), ack: 0.8, seen: 0.9),
+              _buildSimChip(context, label: context.tr('Full (100%)'), ack: 1.0, seen: 1.0),
             ],
           ),
         ],
@@ -549,12 +540,10 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Resident Roster (${eng.totalResidents})',
+            Text(context.tr('Resident Roster ({p0})', {'p0': eng.totalResidents}),
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
-            Text(
-              '${eng.unreachedCount} Unreached',
+            Text(context.tr('{p0} Unreached', {'p0': eng.unreachedCount}),
               style: TextStyle(
                 fontSize: 12,
                 color: eng.unreachedCount > 0 ? AppColors.severityRed : Colors.grey,
@@ -567,7 +556,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
         TextField(
           decoration: InputDecoration(
             isDense: true,
-            hintText: 'Search resident by name or phone...',
+            hintText: context.tr('Search resident by name or phone...'),
             prefixIcon: const Icon(Icons.search, size: 20),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
@@ -582,13 +571,13 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
           child: Row(
             children: [
               FilterChip(
-                label: const Text('All'),
+                label: Text(context.tr('All')),
                 selected: _filter == null,
                 onSelected: (_) => setState(() => _filter = null),
               ),
               const SizedBox(width: 6),
               FilterChip(
-                label: const Text('Acknowledged'),
+                label: Text(context.tr('Acknowledged')),
                 selected: _filter == ResidentEngagementStatus.acknowledged,
                 onSelected: (_) => setState(() => _filter =
                     _filter == ResidentEngagementStatus.acknowledged
@@ -597,7 +586,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
               ),
               const SizedBox(width: 6),
               FilterChip(
-                label: const Text('Seen Only'),
+                label: Text(context.tr('Seen Only')),
                 selected: _filter == ResidentEngagementStatus.seen,
                 onSelected: (_) => setState(() => _filter =
                     _filter == ResidentEngagementStatus.seen
@@ -606,7 +595,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
               ),
               const SizedBox(width: 6),
               FilterChip(
-                label: const Text('Pending'),
+                label: Text(context.tr('Pending')),
                 selected: _filter == ResidentEngagementStatus.pending,
                 onSelected: (_) => setState(() => _filter =
                     _filter == ResidentEngagementStatus.pending
@@ -634,11 +623,10 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
 
     if (filtered.isEmpty) {
       return [
-        const Padding(
+        Padding(
           padding: EdgeInsets.symmetric(vertical: 24),
           child: Center(
-            child: Text(
-              'No residents match the selected filter.',
+            child: Text(context.tr('No residents match the selected filter.'),
               style: TextStyle(color: Colors.grey),
             ),
           ),
@@ -681,7 +669,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
-              res.status.label,
+              context.tr(res.status.label),
               style: TextStyle(
                 color: statusColor,
                 fontSize: 10,

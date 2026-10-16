@@ -8,6 +8,7 @@ import '../services/feedback_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
 import '../widgets/a11y/a11y_widgets.dart';
+import '../l10n/ui_text.dart';
 
 /// Authority view of citizen feedback: average rating, rating spread, and
 /// every comment newest-first, filterable by zone.
@@ -58,8 +59,8 @@ class _FeedbackOverviewScreenState extends State<FeedbackOverviewScreen> {
     if (_failed) {
       body = A11yEmptyState(
         icon: Icons.error_outline,
-        message: 'Could not load citizen feedback.',
-        hint: 'Check your network connection and try again.',
+        message: context.tr('Could not load citizen feedback.'),
+        hint: context.tr('Check your network connection and try again.'),
         actionLabel: 'Retry',
         onAction: _load,
       );
@@ -82,7 +83,7 @@ class _FeedbackOverviewScreenState extends State<FeedbackOverviewScreen> {
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: const Text('All zones'),
+                      label: Text(context.tr('All zones')),
                       selected: _zoneFilter == null,
                       onSelected: (_) => setState(() => _zoneFilter = null),
                     ),

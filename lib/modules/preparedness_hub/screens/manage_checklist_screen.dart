@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../models/app_user.dart';
 import '../models/checklist_item.dart';
 import '../providers/preparedness_provider.dart';
+import '../../../l10n/ui_text.dart';
 
 class ManageChecklistItemsScreen extends StatelessWidget {
   const ManageChecklistItemsScreen({super.key, required this.currentUser});
@@ -18,17 +19,17 @@ class ManageChecklistItemsScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage checklist items')),
+      appBar: AppBar(title: Text(context.tr('Manage checklist items'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _edit(context),
         icon: const Icon(Icons.add_task),
-        label: const Text('New checklist item'),
+        label: Text(context.tr('New checklist item')),
       ),
       body: provider.isLoading
           ? const Center(child: CircularProgressIndicator())
           : provider.masterChecklistItems.isEmpty
-          ? const Center(
-              child: Text('No checklist items yet. Add one to get started.'),
+          ? Center(
+              child: Text(context.tr('No checklist items yet. Add one to get started.')),
             )
           : ListView.separated(
               padding: const EdgeInsets.all(16),
@@ -46,9 +47,9 @@ class ManageChecklistItemsScreen extends StatelessWidget {
                         if (value == 'delete')
                           await provider.deleteChecklistItem(item.id);
                       },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(value: 'edit', child: Text('Edit')),
-                        PopupMenuItem(value: 'delete', child: Text('Delete')),
+                      itemBuilder: (_) => [
+                        PopupMenuItem(value: 'edit', child: Text(context.tr('Edit'))),
+                        PopupMenuItem(value: 'delete', child: Text(context.tr('Delete'))),
                       ],
                     ),
                     onTap: () => _edit(context, item),
@@ -132,20 +133,20 @@ class _ChecklistEditorState extends State<_ChecklistEditor> {
             const SizedBox(height: 16),
             TextField(
               controller: _title,
-              decoration: const InputDecoration(labelText: 'Title'),
+              decoration: InputDecoration(labelText: context.tr('Title')),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _description,
               minLines: 3,
               maxLines: 5,
-              decoration: const InputDecoration(
-                labelText: 'Description',
+              decoration: InputDecoration(
+                labelText: context.tr('Description'),
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
-            const Text('Applies to these household risks'),
+            Text(context.tr('Applies to these household risks')),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -186,7 +187,7 @@ class _ChecklistEditorState extends State<_ChecklistEditor> {
                           ),
                         );
                       },
-                child: const Text('Save item'),
+                child: Text(context.tr('Save item')),
               ),
             ),
           ],
@@ -201,9 +202,9 @@ class _AccessDeniedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Access denied')),
-    body: const Center(
-      child: Text('Only authority accounts can manage checklist items.'),
+    appBar: AppBar(title: Text(context.tr('Access denied'))),
+    body: Center(
+      child: Text(context.tr('Only authority accounts can manage checklist items.')),
     ),
   );
 }

@@ -5,6 +5,7 @@ import '../models/shelter_resource.dart';
 import '../services/shelter_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
+import '../l10n/ui_text.dart';
 
 /// "Supplies" section of the Shelter page, backed by
 /// `shelter_resources`. Everyone sees current stock; the shelter's manager
@@ -77,10 +78,10 @@ class _ShelterResourcesCardState extends State<ShelterResourcesCard> {
                 if (existing == null)
                   DropdownButtonFormField<ResourceType>(
                     initialValue: type,
-                    decoration: const InputDecoration(labelText: 'Supply'),
+                    decoration: InputDecoration(labelText: context.tr('Supply')),
                     items: [
                       for (final t in missingTypes)
-                        DropdownMenuItem(value: t, child: Text(t.label)),
+                        DropdownMenuItem(value: t, child: Text(context.tr(t.label))),
                     ],
                     onChanged: (t) {
                       if (t == null) return;
@@ -95,20 +96,22 @@ class _ShelterResourcesCardState extends State<ShelterResourcesCard> {
                   controller: qtyCtrl,
                   autofocus: existing != null,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Quantity on hand'),
+                  decoration: InputDecoration(labelText: context.tr('Quantity on hand')),
                   validator: (v) {
                     final q = double.tryParse((v ?? '').trim());
-                    if (q == null) return 'Enter a number';
-                    if (q < 0) return 'Can\'t be negative';
+                    if (q == null) return context.tr('Enter a number');
+                    if (q < 0) return context.tr("Can't be negative");
+                    if (q > 1000000) return context.tr('That number is too large');
                     return null;
                   },
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: unitCtrl,
-                  decoration: const InputDecoration(labelText: 'Unit (liters, meals, kits…)'),
+                  maxLength: 20,
+                  decoration: InputDecoration(labelText: context.tr('Unit (liters, meals, kits…)')),
                   validator: (v) =>
-                      (v ?? '').trim().isEmpty ? 'Enter a unit' : null,
+                      (v ?? '').trim().isEmpty ? context.tr('Enter a unit') : null,
                 ),
               ],
             ),
@@ -129,11 +132,11 @@ class _ShelterResourcesCardState extends State<ShelterResourcesCard> {
                     }
                   }
                 },
-                child: const Text('Remove'),
+                child: Text(context.tr('Remove')),
               ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             FilledButton(
               onPressed: () async {
@@ -160,7 +163,7 @@ class _ShelterResourcesCardState extends State<ShelterResourcesCard> {
                   }
                 }
               },
-              child: const Text('Save'),
+              child: Text(context.tr('Save')),
             ),
           ],
         ),
@@ -177,9 +180,9 @@ class _ShelterResourcesCardState extends State<ShelterResourcesCard> {
 
     Widget body;
     if (_failed) {
-      body = const Padding(
+      body = Padding(
         padding: EdgeInsets.symmetric(vertical: 14),
-        child: Text('Supply levels are unavailable right now.'),
+        child: Text(context.tr('Supply levels are unavailable right now.')),
       );
     } else if (resources == null) {
       body = const Padding(
@@ -191,7 +194,7 @@ class _ShelterResourcesCardState extends State<ShelterResourcesCard> {
     } else if (resources.isEmpty) {
       body = Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),
-        child: Text('No supply levels reported yet.', style: textTheme.bodySmall),
+        child: Text(context.tr('No supply levels reported yet.'), style: textTheme.bodySmall),
       );
     } else {
       body = Column(
@@ -212,8 +215,7 @@ class _ShelterResourcesCardState extends State<ShelterResourcesCard> {
                         children: [
                           Text(resources[i].type.label, style: textTheme.bodyMedium),
                           if (resources[i].updatedAt != null)
-                            Text(
-                              'Updated ${timeAgo(resources[i].updatedAt!)}',
+                            Text(context.tr('Updated {p0}', {'p0': timeAgo(resources[i].updatedAt!)}),
                               style: textTheme.bodySmall?.copyWith(fontSize: 12),
                             ),
                         ],
@@ -251,13 +253,13 @@ class _ShelterResourcesCardState extends State<ShelterResourcesCard> {
           children: [
             Row(
               children: [
-                Text('Supplies', style: textTheme.titleMedium),
+                Text(context.tr('Supplies'), style: textTheme.titleMedium),
                 const Spacer(),
                 if (canAdd)
                   TextButton.icon(
                     onPressed: () => _showEditor(),
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add'),
+                    label: Text(context.tr('Add')),
                   ),
               ],
             ),

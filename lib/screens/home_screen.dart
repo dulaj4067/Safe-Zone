@@ -48,6 +48,7 @@ import '../screens/shelter_detail_screen.dart';
 import '../screens/shelter_directions_screen.dart';
 import '../screens/family_circle_screen.dart';
 import '../services/supabase_service.dart';
+import '../l10n/ui_text.dart';
 
 /// SafeZone home tab — district map with live alert-radius overlays
 /// (from AlertProvider.activeAlerts), incident markers (from
@@ -420,13 +421,12 @@ class _LocationDeniedBanner extends StatelessWidget {
       width: double.infinity,
       color: Colors.amber.shade100,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: const Row(
+      child: Row(
         children: [
           Icon(Icons.location_off, size: 16),
           SizedBox(width: 8),
           Expanded(
-            child: Text(
-              'Location access is off — enable it in Settings to see your position on the map.',
+            child: Text(context.tr('Location access is off — enable it in Settings to see your position on the map.'),
               style: TextStyle(fontSize: 13),
             ),
           ),
@@ -452,7 +452,7 @@ class _HeaderRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('SafeZone', style: textTheme.headlineMedium),
+                Text(context.tr('SafeZone'), style: textTheme.headlineMedium),
                 const SizedBox(height: 2),
                 Text(
                   strings.t('tagline'),
@@ -761,7 +761,9 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
         content: Text(
           success
               ? strings.t('sosSent')
-              : provider.errorMessage ?? strings.t('sosFailed'),
+              : provider.errorMessage != null
+                  ? context.tr(provider.errorMessage!)
+                  : strings.t('sosFailed'),
         ),
         backgroundColor: success
             ? AppColors.severityRed
@@ -1296,8 +1298,7 @@ class _ResumeSessionModal extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        'Want to pick up where you left off?',
+                      child: Text(context.tr('Want to pick up where you left off?'),
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           height: 1.3,
@@ -1309,8 +1310,7 @@ class _ResumeSessionModal extends StatelessWidget {
                 const SizedBox(height: 8),
                 Padding(
                   padding: const EdgeInsets.only(left: 44),
-                  child: Text(
-                    "Looks like you've moved. Your previous map view is still saved.",
+                  child: Text(context.tr('Looks like you\'ve moved. Your previous map view is still saved.'),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
@@ -1328,7 +1328,7 @@ class _ResumeSessionModal extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text('Not now'),
+                        child: Text(context.tr('Not now')),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1337,7 +1337,7 @@ class _ResumeSessionModal extends StatelessWidget {
                       child: FilledButton.icon(
                         onPressed: onResume,
                         icon: const Icon(Icons.redo_rounded, size: 18),
-                        label: const Text('Go back'),
+                        label: Text(context.tr('Go back')),
                         style: FilledButton.styleFrom(
                           backgroundColor: const Color(0xFF1C7C89),
                           padding: const EdgeInsets.symmetric(vertical: 13),

@@ -9,6 +9,7 @@ import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
 import 'message_thread_screen.dart';
+import '../l10n/ui_text.dart';
 
 /// Inbox of every shelter conversation the signed-in user is part of —
 /// citizens see threads they started with shelter managers; managers see
@@ -112,7 +113,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ),
                 ),
                 title: Text(_names[c.userId] ?? 'SafeZone user'),
-                subtitle: Text('Volunteering at ${c.shelterName}'),
+                subtitle: Text(context.tr('Volunteering at {name}', {'name': c.shelterName})),
                 onTap: () {
                   Navigator.pop(ctx);
                   _openThread(c.shelterId, c.shelterName, c.userId);
@@ -131,19 +132,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     Widget body;
     if (_failed) {
-      body = const Center(child: Text('Couldn\'t load your messages.'));
+      body = Center(child: Text(context.tr('Couldn\'t load your messages.')));
     } else if (conversations == null) {
       body = const Center(child: CircularProgressIndicator());
     } else if (conversations.isEmpty) {
       body = ListView(
-        children: const [
+        children: [
           SizedBox(height: 120),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 32),
             child: Text(
-              'No messages yet.\nOpen a shelter and tap "Message" next to its '
-              'manager to start a conversation. Shelter managers can also '
-              'message their volunteers with the button below.',
+              context.tr('No messages yet.\nOpen a shelter and tap "Message" next to its manager to start a conversation. Shelter managers can also message their volunteers with the button below.'),
               textAlign: TextAlign.center,
             ),
           ),
@@ -218,14 +217,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Messages')),
+      appBar: AppBar(title: Text(context.tr('Messages'))),
       floatingActionButton: _contacts.isEmpty
           ? null
           : FloatingActionButton.extended(
               key: const Key('new_message_button'),
               onPressed: _startConversation,
               icon: const Icon(Icons.edit_outlined),
-              label: const Text('New message'),
+              label: Text(context.tr('New message')),
             ),
       body: RefreshIndicator(onRefresh: _load, child: body),
     );

@@ -18,6 +18,7 @@ import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
 import '../utils/sri_lanka_bounds.dart';
 import '../widgets/a11y/a11y_widgets.dart';
+import '../l10n/ui_text.dart';
 
 /// Story 3: authority-only screen for creating a geo-targeted broadcast.
 /// Guard access to this route at the navigation layer too (e.g. only show
@@ -211,7 +212,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: A11yErrorBanner(
-                    message: form.submitError!,
+                    message: context.tr(form.submitError!),
                     hint: strings.t('howToFix'),
                   ),
                 ),
@@ -243,10 +244,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(
-                            Icons.campaign,
-                            semanticLabel: 'Broadcast',
-                          ),
+                        : Icon(Icons.campaign, semanticLabel: context.tr('Broadcast')),
                     onPressed: (!form.isValid || form.isSubmitting)
                         ? null
                         : () => _submit(form),
@@ -284,6 +282,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
     return [
       TextField(
         controller: _title,
+        maxLength: 100,
         textCapitalization: TextCapitalization.sentences,
         decoration: InputDecoration(
           labelText: '${strings.t('titleLabel')} *',
@@ -300,11 +299,11 @@ class _BroadcastFormState extends State<_BroadcastForm> {
           border: const OutlineInputBorder(),
         ),
         initialValue: form.alertType,
-        items: const [
-          DropdownMenuItem(value: 'flood', child: Text('Flood')),
-          DropdownMenuItem(value: 'landslide', child: Text('Landslide')),
-          DropdownMenuItem(value: 'cyclone', child: Text('Cyclone')),
-          DropdownMenuItem(value: 'other', child: Text('Other')),
+        items: [
+          DropdownMenuItem(value: 'flood', child: Text(context.tr('Flood'))),
+          DropdownMenuItem(value: 'landslide', child: Text(context.tr('Landslide'))),
+          DropdownMenuItem(value: 'cyclone', child: Text(context.tr('Cyclone'))),
+          DropdownMenuItem(value: 'other', child: Text(context.tr('Other'))),
         ],
         onChanged: (v) {
           if (v != null) context.read<AlertFormProvider>().updateAlertType(v);
@@ -318,7 +317,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
         ),
         initialValue: form.severity,
         items: AlertSeverity.values.map((s) {
-          return DropdownMenuItem(value: s, child: Text(s.label));
+          return DropdownMenuItem(value: s, child: Text(context.tr(s.label)));
         }).toList(),
         onChanged: (v) {
           if (v != null) context.read<AlertFormProvider>().updateSeverity(v);
@@ -439,6 +438,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
       const SizedBox(height: 12),
       TextField(
         controller: _instructions,
+        maxLength: 1000,
         decoration: InputDecoration(
           labelText: strings.t('instructions'),
           hintText: strings.t('instructionsHint'),
@@ -452,6 +452,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
         const SizedBox(height: 12),
         TextField(
           controller: _transcript,
+          maxLength: 1000,
           decoration: InputDecoration(
             labelText: strings.t('transcript'),
             hintText: strings.t('transcriptHint'),
@@ -491,11 +492,10 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                     Icons.cell_tower,
                     size: 20,
                     color: context.brandInk,
-                    semanticLabel: 'Delivery channels',
+                    semanticLabel: context.tr('Delivery channels'),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Delivery Channels',
+                  Text(context.tr('Delivery Channels'),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
@@ -538,12 +538,8 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                         visualDensity: VisualDensity.compact,
                         padding: const EdgeInsets.symmetric(horizontal: 6),
                       ),
-                      onPressed: () =>
-                          context.read<AlertFormProvider>().selectAllChannels(),
-                      child: const Text(
-                        'Select All',
-                        style: TextStyle(fontSize: 12),
-                      ),
+                      onPressed: () => context.read<AlertFormProvider>().selectAllChannels(),
+                      child: Text(context.tr('Select All'), style: TextStyle(fontSize: 12)),
                     ),
                   ],
                 ],
@@ -551,8 +547,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            'Simultaneously dispatch across online, cellular, and acoustic channels to guarantee reach regardless of citizen connectivity:',
+          Text(context.tr('Simultaneously dispatch across online, cellular, and acoustic channels to guarantee reach regardless of citizen connectivity:'),
             style: TextStyle(fontSize: 12, color: context.inkMuted),
           ),
           const SizedBox(height: 12),
@@ -561,9 +556,8 @@ class _BroadcastFormState extends State<_BroadcastForm> {
           _buildChannelTile(
             context,
             key: const Key('channel_push_tile'),
-            title: 'Push Notification',
-            subtitle:
-                'Instant in-app alerts and OS-level lock screen notifications',
+            title: context.tr('Push Notification'),
+            subtitle: context.tr('Instant in-app alerts and OS-level lock screen notifications'),
             icon: Icons.notifications_active_outlined,
             iconColor: context.brandAccent,
             value: form.dispatchPush,
@@ -576,9 +570,8 @@ class _BroadcastFormState extends State<_BroadcastForm> {
           _buildChannelTile(
             context,
             key: const Key('channel_sms_tile'),
-            title: 'SMS Cellular Broadcast',
-            subtitle:
-                'Offline fallback message sent to residents without mobile data',
+            title: context.tr('SMS Cellular Broadcast'),
+            subtitle: context.tr('Offline fallback message sent to residents without mobile data'),
             icon: Icons.sms_outlined,
             iconColor: AppColors.severityOrange,
             value: form.dispatchSms,
@@ -591,9 +584,8 @@ class _BroadcastFormState extends State<_BroadcastForm> {
           _buildChannelTile(
             context,
             key: const Key('channel_siren_tile'),
-            title: 'Siren-Trigger Channel',
-            subtitle:
-                'Acoustic sirens and high-priority DND override audio alarm',
+            title: context.tr('Siren-Trigger Channel'),
+            subtitle: context.tr('Acoustic sirens and high-priority DND override audio alarm'),
             icon: Icons.volume_up_outlined,
             iconColor: AppColors.severityRed,
             value: form.dispatchSiren,

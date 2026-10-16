@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../legal/policy_documents.dart';
 import '../providers/auth_provider.dart';
 import 'policy_screen.dart';
+import '../l10n/ui_text.dart';
 
 /// Asks a signed-in user to accept the current Terms of Use and Privacy
 /// Policy. Shown when they haven't accepted the current versions — first use,
@@ -74,7 +75,7 @@ class _PolicyAcceptanceScreenState extends State<PolicyAcceptanceScreen> {
                     child: ListTile(
                       leading: const Icon(Icons.description_outlined),
                       title: Text(doc.title),
-                      subtitle: Text('Version ${doc.version}'),
+                      subtitle: Text(context.tr('Version {p0}', {'p0': doc.version})),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => PolicyScreen.open(context, doc),
                     ),
@@ -86,8 +87,7 @@ class _PolicyAcceptanceScreenState extends State<PolicyAcceptanceScreen> {
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
                   onChanged: _saving ? null : (v) => setState(() => _agreed = v ?? false),
-                  title: const Text(
-                    'I agree to the Terms of Use and have read the Privacy Policy',
+                  title: Text(context.tr('I agree to the Terms of Use and have read the Privacy Policy'),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -100,12 +100,12 @@ class _PolicyAcceptanceScreenState extends State<PolicyAcceptanceScreen> {
                           width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('Accept and continue'),
+                      : Text(context.tr('Accept and continue')),
                 ),
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: _saving ? null : () => context.read<AuthProvider>().logout(),
-                  child: const Text('Not now — sign out'),
+                  child: Text(context.tr('Not now — sign out')),
                 ),
               ],
             ),

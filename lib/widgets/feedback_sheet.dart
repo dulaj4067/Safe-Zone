@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/feedback_service.dart';
 import '../theme/app_colors.dart';
+import '../l10n/ui_text.dart';
 
 /// Citizen feedback form (`feedback_forms`): a 1–5 rating of how well
 /// they're being supported, plus anything they still need. Tagged with the
@@ -58,7 +59,7 @@ class _FeedbackSheetState extends State<_FeedbackSheet> {
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Thanks — your feedback was sent to local authorities.')),
+        SnackBar(content: Text(context.tr('Thanks — your feedback was sent to local authorities.'))),
       );
     } catch (e) {
       setState(() {
@@ -77,9 +78,9 @@ class _FeedbackSheetState extends State<_FeedbackSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Give feedback', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+          Text(context.tr('Give feedback'), style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text('How well are you being supported during this emergency?', style: textTheme.bodyMedium),
+          Text(context.tr('How well are you being supported during this emergency?'), style: textTheme.bodyMedium),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -112,9 +113,9 @@ class _FeedbackSheetState extends State<_FeedbackSheet> {
             maxLines: 5,
             maxLength: 500,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              labelText: 'What do you still need? (optional)',
-              hintText: 'e.g. drinking water, baby formula, transport to a shelter',
+            decoration: InputDecoration(
+              labelText: context.tr('What do you still need? (optional)'),
+              hintText: context.tr('e.g. drinking water, baby formula, transport to a shelter'),
               alignLabelWithHint: true,
             ),
           ),
@@ -131,7 +132,7 @@ class _FeedbackSheetState extends State<_FeedbackSheet> {
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
-                : const Text('Submit feedback'),
+                : Text(context.tr('Submit feedback')),
           ),
         ],
       ),

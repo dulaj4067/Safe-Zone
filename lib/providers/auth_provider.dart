@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../utils/error_messages.dart';
 import '../services/supabase_service.dart';
 
 /// Manages Supabase Auth state: login, register, logout, password reset and
@@ -63,11 +64,11 @@ class AuthProvider extends ChangeNotifier {
     } on AuthException catch (e) {
       if (e.code == 'email_not_confirmed') {
         _unconfirmedEmail = email;
-        _error = 'Please confirm your email first — open the link we sent to '
-            "$email. Can't find it? Check spam, or resend it below.";
+        _error = "Please confirm your email first. Open the link we sent you. "
+            "Can't find it? Check spam, or resend it below.";
       } else {
         _unconfirmedEmail = null;
-        _error = e.message;
+        _error = friendlyAuthMessage(e);
       }
       return false;
     } catch (_) {
@@ -136,10 +137,10 @@ class AuthProvider extends ChangeNotifier {
       // Supabase Auth reports that as a generic database error.
       _error = e.message.contains('Database error saving new user')
           ? 'This mobile number is already registered. Sign in instead, or use a different number.'
-          : e.message;
+          : friendlyAuthMessage(e);
       return null;
     } catch (_) {
-      _error = "Couldn't reach the server. Check your connection and try again.";
+      _error = kNetworkError;
       return null;
     } finally {
       _setBusy(false);
@@ -159,12 +160,10 @@ class AuthProvider extends ChangeNotifier {
       _error = null;
       return true;
     } on AuthException catch (e) {
-      _error = e.statusCode == '429'
-          ? 'Too many requests. Please wait a few minutes and try again.'
-          : e.message;
+      _error = friendlyAuthMessage(e);
       return false;
     } catch (_) {
-      _error = "Couldn't reach the server. Check your connection and try again.";
+      _error = kNetworkError;
       return false;
     } finally {
       _setBusy(false);
@@ -183,12 +182,10 @@ class AuthProvider extends ChangeNotifier {
       _error = null;
       return true;
     } on AuthException catch (e) {
-      _error = e.code == 'same_password'
-          ? 'Choose a password different from your old one.'
-          : e.message;
+      _error = friendlyAuthMessage(e);
       return false;
     } catch (_) {
-      _error = "Couldn't reach the server. Check your connection and try again.";
+      _error = kNetworkError;
       return false;
     } finally {
       _setBusy(false);
@@ -209,10 +206,10 @@ class AuthProvider extends ChangeNotifier {
     } on AuthException catch (e) {
       _error = e.statusCode == '429'
           ? 'Please wait a minute before asking for another email.'
-          : e.message;
+          : friendlyAuthMessage(e);
       return false;
     } catch (_) {
-      _error = "Couldn't reach the server. Check your connection and try again.";
+      _error = kNetworkError;
       return false;
     } finally {
       _setBusy(false);

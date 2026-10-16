@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import '../models/route_result.dart';
+import '../utils/error_messages.dart';
 
 /// Wraps the free, keyless OSRM public routing API (router.project-osrm.org)
 /// — no API key, no billing account, no key-restriction footguns to trip
@@ -58,7 +59,7 @@ class RoutingService {
 
     final response = await http.get(uri);
     if (response.statusCode != 200) {
-      throw RouteException('Routing request failed (${response.statusCode}).');
+      throw RouteException('Routing request failed. Please try again.');
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -67,9 +68,7 @@ class RoutingService {
       throw RouteException('No route found between those points.');
     }
     if (code != 'Ok') {
-      throw RouteException(
-        data['message'] as String? ?? 'Routing failed: $code',
-      );
+      throw RouteException('Routing request failed. Please try again.');
     }
 
     final routes = data['routes'] as List?;
@@ -93,7 +92,8 @@ class RoutingService {
   }
 }
 
-class RouteException implements Exception {
+class RouteException implements Exception, UserMessage {
+  @override
   final String message;
   RouteException(this.message);
   @override

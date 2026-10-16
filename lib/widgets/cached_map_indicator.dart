@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../l10n/ui_text.dart';
 
 class CachedMapIndicator extends StatelessWidget {
   final ValueListenable<bool> showingCachedTiles;
@@ -20,8 +21,7 @@ class CachedMapIndicator extends StatelessWidget {
                 color: Colors.black.withValues(alpha: 0.68),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Text(
-                'Offline map data',
+              child: Text(context.tr('Offline map data'),
                 style: TextStyle(color: Colors.white, fontSize: 12),
               ),
             )

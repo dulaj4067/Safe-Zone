@@ -5,6 +5,7 @@ import '../l10n/app_strings.dart';
 import '../providers/safety_provider.dart';
 import '../models/risk_zone.dart';
 import '../widgets/im_safe_broadcast_button.dart';
+import '../l10n/ui_text.dart';
 
 class ImSafeScreen extends StatefulWidget {
   final RiskZone? currentRiskZone;
@@ -55,7 +56,7 @@ class _ImSafeScreenState extends State<ImSafeScreen> {
               ),
               const SizedBox(height: 32),
               if (safety.errorMessage != null)
-                Text(safety.errorMessage!, style: const TextStyle(color: Colors.red)),
+                Text(context.tr(safety.errorMessage!), style: const TextStyle(color: Colors.red)),
               if (safety.lastBroadcastAt != null)
                 Text(
                   strings.f('sentAt', {

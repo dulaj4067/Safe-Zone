@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../models/app_user.dart';
 import '../models/checklist_item.dart';
 import '../providers/preparedness_provider.dart';
+import '../../../l10n/ui_text.dart';
 
 class ChecklistScreen extends StatefulWidget {
   const ChecklistScreen({super.key, required this.currentUser});
@@ -97,7 +98,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
     final completed = checklist.where((item) => item.isDone).length;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Preparedness checklist')),
+      appBar: AppBar(title: Text(context.tr('Preparedness checklist'))),
       body: RefreshIndicator(
         onRefresh: () => _loadChecklist(),
         child: ListView(
@@ -109,8 +110,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Household risk profile',
+                    Text(context.tr('Household risk profile'),
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -118,25 +118,25 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: _profile['locationType'] as String?,
-                      decoration: const InputDecoration(
-                        labelText: 'Location type',
+                      decoration: InputDecoration(
+                        labelText: context.tr('Location type'),
                       ),
-                      items: const [
+                      items: [
                         DropdownMenuItem(
                           value: 'low-lying',
-                          child: Text('Low-lying / flood prone'),
+                          child: Text(context.tr('Low-lying / flood prone')),
                         ),
                         DropdownMenuItem(
                           value: 'riverside',
-                          child: Text('Riverside / flood plain'),
+                          child: Text(context.tr('Riverside / flood plain')),
                         ),
                         DropdownMenuItem(
                           value: 'hillside',
-                          child: Text('Hillside / wildfire prone'),
+                          child: Text(context.tr('Hillside / wildfire prone')),
                         ),
                         DropdownMenuItem(
                           value: 'urban',
-                          child: Text('Urban / general'),
+                          child: Text(context.tr('Urban / general')),
                         ),
                       ],
                       onChanged: (value) => setState(
@@ -146,19 +146,19 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: _profile['householdSize'] as String?,
-                      decoration: const InputDecoration(
-                        labelText: 'Household size',
+                      decoration: InputDecoration(
+                        labelText: context.tr('Household size'),
                       ),
-                      items: const [
+                      items: [
                         DropdownMenuItem(
                           value: '1-2',
-                          child: Text('1-2 people'),
+                          child: Text(context.tr('1-2 people')),
                         ),
                         DropdownMenuItem(
                           value: '3-4',
-                          child: Text('3-4 people'),
+                          child: Text(context.tr('3-4 people')),
                         ),
-                        DropdownMenuItem(value: '5+', child: Text('5+ people')),
+                        DropdownMenuItem(value: '5+', child: Text(context.tr('5+ people'))),
                       ],
                       onChanged: (value) => setState(
                         () => _profile['householdSize'] = value ?? '3-4',
@@ -167,12 +167,12 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: _profile['hasElderlyMember'] as String?,
-                      decoration: const InputDecoration(
-                        labelText: 'Household has elderly members',
+                      decoration: InputDecoration(
+                        labelText: context.tr('Household has elderly members'),
                       ),
-                      items: const [
-                        DropdownMenuItem(value: 'yes', child: Text('Yes')),
-                        DropdownMenuItem(value: 'no', child: Text('No')),
+                      items: [
+                        DropdownMenuItem(value: 'yes', child: Text(context.tr('Yes'))),
+                        DropdownMenuItem(value: 'no', child: Text(context.tr('No'))),
                       ],
                       onChanged: (value) =>
                           setState(() => _profile['hasElderlyMember'] = value),
@@ -180,24 +180,24 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: _profile['hasDisabledMember'] as String?,
-                      decoration: const InputDecoration(
-                        labelText: 'Household has disabled members',
+                      decoration: InputDecoration(
+                        labelText: context.tr('Household has disabled members'),
                       ),
-                      items: const [
-                        DropdownMenuItem(value: 'yes', child: Text('Yes')),
-                        DropdownMenuItem(value: 'no', child: Text('No')),
+                      items: [
+                        DropdownMenuItem(value: 'yes', child: Text(context.tr('Yes'))),
+                        DropdownMenuItem(value: 'no', child: Text(context.tr('No'))),
                       ],
                       onChanged: (value) =>
                           setState(() => _profile['hasDisabledMember'] = value),
                     ),
                     DropdownButtonFormField<bool>(
                       initialValue: _profile['hasVehicle'] as bool?,
-                      decoration: const InputDecoration(
-                        labelText: 'Household has access to a vehicle',
+                      decoration: InputDecoration(
+                        labelText: context.tr('Household has access to a vehicle'),
                       ),
-                      items: const [
-                        DropdownMenuItem(value: true, child: Text('Yes')),
-                        DropdownMenuItem(value: false, child: Text('No')),
+                      items: [
+                        DropdownMenuItem(value: true, child: Text(context.tr('Yes'))),
+                        DropdownMenuItem(value: false, child: Text(context.tr('No'))),
                       ],
                       onChanged: (value) =>
                           setState(() => _profile['hasVehicle'] = value),
@@ -210,7 +210,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                             ? _saveProfileAndRefresh
                             : null,
                         icon: const Icon(Icons.save_outlined),
-                        label: const Text('Generate checklist'),
+                        label: Text(context.tr('Generate checklist')),
                       ),
                     ),
                   ],
@@ -225,30 +225,26 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                 color: Theme.of(context).colorScheme.errorContainer,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Text(
-                    'Could not load your checklist. Please try again.\n$_errorMessage',
+                  child: Text(context.tr('Could not load your checklist. Please try again.\n{_errorMessage}', {'_errorMessage': _errorMessage}),
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ),
               )
             else if (checklist.isEmpty)
-              const Center(
-                child: Text(
-                  'No checklist items match your household profile yet.',
+              Center(
+                child: Text(context.tr('No checklist items match your household profile yet.'),
                 ),
               )
             else ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Your plan',
+                  Text(context.tr('Your plan'),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  Text(
-                    '$completed/${checklist.length} completed',
+                  Text(context.tr('{completed}/{p0} completed', {'completed': completed, 'p0': checklist.length}),
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ],

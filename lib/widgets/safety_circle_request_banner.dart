@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/safety_circle_request.dart';
 import '../providers/safety_provider.dart';
 import '../theme/app_colors.dart';
+import '../l10n/ui_text.dart';
 
 /// App-wide banner (see AppShell's overlay Stack) asking the signed-in
 /// user to confirm or decline joining a family circle whose invite link
@@ -34,14 +35,11 @@ class SafetyCircleRequestBanner extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Join ${request.ownerName}\'s family circle?',
+                    Text(context.tr('Join {p0}\'s family circle?', {'p0': request.ownerName}),
                       style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      'You\'ll see each other\'s location whenever either of you '
-                      'shares it. Only confirm if you know them.',
+                    Text(context.tr('You\'ll see each other\'s location whenever either of you shares it. Only confirm if you know them.'),
                       style: TextStyle(fontSize: 12.5, color: context.inkMuted),
                     ),
                     const SizedBox(height: 8),
@@ -49,7 +47,7 @@ class SafetyCircleRequestBanner extends StatelessWidget {
                       children: [
                         TextButton(
                           onPressed: () => _respond(context, request, false),
-                          child: const Text('Decline'),
+                          child: Text(context.tr('Decline')),
                         ),
                         const SizedBox(width: 4),
                         FilledButton(
@@ -58,7 +56,7 @@ class SafetyCircleRequestBanner extends StatelessWidget {
                             minimumSize: const Size(0, 36),
                           ),
                           onPressed: () => _respond(context, request, true),
-                          child: const Text('Confirm'),
+                          child: Text(context.tr('Confirm')),
                         ),
                       ],
                     ),

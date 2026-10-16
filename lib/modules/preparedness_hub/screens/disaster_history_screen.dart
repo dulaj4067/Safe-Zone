@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/disaster_history_record.dart';
 import '../providers/preparedness_provider.dart';
+import '../../../l10n/ui_text.dart';
 
 class DisasterHistoryScreen extends StatefulWidget {
   const DisasterHistoryScreen({super.key, required this.zoneId});
@@ -25,7 +26,7 @@ class _DisasterHistoryScreenState extends State<DisasterHistoryScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Disaster history')),
+    appBar: AppBar(title: Text(context.tr('Disaster history'))),
     body: FutureBuilder<List<DisasterHistoryRecord>>(
       future: _records,
       builder: (context, snapshot) {
@@ -35,8 +36,8 @@ class _DisasterHistoryScreenState extends State<DisasterHistoryScreen> {
         final records = [...?snapshot.data]
           ..sort((a, b) => b.date.compareTo(a.date));
         if (records.isEmpty)
-          return const Center(
-            child: Text('No past events are recorded for this zone.'),
+          return Center(
+            child: Text(context.tr('No past events are recorded for this zone.')),
           );
         return ListView.builder(
           padding: const EdgeInsets.all(16),
@@ -53,8 +54,7 @@ class _DisasterHistoryScreenState extends State<DisasterHistoryScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '${MaterialLocalizations.of(context).formatMediumDate(record.date)}  -  ${record.severity} severity',
+                      Text(context.tr('{p0}  -  {p1} severity', {'p0': MaterialLocalizations.of(context).formatMediumDate(record.date), 'p1': record.severity}),
                       ),
                       const SizedBox(height: 6),
                       Text(record.summary),
