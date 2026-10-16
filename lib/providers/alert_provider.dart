@@ -8,6 +8,7 @@ import '../models/alert_delivery_result.dart';
 import '../models/alert_engagement.dart';
 import '../models/zone.dart';
 import '../services/alert_engagement_service.dart';
+import '../services/alert_launch_bus.dart';
 import '../services/alert_service.dart';
 import '../services/notification_service.dart';
 import '../services/supabase_service.dart';
@@ -89,6 +90,12 @@ class AlertProvider extends ChangeNotifier {
     _defaultBroadcastRadiusMeters = await _service.getDefaultBroadcastRadiusMeters();
     await _loadInitial();
     _syncBannerWithFilter();
+    // Opening an alert notification (including the full-screen intent over
+    // the lock screen) shows that alert: a cold start parked its id on the
+    // launch bus before alerts had loaded.
+    final launched = AlertLaunchBus.takePending();
+    if (launched != null) openAlertFromNotification(launched);
+    _launchSubscription ??= AlertLaunchBus.stream.listen(openAlertFromNotification);
     _service.subscribeToAlerts(
       onInsert: _handleRealtimeInsert,
       onUpdate: _handleRealtimeUpdate,
@@ -188,6 +195,25 @@ class AlertProvider extends ChangeNotifier {
       changed = true;
     }
     if (changed) notifyListeners();
+  }
+
+  StreamSubscription<String>? _launchSubscription;
+
+  /// The person opened [alertId]'s notification, or the full-screen intent
+  /// brought the app up for it: show that alert (critical ones take over the
+  /// screen with the siren, others as the banner).
+  void openAlertFromNotification(String alertId) {
+    DisasterAlert? alert;
+    for (final a in _activeAlerts) {
+      if (a.id == alertId) alert = a;
+    }
+    if (alert == null) return; // resolved since, or not an alert payload
+    if (alert.severity.isCritical) {
+      _criticalTakeover = alert;
+    } else {
+      _bannerAlert = alert;
+    }
+    notifyListeners();
   }
 
   /// Shows the critical screen for [alert] right now, bypassing the zone and
@@ -516,6 +542,7 @@ class AlertProvider extends ChangeNotifier {
   @override
   void dispose() {
     _service.unsubscribe();
+    _launchSubscription?.cancel();
     super.dispose();
   }
 }

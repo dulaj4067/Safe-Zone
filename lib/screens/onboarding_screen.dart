@@ -154,6 +154,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _allowNotifications() async {
     final granted = await NotificationService().requestPermissions();
+    // Android 14+: critical alerts can only open full-screen over the lock
+    // screen once the person allows it, so ask while we're explaining alerts.
+    if (granted) await NotificationService.requestFullScreenIntentPermission();
     final uid = _userId;
     if (uid != null) await _service.setNotificationsDeclined(uid, false);
     if (mounted) setState(() => _notificationsGranted = granted);
