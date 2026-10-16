@@ -33,6 +33,7 @@ DisasterAlert _alert({AlertSeverity severity = AlertSeverity.red}) => DisasterAl
     );
 
 void main() {
+  notificationLaunchTests();
   group('CriticalAlertTakeover', () {
     late int vibrations;
 
@@ -132,6 +133,43 @@ void main() {
       expect(p.isNearby(alert), isTrue);
       p.updateUserLocation(const LatLng(7.2906, 80.6337)); // Kandy
       expect(p.isNearby(alert), isFalse);
+    });
+  });
+}
+
+void notificationLaunchTests() {
+  group('Opening an alert notification', () {
+    test('a critical alert opens the takeover, others the banner', () {
+      final p = AlertProvider();
+      final red = _alert();
+      final yellow = DisasterAlert(
+        id: 'y1',
+        title: 'Rain advisory',
+        alertType: 'rain',
+        severity: AlertSeverity.yellow,
+        status: AlertStatus.active,
+        centerLat: 6.9,
+        centerLng: 79.9,
+        radiusMeters: 1000,
+        source: 'manual',
+        createdAt: DateTime(2026, 10, 15),
+        updatedAt: DateTime(2026, 10, 15),
+      );
+      p.activeAlerts.addAll([red, yellow]);
+
+      p.openAlertFromNotification('a1');
+      expect(p.criticalTakeover?.id, 'a1');
+
+      p.dismissTakeover();
+      p.openAlertFromNotification('y1');
+      expect(p.criticalTakeover, isNull);
+      expect(p.bannerAlert?.id, 'y1');
+
+      // An alert that has since been resolved (or a reminder payload) is ignored.
+      p.dismissBanner();
+      p.openAlertFromNotification('gone');
+      expect(p.bannerAlert, isNull);
+      expect(p.criticalTakeover, isNull);
     });
   });
 }

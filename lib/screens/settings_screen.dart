@@ -709,6 +709,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           context
                               .read<AlertProvider>()
                               .previewCriticalTakeover(testAlert);
+                          // Needed on Android 14+ for the lock-screen version.
+                          await NotificationService.requestFullScreenIntentPermission();
                           try {
                             await NotificationService()
                                 .showCriticalAlert(testAlert);
