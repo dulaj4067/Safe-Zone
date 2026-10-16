@@ -292,7 +292,6 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
     return Scaffold(
       appBar: AppBar(
         title: Text(strings.t('reviewTitle')),
-        actions: const [A11yInclusionButton()],
         bottom: TabBar(
           controller: _tabController,
           tabs: [

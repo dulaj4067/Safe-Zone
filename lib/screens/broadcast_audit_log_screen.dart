@@ -90,7 +90,6 @@ class _BroadcastAuditLogScreenState extends State<BroadcastAuditLogScreen> {
       appBar: AppBar(
         title: Text(strings.t('auditTitle')),
         actions: [
-          const A11yInclusionButton(),
           IconButton(
             icon: const Icon(Icons.delete_outline, semanticLabel: 'Clear audit logs'),
             tooltip: 'Clear Audit Logs',

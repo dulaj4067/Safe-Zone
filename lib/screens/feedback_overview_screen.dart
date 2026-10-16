@@ -144,7 +144,6 @@ class _FeedbackOverviewScreenState extends State<FeedbackOverviewScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(strings.t('feedbackTitle')),
-        actions: const [A11yInclusionButton()],
       ),
       body: RefreshIndicator(onRefresh: _load, child: body),
     );

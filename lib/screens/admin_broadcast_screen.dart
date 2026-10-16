@@ -192,7 +192,6 @@ class _BroadcastFormState extends State<_BroadcastForm> {
         child: Scaffold(
           appBar: AppBar(
             title: Text(strings.t('broadcastTitle')),
-            actions: const [A11yInclusionButton()],
           ),
           body: ListView(
             padding: const EdgeInsets.all(16),
