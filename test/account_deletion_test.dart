@@ -11,6 +11,7 @@ void main() {
 
     test('received and processing are open; completed and cancelled are not', () {
       for (final (status, open) in [
+        ('awaiting_email', true),
         ('received', true),
         ('processing', true),
         ('completed', false),
@@ -20,6 +21,12 @@ void main() {
         expect(r.isOpen, open, reason: status);
         expect(r.requestedAt, isNotNull);
       }
+    });
+
+    test('awaiting_email reads as waiting for the citizen, not for an administrator', () {
+      final r = DeletionRequest.fromRow({'status': 'awaiting_email'});
+      expect(r.status, DeletionStatus.awaitingEmail);
+      expect(r.isOpen, isTrue);
     });
 
     test('an unknown status is treated as an open request, never as deleted', () {

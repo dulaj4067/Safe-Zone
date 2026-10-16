@@ -4,21 +4,34 @@ import 'package:supabase_flutter/supabase_flutter.dart'
 import 'supabase_service.dart';
 
 /// Status of the signed-in user's account-deletion request.
-enum DeletionStatus { none, received, processing, completed, cancelled }
+/// [awaitingEmail]: asked for, but the citizen hasn't opened the link in the
+/// confirmation email yet, so no administrator can see it.
+enum DeletionStatus { none, awaitingEmail, received, processing, completed, cancelled }
 
 class DeletionRequest {
   final DeletionStatus status;
   final DateTime? requestedAt;
   const DeletionRequest(this.status, this.requestedAt);
 
-  bool get isOpen => status == DeletionStatus.received || status == DeletionStatus.processing;
+  bool get isOpen =>
+      status == DeletionStatus.awaitingEmail ||
+      status == DeletionStatus.received ||
+      status == DeletionStatus.processing;
+
+  /// The database writes `awaiting_email`; the enum is camelCase.
+  static DeletionStatus _statusFromDb(Object? value) => switch (value) {
+        'awaiting_email' => DeletionStatus.awaitingEmail,
+        'received' => DeletionStatus.received,
+        'processing' => DeletionStatus.processing,
+        'completed' => DeletionStatus.completed,
+        'cancelled' => DeletionStatus.cancelled,
+        // Unknown means "still open", never "deleted".
+        _ => DeletionStatus.received,
+      };
 
   static DeletionRequest fromRow(Map<String, dynamic>? row) {
     if (row == null) return const DeletionRequest(DeletionStatus.none, null);
-    final status = DeletionStatus.values.firstWhere(
-      (s) => s.name == row['status'],
-      orElse: () => DeletionStatus.received,
-    );
+    final status = _statusFromDb(row['status']);
     return DeletionRequest(
       status,
       DateTime.tryParse(row['requested_at'] as String? ?? '')?.toLocal(),
@@ -55,6 +68,21 @@ class AccountDeletionService {
       return DeletionRequest.fromRow(row);
     } on PostgrestException catch (e) {
       throw DeletionException(_friendly(e));
+    }
+  }
+
+  /// Emails the signed-in citizen the link that confirms their request. Safe
+  /// to call again to resend (the server allows one email a minute).
+  Future<void> sendConfirmationEmail() async {
+    try {
+      await SupabaseService.client.functions.invoke('send-deletion-confirmation');
+    } on FunctionException catch (e) {
+      final details = e.details;
+      throw DeletionException(
+        details is Map && details['error'] is String
+            ? details['error'] as String
+            : 'Could not send the confirmation email (${e.status}). Please try again.',
+      );
     }
   }
 
