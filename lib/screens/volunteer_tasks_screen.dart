@@ -91,13 +91,14 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
     }
   }
 
-  Future<void> _showCreateSheet() async {
+  /// Posts a new task, or edits [editing] when given. Same sheet for both.
+  Future<void> _showTaskSheet({VolunteerTask? editing}) async {
     final formKey = GlobalKey<FormState>();
-    final titleCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
-    final neededCtrl = TextEditingController(text: '5');
-    String? shelterId = widget.shelterId;
-    String? zoneId;
+    final titleCtrl = TextEditingController(text: editing?.title);
+    final descCtrl = TextEditingController(text: editing?.description);
+    final neededCtrl = TextEditingController(text: '${editing?.volunteersNeeded ?? 5}');
+    String? shelterId = editing != null ? editing.shelterId : widget.shelterId;
+    String? zoneId = editing?.zoneId;
     bool saving = false;
 
     final created = await showModalBottomSheet<bool>(
@@ -116,7 +117,7 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('New volunteer task',
+                  Text(editing == null ? 'New volunteer task' : 'Edit volunteer task',
                       style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -175,19 +176,37 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
                             if (!(formKey.currentState?.validate() ?? false)) return;
                             setSheetState(() => saving = true);
                             try {
-                              await _service.createTask(
-                                title: titleCtrl.text.trim(),
-                                description: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                                shelterId: shelterId,
-                                zoneId: zoneId,
-                                volunteersNeeded: int.parse(neededCtrl.text.trim()),
-                              );
+                              final description =
+                                  descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim();
+                              final needed = int.parse(neededCtrl.text.trim());
+                              if (editing == null) {
+                                await _service.createTask(
+                                  title: titleCtrl.text.trim(),
+                                  description: description,
+                                  shelterId: shelterId,
+                                  zoneId: zoneId,
+                                  volunteersNeeded: needed,
+                                );
+                              } else {
+                                await _service.updateTask(
+                                  editing.id,
+                                  title: titleCtrl.text.trim(),
+                                  description: description,
+                                  shelterId: shelterId,
+                                  zoneId: zoneId,
+                                  volunteersNeeded: needed,
+                                );
+                              }
                               if (ctx.mounted) Navigator.pop(ctx, true);
                             } catch (e) {
                               setSheetState(() => saving = false);
                               if (ctx.mounted) {
                                 ScaffoldMessenger.of(ctx).showSnackBar(
-                                  SnackBar(content: Text('Couldn\'t post the task: $e')),
+                                  SnackBar(
+                                    content: Text(e is StateError
+                                        ? e.message
+                                        : 'Couldn\'t save the task: $e'),
+                                  ),
                                 );
                               }
                             }
@@ -198,7 +217,7 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
                             height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           )
-                        : const Text('Post task'),
+                        : Text(editing == null ? 'Post task' : 'Save changes'),
                   ),
                 ],
               ),
@@ -208,9 +227,32 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
       ),
     );
     if (created == true) {
-      setState(() => _statusFilter = VolunteerTaskStatus.open);
+      if (editing == null) setState(() => _statusFilter = VolunteerTaskStatus.open);
       _load();
     }
+  }
+
+  /// Asks before an irreversible action; returns true when confirmed.
+  Future<bool> _confirm(String title, String message, String action,
+      {bool destructive = false}) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
+            style: destructive
+                ? FilledButton.styleFrom(backgroundColor: AppColors.severityRed)
+                : null,
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(action),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
   }
 
   @override
@@ -249,8 +291,31 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
           busy: _busyTaskIds.contains(visible[i].id),
           onSignUp: () => _run(visible[i].id, () => _service.signUp(visible[i].id),
               'You\'re signed up. Thank you for helping!'),
-          onWithdraw: () => _run(visible[i].id, () => _service.withdraw(visible[i].id),
-              'You\'ve withdrawn from this task.'),
+          onWithdraw: () async {
+            // Volunteers leave on their own; just make sure it was on purpose.
+            final task = visible[i];
+            if (!await _confirm('Withdraw from this task?',
+                'Your spot on "${task.title}" will be freed for someone else.', 'Withdraw')) {
+              return;
+            }
+            await _run(task.id, () => _service.withdraw(task.id), 'You\'ve withdrawn from this task.');
+          },
+          onEdit: () => _showTaskSheet(editing: visible[i]),
+          onDelete: () async {
+            final task = visible[i];
+            final signedUp = task.signedUpCount;
+            if (!await _confirm(
+              'Delete this task?',
+              signedUp > 0
+                  ? '"${task.title}" and the $signedUp volunteer sign-up${signedUp == 1 ? '' : 's'} on it will be removed.'
+                  : '"${task.title}" will be removed.',
+              'Delete',
+              destructive: true,
+            )) {
+              return;
+            }
+            await _run(task.id, () => _service.deleteTask(task.id), 'Task deleted.');
+          },
           onStatusChange: (status) => _run(visible[i].id,
               () => _service.updateStatus(visible[i].id, status), 'Task marked ${status.label.toLowerCase()}.'),
         ),
@@ -263,7 +328,7 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
       ),
       floatingActionButton: _canManage
           ? FloatingActionButton.extended(
-              onPressed: _showCreateSheet,
+              onPressed: _showTaskSheet,
               icon: const Icon(Icons.add),
               label: const Text('New task'),
             )
@@ -303,6 +368,8 @@ class _TaskCard extends StatelessWidget {
   final bool busy;
   final VoidCallback onSignUp;
   final VoidCallback onWithdraw;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
   final ValueChanged<VolunteerTaskStatus> onStatusChange;
 
   const _TaskCard({
@@ -313,6 +380,8 @@ class _TaskCard extends StatelessWidget {
     required this.busy,
     required this.onSignUp,
     required this.onWithdraw,
+    required this.onEdit,
+    required this.onDelete,
     required this.onStatusChange,
   });
 
@@ -337,14 +406,22 @@ class _TaskCard extends StatelessWidget {
         child: CircularProgressIndicator(strokeWidth: 2),
       );
     } else if (signedUp) {
-      action = OutlinedButton(onPressed: onWithdraw, child: const Text('Withdraw'));
+      action = OutlinedButton(
+        style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+        onPressed: onWithdraw,
+        child: const Text('Withdraw'),
+      );
     } else if (task.status != VolunteerTaskStatus.open) {
       action = const SizedBox.shrink();
     } else if (task.isFull) {
-      action = const OutlinedButton(onPressed: null, child: Text('Full'));
+      action = OutlinedButton(
+        style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+        onPressed: null,
+        child: const Text('Full'),
+      );
     } else {
       action = FilledButton(
-        style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
+        style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
         onPressed: onSignUp,
         child: const Text('Sign up'),
       );
@@ -369,10 +446,39 @@ class _TaskCard extends StatelessWidget {
                         if (s != task.status)
                           PopupMenuItem(value: s, child: Text('Mark ${s.label.toLowerCase()}')),
                     ],
-                    child: _StatusChip(label: task.status.label, color: _statusColor, editable: true),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 48),
+                      child: Center(
+                        widthFactor: 1,
+                        child: _StatusChip(label: task.status.label, color: _statusColor, editable: true),
+                      ),
+                    ),
                   )
                 else
                   _StatusChip(label: task.status.label, color: _statusColor),
+                if (canManage)
+                  PopupMenuButton<String>(
+                    tooltip: 'Task options',
+                    onSelected: (v) => v == 'edit' ? onEdit() : onDelete(),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: ListTile(
+                          leading: Icon(Icons.edit_outlined),
+                          title: Text('Edit task'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: ListTile(
+                          leading: Icon(Icons.delete_outline, color: AppColors.severityRed),
+                          title: Text('Delete task'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
             const SizedBox(height: 4),
@@ -434,11 +540,15 @@ class _StatusChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700)),
+          // Ink text keeps >= 4.5:1 on the tint in both themes; the status
+          // colour stays in the border and arrow.
+          Text(label,
+              style: TextStyle(color: context.inkStrong, fontSize: 12, fontWeight: FontWeight.w700)),
           if (editable) Icon(Icons.arrow_drop_down, size: 16, color: color),
         ],
       ),
