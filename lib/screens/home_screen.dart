@@ -341,42 +341,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
               child: SizedBox(
                 width: double.infinity,
-                child: Builder(
-                  builder: (context) {
-                    // While sharing, the same button ends it: the map shows
-                    // the location, so there is no second screen to visit.
-                    final sharing = context.watch<SafetyProvider>().isSharing;
-                    return ElevatedButton.icon(
-                      onPressed: () {
-                        if (sharing) {
-                          final messenger = ScaffoldMessenger.of(context);
-                          context.read<SafetyProvider>().stopSharing().then((_) {
-                            messenger.showSnackBar(
-                              SnackBar(content: Text(strings.t('stoppedSharing'))),
-                            );
-                          });
-                          return;
-                        }
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => FamilyCircleScreen(
-                              currentRiskZone: nearestRiskZone,
-                            ),
-                          ),
-                        );
-                      },
-                      icon: Icon(
-                        sharing ? Icons.stop_circle_outlined : Icons.share_location_rounded,
-                      ),
-                      label: Text(strings.t(sharing ? 'stopSharing' : 'shareEta')),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            sharing ? AppColors.severityRed : const Color(0xFF1F6F8B),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => FamilyCircleScreen(
+                          currentRiskZone: nearestRiskZone,
+                        ),
                       ),
                     );
                   },
+                  icon: const Icon(Icons.share_location_rounded),
+                  label: Text(strings.t('shareEta')),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1F6F8B),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                 ),
               ),
             ),
