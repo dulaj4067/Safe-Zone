@@ -182,12 +182,17 @@ class _MessageThreadScreenState extends State<MessageThreadScreen> {
                       minLines: 1,
                       maxLines: 4,
                       textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(hintText: 'Write a message'),
+                      decoration: const InputDecoration(
+                        labelText: 'Message',
+                        hintText: 'Write a message',
+                      ),
                       onSubmitted: (_) => _send(),
                     ),
                   ),
                   const SizedBox(width: 6),
                   IconButton.filled(
+                    tooltip: 'Send message',
+                    style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
                     onPressed: _sending ? null : _send,
                     icon: _sending
                         ? const SizedBox(

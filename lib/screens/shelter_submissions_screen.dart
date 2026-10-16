@@ -178,7 +178,7 @@ class _ShelterSubmissionsScreenState extends State<ShelterSubmissionsScreen> {
                           child: OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.severityRed,
-                              minimumSize: const Size.fromHeight(44),
+                              minimumSize: const Size.fromHeight(48),
                             ),
                             onPressed: () => _decide(s, approve: false),
                             icon: const Icon(Icons.close, size: 18),
@@ -188,7 +188,7 @@ class _ShelterSubmissionsScreenState extends State<ShelterSubmissionsScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: FilledButton.icon(
-                            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+                            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
                             onPressed: () => _decide(s, approve: true),
                             icon: const Icon(Icons.check, size: 18),
                             label: const Text('Approve'),

@@ -32,7 +32,11 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
     ('relief_camp', 'Relief camp'),
     ('medical_point', 'Medical point'),
   ];
-  static const _statuses = [('open', 'Open'), ('full', 'Full'), ('closed', 'Closed')];
+  static const _statuses = [
+    ('open', 'Open'),
+    ('full', 'Full'),
+    ('closed', 'Closed'),
+  ];
 
   final _formKey = GlobalKey<FormState>();
   final _service = ShelterService();
@@ -52,6 +56,7 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
   /// Set once the user taps the map, so a late GPS fix cannot move their pin.
   bool _pinSetManually = false;
   bool _saving = false;
+  bool _locating = false;
 
   bool get _editing => widget.shelter != null;
   bool get _approved => widget.shelter?.approval == ShelterApproval.approved;
@@ -73,25 +78,40 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
       _pinSetManually = true;
     } else {
       // A new shelter starts at the submitter's real position.
-      WidgetsBinding.instance.addPostFrameCallback((_) => _useMyLocation(silent: true));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _useMyLocation(silent: true),
+      );
     }
   }
 
   @override
   void dispose() {
-    for (final c in [_name, _address, _description, _phone, _capacity, _occupancy]) {
+    for (final c in [
+      _name,
+      _address,
+      _description,
+      _phone,
+      _capacity,
+      _occupancy,
+    ]) {
       c.dispose();
     }
     super.dispose();
   }
 
   Future<void> _useMyLocation({bool silent = false}) async {
+    setState(() => _locating = true);
     final here = await LocationService().getCurrentLocation();
     if (!mounted) return;
+    setState(() => _locating = false);
     if (here == null) {
       if (!silent) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Couldn\'t get your location. Tap the map to set it.')),
+          const SnackBar(
+            content: Text(
+              'Couldn\'t get your location. Tap the map to set it.',
+            ),
+          ),
         );
       }
       return;
@@ -108,13 +128,16 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
     final v = (value ?? '').trim();
     if (v.isEmpty) return null; // optional
     final digits = v.replaceAll(RegExp(r'\D'), '');
-    return digits.length < 7 || digits.length > 15 ? 'Enter a valid phone number' : null;
+    return digits.length < 7 || digits.length > 15
+        ? 'Enter a valid phone number'
+        : null;
   }
 
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _saving = true);
-    String? orNull(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
+    String? orNull(TextEditingController c) =>
+        c.text.trim().isEmpty ? null : c.text.trim();
     try {
       final capacity = int.parse(_capacity.text.trim());
       if (_editing) {
@@ -148,7 +171,11 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is StateError ? e.message : 'Couldn\'t save the shelter: $e')),
+        SnackBar(
+          content: Text(
+            e is StateError ? e.message : 'Couldn\'t save the shelter: $e',
+          ),
+        ),
       );
     }
   }
@@ -158,8 +185,8 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
     final title = !_editing
         ? 'Submit a shelter'
         : _approved
-            ? 'Edit shelter'
-            : 'Update submission';
+        ? 'Edit shelter'
+        : 'Update submission';
 
     return Scaffold(
       appBar: AppBar(title: Text(title)),
@@ -194,22 +221,30 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _name,
+              textInputAction: TextInputAction.next,
               textCapitalization: TextCapitalization.words,
               decoration: const InputDecoration(labelText: 'Shelter name *'),
-              validator: (v) => (v ?? '').trim().length < 3 ? 'Enter the shelter name' : null,
+              validator: (v) =>
+                  (v ?? '').trim().length < 3 ? 'Enter the shelter name' : null,
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _type,
               decoration: const InputDecoration(labelText: 'Type'),
-              items: [for (final t in _types) DropdownMenuItem(value: t.$1, child: Text(t.$2))],
+              items: [
+                for (final t in _types)
+                  DropdownMenuItem(value: t.$1, child: Text(t.$2)),
+              ],
               onChanged: (v) => setState(() => _type = v ?? _type),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _address,
+              textInputAction: TextInputAction.next,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(labelText: 'Address (optional)'),
+              decoration: const InputDecoration(
+                labelText: 'Address (optional)',
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -225,18 +260,26 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _phone,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.telephoneNumber],
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Emergency desk phone (optional)'),
+              decoration: const InputDecoration(
+                labelText: 'Emergency desk phone (optional)',
+              ),
               validator: _validatePhone,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _capacity,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Capacity (people) *'),
+              decoration: const InputDecoration(
+                labelText: 'Capacity (people) *',
+              ),
               validator: (v) {
                 final n = int.tryParse((v ?? '').trim());
-                if (n == null || n < 1) return 'Enter how many people it can hold';
+                if (n == null || n < 1) {
+                  return 'Enter how many people it can hold';
+                }
                 if (n > 100000) return 'That looks too high';
                 return null;
               },
@@ -250,7 +293,9 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
                     child: TextFormField(
                       controller: _occupancy,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'People sheltered now'),
+                      decoration: const InputDecoration(
+                        labelText: 'People sheltered now',
+                      ),
                       validator: (v) {
                         final n = int.tryParse((v ?? '').trim());
                         return n == null || n < 0 ? 'Enter 0 or more' : null;
@@ -263,7 +308,8 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
                       initialValue: _status,
                       decoration: const InputDecoration(labelText: 'Status'),
                       items: [
-                        for (final s in _statuses) DropdownMenuItem(value: s.$1, child: Text(s.$2)),
+                        for (final s in _statuses)
+                          DropdownMenuItem(value: s.$1, child: Text(s.$2)),
                       ],
                       onChanged: (v) => setState(() => _status = v ?? _status),
                     ),
@@ -279,73 +325,101 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
-            SizedBox(
-              height: 220,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Stack(
-                  children: [
-                    FlutterMap(
-                      mapController: _mapController,
-                      options: MapOptions(
-                        initialCenter: _location,
-                        initialZoom: 14,
-                        minZoom: kSriLankaMinZoom,
-                        cameraConstraint: kSriLankaCameraConstraint,
-                        maxZoom: 18,
-                        onTap: (_, point) => setState(() {
-                          _location = point;
-                          _pinSetManually = true;
-                        }),
-                      ),
-                      children: [
-                        buildBaseTileLayer(BaseMapStyle.street),
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: _location,
-                              width: 44,
-                              height: 44,
-                              alignment: Alignment.topCenter,
-                              child: const Icon(
-                                Icons.location_pin,
-                                color: AppColors.severityRed,
-                                size: 44,
-                              ),
-                            ),
-                          ],
+            Semantics(
+              label:
+                  'Map for choosing the shelter location. Tap the map to move '
+                  'the pin, or use the My location button to place it at your position.',
+              child: SizedBox(
+                height: 240,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Stack(
+                    children: [
+                      FlutterMap(
+                        mapController: _mapController,
+                        options: MapOptions(
+                          initialCenter: _location,
+                          initialZoom: 14,
+                          minZoom: kSriLankaMinZoom,
+                          cameraConstraint: kSriLankaCameraConstraint,
+                          maxZoom: 18,
+                          onTap: (_, point) => setState(() {
+                            _location = point;
+                            _pinSetManually = true;
+                          }),
                         ),
-                      ],
-                    ),
-                    Positioned(
-                      right: 8,
-                      bottom: 8,
-                      child: MyLocationButton(onTap: () => _useMyLocation()),
-                    ),
-                  ],
+                        children: [
+                          buildBaseTileLayer(BaseMapStyle.street),
+                          MarkerLayer(
+                            markers: [
+                              Marker(
+                                point: _location,
+                                width: 44,
+                                height: 44,
+                                alignment: Alignment.topCenter,
+                                child: const Icon(
+                                  Icons.location_pin,
+                                  color: AppColors.severityRed,
+                                  size: 44,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      Positioned(
+                        right: 8,
+                        bottom: 8,
+                        child: MyLocationButton(onTap: () => _useMyLocation()),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              '${_location.latitude.toStringAsFixed(5)}, ${_location.longitude.toStringAsFixed(5)}',
-              style: Theme.of(context).textTheme.bodySmall,
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                if (_locating) ...[
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Finding your location…',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ] else
+                  Text(
+                    '${_location.latitude.toStringAsFixed(5)}, ${_location.longitude.toStringAsFixed(5)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+              ],
             ),
             const SizedBox(height: 24),
             FilledButton(
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
               onPressed: _saving ? null : _save,
               child: _saving
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
-                  : Text(!_editing
-                      ? 'Submit for review'
-                      : _approved
+                  : Text(
+                      !_editing
+                          ? 'Submit for review'
+                          : _approved
                           ? 'Save changes'
-                          : 'Save and resubmit'),
+                          : 'Save and resubmit',
+                    ),
             ),
           ],
         ),
