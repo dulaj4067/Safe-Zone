@@ -11,6 +11,7 @@ import '../theme/app_colors.dart';
 import 'family_circle_screen.dart';
 import 'onboarding_screen.dart';
 import 'policy_screen.dart';
+import '../l10n/ui_text.dart';
 
 /// Settings → Privacy & data: the policies (with the version you accepted),
 /// the controls that govern what's shared, the app tour, and account
@@ -84,24 +85,21 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete your account?'),
+        title: Text(context.tr('Delete your account?')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'We will email you a 6-digit code to confirm. Once you enter it, an '
-                'administrator reviews the request and deletes your account and '
-                'the personal data linked to it. Until then you can cancel here.',
+              Text(context.tr('We will email you a 6-digit code to confirm. Once you enter it, an administrator reviews the request and deletes your account and the personal data linked to it. Until then you can cancel here.'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: reasonCtrl,
                 maxLength: 500,
                 maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Reason (optional)',
+                decoration: InputDecoration(
+                  labelText: context.tr('Reason (optional)'),
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -109,11 +107,11 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('Cancel'))),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.severityRed),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Request deletion'),
+            child: Text(context.tr('Request deletion')),
           ),
         ],
       ),
@@ -130,12 +128,12 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
       if (r.status == DeletionStatus.awaitingEmail) {
         await _sendConfirmation();
       } else {
-        _showError('Deletion request received. Your data hasn\'t been deleted yet.');
+        _showError(context.tr('Deletion request received. Your data hasn\'t been deleted yet.'));
       }
     } on DeletionException catch (e) {
       _showError(e.message);
     } catch (_) {
-      _showError('Couldn\'t send the request — check your connection and try again.');
+      _showError(context.tr('Couldn\'t send the request — check your connection and try again.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -145,11 +143,11 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
   Future<void> _sendConfirmation() async {
     try {
       await _deletion.sendConfirmationEmail();
-      _showError('We emailed you a 6-digit code. Enter it here to confirm; nothing is deleted yet.');
+      _showError(context.tr('We emailed you a 6-digit code. Enter it here to confirm; nothing is deleted yet.'));
     } on DeletionException catch (e) {
-      _showError('${e.message} You can ask for the email again from here.');
+      _showError(context.tr('{p0} You can ask for the email again from here.', {'p0': e.message}));
     } catch (_) {
-      _showError('Couldn\'t send the email. Check your connection and try again.');
+      _showError(context.tr('Couldn\'t send the email. Check your connection and try again.'));
     }
   }
 
@@ -165,14 +163,14 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialog) => AlertDialog(
-          title: const Text('Enter your code'),
+          title: Text(context.tr('Enter your code')),
           content: Form(
             key: formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Type the 6-digit code we emailed you. It works for 30 minutes.'),
+                Text(context.tr('Type the 6-digit code we emailed you. It works for 30 minutes.')),
                 const SizedBox(height: 12),
                 TextFormField(
                   key: const Key('deletion_code_field'),
@@ -182,7 +180,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   maxLength: 6,
                   decoration: InputDecoration(
-                    labelText: 'Confirmation code',
+                    labelText: context.tr('Confirmation code'),
                     border: const OutlineInputBorder(),
                     errorText: serverError,
                   ),
@@ -195,7 +193,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
           actions: [
             TextButton(
               onPressed: checking ? null : () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             FilledButton(
               key: const Key('deletion_code_submit'),
@@ -241,7 +239,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Confirm'),
+                  : Text(context.tr('Confirm')),
             ),
           ],
         ),
@@ -250,7 +248,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
     controller.dispose();
     if (confirmed == true) {
       await _loadRequest();
-      _showError('Confirmed. An administrator will review your request. Nothing is deleted yet.');
+      _showError(context.tr('Confirmed. An administrator will review your request. Nothing is deleted yet.'));
     }
   }
 
@@ -271,7 +269,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
     } on DeletionException catch (e) {
       _showError(e.message);
     } catch (_) {
-      _showError('Couldn\'t cancel — check your connection and try again.');
+      _showError(context.tr('Couldn\'t cancel — check your connection and try again.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -285,7 +283,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Privacy & data')),
+      appBar: AppBar(title: Text(context.tr('Privacy & data'))),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -303,8 +301,8 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
             _header(context, 'What you share'),
             ListTile(
               leading: const Icon(Icons.family_restroom_outlined),
-              title: const Text('Family circle & location sharing'),
-              subtitle: const Text('See who can see your location, stop sharing, or remove people'),
+              title: Text(context.tr('Family circle & location sharing')),
+              subtitle: Text(context.tr('See who can see your location, stop sharing, or remove people')),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(
                 context,
@@ -313,18 +311,18 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
             ),
             ListTile(
               leading: const Icon(Icons.settings_applications_outlined),
-              title: const Text('Location & notification permissions'),
-              subtitle: const Text('Change them in your phone\'s app settings'),
+              title: Text(context.tr('Location & notification permissions')),
+              subtitle: Text(context.tr('Change them in your phone\'s app settings')),
               trailing: const Icon(Icons.open_in_new),
               onTap: () async {
                 final opened = await Geolocator.openAppSettings();
-                if (!opened) _showError('Couldn\'t open your phone\'s settings.');
+                if (!opened) _showError(context.tr('Couldn\'t open your phone\'s settings.'));
               },
             ),
             ListTile(
               leading: const Icon(Icons.tour_outlined),
-              title: const Text('App tour'),
-              subtitle: const Text('Replay the introduction'),
+              title: Text(context.tr('App tour')),
+              subtitle: Text(context.tr('Replay the introduction')),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(
                 context,
@@ -341,7 +339,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
             _deletionTile(context),
             ListTile(
               leading: const Icon(Icons.mail_outline),
-              title: const Text('Privacy questions or a copy of your data'),
+              title: Text(context.tr('Privacy questions or a copy of your data')),
               subtitle: Text(LegalConfig.contactLabel),
             ),
           ],
@@ -363,18 +361,18 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
 
   Widget _deletionTile(BuildContext context) {
     if (_requestLoading) {
-      return const ListTile(
+      return ListTile(
         leading: Icon(Icons.delete_outline),
-        title: Text('Delete account'),
+        title: Text(context.tr('Delete account')),
         subtitle: LinearProgressIndicator(),
       );
     }
     if (_requestError != null) {
       return ListTile(
         leading: const Icon(Icons.delete_outline),
-        title: const Text('Delete account'),
+        title: Text(context.tr('Delete account')),
         subtitle: Text(_requestError!),
-        trailing: TextButton(onPressed: _loadRequest, child: const Text('Retry')),
+        trailing: TextButton(onPressed: _loadRequest, child: Text(context.tr('Retry'))),
       );
     }
     final r = _request;
@@ -382,10 +380,8 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
       return ListTile(
         key: const Key('deletion_awaiting_email'),
         leading: const Icon(Icons.mark_email_unread_outlined, color: AppColors.severityOrange),
-        title: const Text('Confirm with the emailed code'),
-        subtitle: const Text(
-          'We emailed you a 6-digit code. Enter it to confirm your request. '
-          'Until you do, nothing goes to an administrator and nothing is deleted.',
+        title: Text(context.tr('Confirm with the emailed code')),
+        subtitle: Text(context.tr('We emailed you a 6-digit code. Enter it to confirm your request. Until you do, nothing goes to an administrator and nothing is deleted.'),
         ),
         isThreeLine: true,
         onTap: _busy ? null : _enterCode,
@@ -394,10 +390,10 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
             TextButton(
               key: const Key('deletion_enter_code'),
               onPressed: _busy ? null : _enterCode,
-              child: const Text('Enter code'),
+              child: Text(context.tr('Enter code')),
             ),
-            TextButton(onPressed: _busy ? null : _resendConfirmation, child: const Text('Resend')),
-            TextButton(onPressed: _busy ? null : _cancelDeletion, child: const Text('Cancel')),
+            TextButton(onPressed: _busy ? null : _resendConfirmation, child: Text(context.tr('Resend'))),
+            TextButton(onPressed: _busy ? null : _cancelDeletion, child: Text(context.tr('Cancel'))),
           ],
         ),
       );
@@ -406,7 +402,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
       final when = r.requestedAt == null ? '' : ' on ${DateFormat.yMMMd().format(r.requestedAt!)}';
       return ListTile(
         leading: const Icon(Icons.hourglass_top, color: AppColors.severityOrange),
-        title: const Text('Deletion requested'),
+        title: Text(context.tr('Deletion requested')),
         subtitle: Text(
           r.status == DeletionStatus.processing
               ? 'Being processed$when. Your data hasn\'t been fully deleted yet.'
@@ -414,14 +410,14 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
                   'Your data hasn\'t been deleted yet.',
         ),
         trailing: r.status == DeletionStatus.received
-            ? TextButton(onPressed: _busy ? null : _cancelDeletion, child: const Text('Cancel'))
+            ? TextButton(onPressed: _busy ? null : _cancelDeletion, child: Text(context.tr('Cancel')))
             : null,
       );
     }
     return ListTile(
       leading: const Icon(Icons.delete_outline, color: AppColors.severityRed),
-      title: const Text('Delete account'),
-      subtitle: const Text('Request deletion of your account and personal data'),
+      title: Text(context.tr('Delete account')),
+      subtitle: Text(context.tr('Request deletion of your account and personal data')),
       onTap: _busy ? null : _requestDeletion,
     );
   }

@@ -17,6 +17,7 @@ import 'manage_checklist_screen.dart';
 import 'manage_guides_screen.dart';
 import 'manage_reminders_screen.dart';
 import 'manage_routes_screen.dart';
+import '../../../l10n/ui_text.dart';
 
 class PreparednessHubScreen extends StatefulWidget {
   const PreparednessHubScreen({
@@ -46,8 +47,8 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
   void _openAuthorityRoute(BuildContext context, Widget page) {
     if (widget.currentUser?.role.isAuthority != true) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Only authority accounts can manage this area.'),
+        SnackBar(
+          content: Text(context.tr('Only authority accounts can manage this area.')),
         ),
       );
       return;
@@ -69,11 +70,11 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Preparedness hub'),
+        title: Text(context.tr('Preparedness hub')),
         actions: [
           if (isAuthority)
             IconButton(
-              tooltip: 'Manage evacuation routes',
+              tooltip: context.tr('Manage evacuation routes'),
               icon: const Icon(Icons.alt_route),
               onPressed: () => _openAuthorityRoute(
                 context,
@@ -103,14 +104,12 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Ready when it matters.',
+                    Text(context.tr('Ready when it matters.'),
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 5),
-                    Text(
-                      'Practical guidance for your community.',
+                    Text(context.tr('Practical guidance for your community.'),
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 16),
@@ -226,8 +225,7 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                     const SizedBox(height: 6),
                     if (upcomingReminders.isNotEmpty) ...[
                       const SizedBox(height: 18),
-                      Text(
-                        'Upcoming reminders',
+                      Text(context.tr('Upcoming reminders'),
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w700),
                       ),
@@ -257,9 +255,9 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (guides.isEmpty)
-              const SliverFillRemaining(
+              SliverFillRemaining(
                 hasScrollBody: false,
-                child: Center(child: Text('No guides in this category yet.')),
+                child: Center(child: Text(context.tr('No guides in this category yet.'))),
               )
             else
               SliverPadding(
@@ -431,8 +429,7 @@ class GuideDetailScreen extends StatelessWidget {
           ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 8),
-        Text(
-          'Updated ${MaterialLocalizations.of(context).formatShortDate(guide.updatedAt)}',
+        Text(context.tr('Updated {p0}', {'p0': MaterialLocalizations.of(context).formatShortDate(guide.updatedAt)}),
         ),
         const SizedBox(height: 16),
         if (guide.coverImageUrl.isNotEmpty)

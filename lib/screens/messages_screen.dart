@@ -9,6 +9,7 @@ import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
 import 'message_thread_screen.dart';
+import '../l10n/ui_text.dart';
 
 /// Inbox of every shelter conversation the signed-in user is part of —
 /// citizens see threads they started with shelter managers; managers see
@@ -60,18 +61,16 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     Widget body;
     if (_failed) {
-      body = const Center(child: Text('Couldn\'t load your messages.'));
+      body = Center(child: Text(context.tr('Couldn\'t load your messages.')));
     } else if (conversations == null) {
       body = const Center(child: CircularProgressIndicator());
     } else if (conversations.isEmpty) {
       body = ListView(
-        children: const [
+        children: [
           SizedBox(height: 120),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              'No messages yet.\nOpen a shelter on the map and tap '
-              '"Message shelter manager" to start a conversation.',
+            child: Text(context.tr('No messages yet.\nOpen a shelter on the map and tap "Message shelter manager" to start a conversation.'),
               textAlign: TextAlign.center,
             ),
           ),
@@ -129,7 +128,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Messages')),
+      appBar: AppBar(title: Text(context.tr('Messages'))),
       body: RefreshIndicator(onRefresh: _load, child: body),
     );
   }

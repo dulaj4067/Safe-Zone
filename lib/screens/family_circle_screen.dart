@@ -10,6 +10,7 @@ import '../providers/safety_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
 import 'live_eta_sharing_screen.dart';
+import '../l10n/ui_text.dart';
 
 /// Google-family-style circle: everyone joins through a single-use invite
 /// link and has to confirm (email + in-app) before anyone's location is
@@ -67,7 +68,7 @@ class _FamilyCircleScreenState extends State<FamilyCircleScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -95,10 +96,10 @@ class _FamilyCircleScreenState extends State<FamilyCircleScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Family circle'),
+        title: Text(context.tr('Family circle')),
         actions: [
           IconButton(
-            tooltip: 'Join with a code',
+            tooltip: context.tr('Join with a code'),
             icon: const Icon(Icons.vpn_key_outlined),
             onPressed: () => showJoinWithCodeDialog(context),
           ),
@@ -113,10 +114,7 @@ class _FamilyCircleScreenState extends State<FamilyCircleScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                 children: [
-                  Text(
-                    'Family members can see each other\'s location while '
-                    'sharing. People join with an invite link and have to '
-                    'confirm before anything is shared.',
+                  Text(context.tr('Family members can see each other\'s location while sharing. People join with an invite link and have to confirm before anything is shared.'),
                     style: textTheme.bodyMedium,
                   ),
                   if (safety.errorMessage != null) ...[
@@ -137,7 +135,7 @@ class _FamilyCircleScreenState extends State<FamilyCircleScreen> {
                       ),
                   if (invites.isNotEmpty) ...[
                     const SizedBox(height: 20),
-                    Text('Open invite links', style: textTheme.titleSmall),
+                    Text(context.tr('Open invite links'), style: textTheme.titleSmall),
                     const SizedBox(height: 4),
                     for (final invite in invites)
                       _InviteTile(
@@ -172,7 +170,7 @@ class _FamilyCircleScreenState extends State<FamilyCircleScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.person_add_alt_1),
-                      label: const Text('Invite family member'),
+                      label: Text(context.tr('Invite family member')),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -218,13 +216,11 @@ class _EmptyFamily extends StatelessWidget {
         children: [
           Icon(Icons.family_restroom, size: 56, color: Colors.grey.shade400),
           const SizedBox(height: 12),
-          const Text(
-            'No one in your family circle yet',
+          Text(context.tr('No one in your family circle yet'),
             style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
           ),
           const SizedBox(height: 4),
-          Text(
-            'Send an invite link to a family member to get started.',
+          Text(context.tr('Send an invite link to a family member to get started.'),
             textAlign: TextAlign.center,
             style: TextStyle(color: context.inkMuted),
           ),
@@ -289,7 +285,7 @@ class _MemberTile extends StatelessWidget {
         ),
       ),
       trailing: PopupMenuButton<String>(
-        tooltip: 'More',
+        tooltip: context.tr('More'),
         onSelected: (_) => onRemove(),
         itemBuilder: (_) => [
           PopupMenuItem(
@@ -325,7 +321,7 @@ class _InviteTile extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: const CircleAvatar(child: Icon(Icons.link, size: 20)),
-      title: Text('Code ${invite.code}'),
+      title: Text(context.tr('Code {p0}', {'p0': invite.code})),
       subtitle: Text(
         days >= 1
             ? 'Not used yet · expires in $days day${days == 1 ? '' : 's'}'
@@ -335,12 +331,12 @@ class _InviteTile extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            tooltip: 'Share link',
+            tooltip: context.tr('Share link'),
             icon: const Icon(Icons.share_outlined),
             onPressed: onShare,
           ),
           IconButton(
-            tooltip: 'Revoke link',
+            tooltip: context.tr('Revoke link'),
             icon: const Icon(Icons.link_off),
             onPressed: onRevoke,
           ),
@@ -366,17 +362,13 @@ Future<void> showInviteLinkSheet(BuildContext context, Uri link) {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Invite to your family circle',
+            Text(context.tr('Invite to your family circle'),
               style: Theme.of(
                 sheetContext,
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Send this link to one family member. When they open it, '
-              'SafeZone emails them and asks them to confirm in the app. '
-              'The link works once and expires in 7 days.',
+            Text(context.tr('Send this link to one family member. When they open it, SafeZone emails them and asks them to confirm in the app. The link works once and expires in 7 days.'),
             ),
             const SizedBox(height: 16),
             Container(
@@ -396,8 +388,7 @@ Future<void> showInviteLinkSheet(BuildContext context, Uri link) {
                     style: const TextStyle(fontSize: 12.5),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    'Or join with code: $code',
+                  Text(context.tr('Or join with code: {code}', {'code': code}),
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ],
@@ -409,14 +400,14 @@ Future<void> showInviteLinkSheet(BuildContext context, Uri link) {
                 Expanded(
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.copy, size: 18),
-                    label: const Text('Copy'),
+                    label: Text(context.tr('Copy')),
                     onPressed: () async {
                       await Clipboard.setData(
                         ClipboardData(text: link.toString()),
                       );
                       if (sheetContext.mounted) {
                         ScaffoldMessenger.of(sheetContext).showSnackBar(
-                          const SnackBar(content: Text('Invite link copied')),
+                          SnackBar(content: Text(context.tr('Invite link copied'))),
                         );
                       }
                     },
@@ -429,7 +420,7 @@ Future<void> showInviteLinkSheet(BuildContext context, Uri link) {
                       minimumSize: const Size(0, 44),
                     ),
                     icon: const Icon(Icons.share, size: 18),
-                    label: const Text('Share'),
+                    label: Text(context.tr('Share')),
                     onPressed: () => SharePlus.instance.share(
                       ShareParams(
                         subject: 'Join my SafeZone family circle',
@@ -483,26 +474,26 @@ class _JoinWithCodeDialogState extends State<_JoinWithCodeDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Join a family circle'),
+      title: Text(context.tr('Join a family circle')),
       content: TextField(
         controller: _controller,
         autofocus: true,
         textCapitalization: TextCapitalization.characters,
-        decoration: const InputDecoration(
-          labelText: 'Invite code',
-          hintText: 'e.g. 3F9A1C7B20DE',
+        decoration: InputDecoration(
+          labelText: context.tr('Invite code'),
+          hintText: context.tr('e.g. 3F9A1C7B20DE'),
         ),
         onSubmitted: (v) => Navigator.pop(context, v),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(context.tr('Cancel')),
         ),
         FilledButton(
           style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
           onPressed: () => Navigator.pop(context, _controller.text),
-          child: const Text('Join'),
+          child: Text(context.tr('Join')),
         ),
       ],
     );
@@ -538,16 +529,13 @@ Future<void> showFamilyRequestDialog(
         color: context.brandInk,
         size: 36,
       ),
-      title: Text('Join ${request.ownerName}\'s family circle?'),
-      content: Text(
-        'You and ${request.ownerName} will be able to see each other\'s '
-        'location whenever either of you shares it. We\'ve also emailed you '
-        'about this. Only confirm if you know them.',
+      title: Text(context.tr('Join {p0}\'s family circle?', {'p0': request.ownerName})),
+      content: Text(context.tr('You and {p0} will be able to see each other\'s location whenever either of you shares it. We\'ve also emailed you about this. Only confirm if you know them.', {'p0': request.ownerName}),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(dialogContext, false),
-          child: const Text('Decline'),
+          child: Text(context.tr('Decline')),
         ),
         FilledButton(
           style: FilledButton.styleFrom(
@@ -555,7 +543,7 @@ Future<void> showFamilyRequestDialog(
             minimumSize: const Size(0, 40),
           ),
           onPressed: () => Navigator.pop(dialogContext, true),
-          child: const Text('Confirm'),
+          child: Text(context.tr('Confirm')),
         ),
       ],
     ),

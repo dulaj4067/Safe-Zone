@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/validators.dart';
 import '../widgets/a11y/a11y_widgets.dart';
+import '../l10n/ui_text.dart';
 
 /// Shown after a password-reset link opens the app (the user is signed in
 /// with a recovery session). Nothing else in the app is reachable until a
@@ -33,7 +34,7 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
     final ok = await context.read<AuthProvider>().updatePassword(_password.text);
     if (ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password updated. You\'re signed in.')),
+        SnackBar(content: Text(context.tr('Password updated. You\'re signed in.'))),
       );
     }
   }
@@ -42,7 +43,7 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Choose a new password'), automaticallyImplyLeading: false),
+      appBar: AppBar(title: Text(context.tr('Choose a new password')), automaticallyImplyLeading: false),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -54,15 +55,15 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('Enter a new password for your SafeZone account.'),
+                    Text(context.tr('Enter a new password for your SafeZone account.')),
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _password,
                       obscureText: _obscure,
                       autofillHints: const [AutofillHints.newPassword],
                       decoration: InputDecoration(
-                        labelText: 'New password',
-                        helperText: 'At least $kMinPasswordLength characters',
+                        labelText: context.tr('New password'),
+                        helperText: context.tr('At least {kMinPasswordLength} characters', {'kMinPasswordLength': kMinPasswordLength}),
                         suffixIcon: IconButton(
                           tooltip: _obscure ? 'Show password' : 'Hide password',
                           icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
@@ -75,7 +76,7 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
                     TextFormField(
                       controller: _confirm,
                       obscureText: _obscure,
-                      decoration: const InputDecoration(labelText: 'Confirm new password'),
+                      decoration: InputDecoration(labelText: context.tr('Confirm new password')),
                       validator: (v) => v != _password.text ? 'Passwords don\'t match' : null,
                       onFieldSubmitted: (_) => _save(),
                     ),
@@ -93,11 +94,11 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
                               width: 18,
                               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                             )
-                          : const Text('Save password'),
+                          : Text(context.tr('Save password')),
                     ),
                     TextButton(
                       onPressed: auth.isBusy ? null : () => context.read<AuthProvider>().logout(),
-                      child: const Text('Cancel and sign out'),
+                      child: Text(context.tr('Cancel and sign out')),
                     ),
                   ],
                 ),

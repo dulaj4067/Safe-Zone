@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/alert.dart';
 import '../providers/alert_provider.dart';
 import 'severity_badge.dart';
+import '../l10n/ui_text.dart';
 
 /// Context Recall Card
 ///
@@ -91,7 +92,7 @@ class _ContextRecallCardState extends State<ContextRecallCard> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Warning "${alert.title}" acknowledged. Confirmation recorded.'),
+          content: Text(context.tr('Warning "{p0}" acknowledged. Confirmation recorded.', {'p0': alert.title})),
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
         ),
@@ -277,8 +278,7 @@ class _ContextRecallCardState extends State<ContextRecallCard> {
                   children: [
                     Icon(Icons.check_circle_rounded, size: 14, color: Colors.green.shade700),
                     const SizedBox(width: 4),
-                    Text(
-                      'Acknowledged',
+                    Text(context.tr('Acknowledged'),
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
@@ -300,8 +300,7 @@ class _ContextRecallCardState extends State<ContextRecallCard> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 icon: const Icon(Icons.check, size: 14),
-                label: const Text(
-                  'Acknowledge',
+                label: Text(context.tr('Acknowledge'),
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
                 ),
                 onPressed: () => _handleAcknowledge(alert),

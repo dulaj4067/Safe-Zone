@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/activity_history_service.dart';
+import '../l10n/ui_text.dart';
 
 class ResumeActivityCard extends StatelessWidget {
   final List<ActivityEntry> entries;
@@ -23,7 +24,7 @@ class ResumeActivityCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Resume where you left off', style: Theme.of(context).textTheme.titleMedium),
+            Text(context.tr('Resume where you left off'), style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
             for (final entry in entries)
               ListTile(

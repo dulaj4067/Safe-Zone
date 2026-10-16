@@ -29,6 +29,7 @@ import 'incident_detail_screen.dart';
 import 'message_thread_screen.dart';
 import 'shelter_directions_screen.dart';
 import 'volunteer_tasks_screen.dart';
+import '../l10n/ui_text.dart';
 
 /// Everything the database connects to one shelter, on one page:
 /// the `shelters` row (status, capacity, desk phone, manager), its
@@ -145,7 +146,7 @@ class _ShelterDetailScreenState extends State<ShelterDetailScreen> {
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Unable to open the dialer. Please call $phone.'),
+          content: Text(context.tr('Unable to open the dialer. Please call {phone}.', {'phone': phone})),
         ),
       );
     }
@@ -226,7 +227,7 @@ class _ShelterDetailScreenState extends State<ShelterDetailScreen> {
                       minimumSize: const Size.fromHeight(48),
                     ),
                     icon: const Icon(Icons.directions),
-                    label: const Text('Safe route here'),
+                    label: Text(context.tr('Safe route here')),
                     onPressed: () =>
                         _push(ShelterDirectionsScreen(destination: _shelter)),
                   ),
@@ -239,7 +240,7 @@ class _ShelterDetailScreenState extends State<ShelterDetailScreen> {
                         minimumSize: const Size.fromHeight(48),
                       ),
                       icon: const Icon(Icons.call),
-                      label: const Text('Call desk'),
+                      label: Text(context.tr('Call desk')),
                       onPressed: _callDesk,
                     ),
                   ),
@@ -253,12 +254,12 @@ class _ShelterDetailScreenState extends State<ShelterDetailScreen> {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.phone_outlined),
-                    title: const Text('Emergency desk'),
+                    title: Text(context.tr('Emergency desk')),
                     subtitle: Text(_shelter.contactPhone ?? 'No phone listed'),
                   ),
                   ListTile(
                     leading: const Icon(Icons.badge_outlined),
-                    title: const Text('Managed by'),
+                    title: Text(context.tr('Managed by')),
                     subtitle: Text(
                       _shelter.managedBy == null
                           ? 'No manager assigned'
@@ -270,7 +271,7 @@ class _ShelterDetailScreenState extends State<ShelterDetailScreen> {
                               Icons.chat_bubble_outline,
                               size: 18,
                             ),
-                            label: const Text('Message'),
+                            label: Text(context.tr('Message')),
                             onPressed: () => _push(
                               MessageThreadScreen(
                                 shelterId: _shelter.id,
@@ -297,7 +298,7 @@ class _ShelterDetailScreenState extends State<ShelterDetailScreen> {
                     shelterName: _shelter.name,
                   ),
                 ),
-                child: const Text('See all & sign up'),
+                child: Text(context.tr('See all & sign up')),
               ),
             ),
             _VolunteerNeeds(tasks: _tasks, failed: _tasksFailed),
@@ -352,8 +353,7 @@ class _ShelterDetailScreenState extends State<ShelterDetailScreen> {
             if (_shelter.updatedAt != null) ...[
               const SizedBox(height: 20),
               Center(
-                child: Text(
-                  'Shelter info last updated ${timeAgo(_shelter.updatedAt!)}',
+                child: Text(context.tr('Shelter info last updated {p0}', {'p0': timeAgo(_shelter.updatedAt!)}),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
@@ -598,8 +598,7 @@ class _ShelterMiniMap extends StatelessWidget {
                         color: context.brandAccent,
                       ),
                       SizedBox(width: 6),
-                      Text(
-                        'View on map',
+                      Text(context.tr('View on map'),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -642,8 +641,7 @@ class _AlertWarning extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Inside an active ${alert.severity.label.toLowerCase()} alert: ${alert.title}',
+                Text(context.tr('Inside an active {p0} alert: {p1}', {'p0': alert.severity.label.toLowerCase(), 'p1': alert.title}),
                   style: TextStyle(fontWeight: FontWeight.w700, color: color),
                 ),
                 if (alert.instructions != null) ...[

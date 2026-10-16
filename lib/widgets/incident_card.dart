@@ -5,6 +5,7 @@ import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import 'status_badge.dart';
+import '../l10n/ui_text.dart';
 
 /// Returns the Material icon for an incident category.
 IconData categoryIcon(IncidentCategory category) {
@@ -126,8 +127,7 @@ class IncidentCard extends StatelessWidget {
                         children: [
                           Icon(Icons.person_outline, size: 12, color: context.brandInk),
                           SizedBox(width: 3),
-                          Text(
-                            'Mine',
+                          Text(context.tr('Mine'),
                             style: TextStyle(
                               color: context.brandInk,
                               fontSize: 10,
@@ -148,14 +148,13 @@ class IncidentCard extends StatelessWidget {
                         color: AppColors.severityRed,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.warning_amber_rounded,
                               size: 14, color: Colors.white),
                           SizedBox(width: 4),
-                          Text(
-                            'SOS',
+                          Text(context.tr('SOS'),
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 11,

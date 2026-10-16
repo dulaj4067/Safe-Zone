@@ -17,6 +17,7 @@ import '../widgets/location_alert_banner.dart';
 import '../widgets/context_recall_card.dart';
 import 'incident_detail_screen.dart';
 import 'report_incident_screen.dart';
+import '../l10n/ui_text.dart';
 
 class IncidentsScreen extends StatefulWidget {
   final AppUser? currentUser;
@@ -108,7 +109,7 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
       appBar: AppBar(
         // No refresh button — the list (and its empty state) already
         // supports pull-to-refresh.
-        title: const Text('Incidents'),
+        title: Text(context.tr('Incidents')),
       ),
       floatingActionButton: FloatingActionButton.extended(
         // Unique tag: this tab lives in the same route as the shell's
@@ -116,7 +117,7 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
         heroTag: 'report-incident-fab',
         onPressed: _openReportScreen,
         icon: const Icon(Icons.add),
-        label: const Text('Report Incident'),
+        label: Text(context.tr('Report Incident')),
         backgroundColor: context.brandFill,
         foregroundColor: Colors.white,
       ),
@@ -160,8 +161,7 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Monitor and report flood & disaster incidents in real-time.',
+                Text(context.tr('Monitor and report flood & disaster incidents in real-time.'),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 10),
@@ -213,13 +213,12 @@ class _LocationDeniedBanner extends StatelessWidget {
       width: double.infinity,
       color: Colors.amber.shade100,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: const Row(
+      child: Row(
         children: [
           Icon(Icons.location_off, size: 16),
           SizedBox(width: 8),
           Expanded(
-            child: Text(
-              'Location access is off — enable it in Settings to see your position on the map.',
+            child: Text(context.tr('Location access is off — enable it in Settings to see your position on the map.'),
               style: TextStyle(fontSize: 13),
             ),
           ),
@@ -262,7 +261,7 @@ class _FilterBar extends StatelessWidget {
         children: [
           // All chip
           FilterChip(
-            label: const Text('All'),
+            label: Text(context.tr('All')),
             selected:
                 selectedStatus == null &&
                 selectedCategory == null &&
@@ -279,7 +278,7 @@ class _FilterBar extends StatelessWidget {
               size: 16,
               color: context.brandInk,
             ),
-            label: const Text('My Reports'),
+            label: Text(context.tr('My Reports')),
             selected: myReportsOnly,
             selectedColor: context.brandInk.withValues(alpha: 0.15),
             onSelected: (val) => onMyReportsChanged(val),
@@ -293,7 +292,7 @@ class _FilterBar extends StatelessWidget {
               size: 16,
               color: Colors.red,
             ),
-            label: const Text('SOS Only'),
+            label: Text(context.tr('SOS Only')),
             selected: sosOnly,
             selectedColor: context.dangerTint,
             onSelected: (val) => onSosChanged(val),
@@ -302,7 +301,7 @@ class _FilterBar extends StatelessWidget {
 
           // Pending Filter
           FilterChip(
-            label: const Text('Pending'),
+            label: Text(context.tr('Pending')),
             selected: selectedStatus == IncidentStatus.pending,
             onSelected: (val) =>
                 onStatusChanged(val ? IncidentStatus.pending : null),
@@ -311,7 +310,7 @@ class _FilterBar extends StatelessWidget {
 
           // Verified Filter
           FilterChip(
-            label: const Text('Verified'),
+            label: Text(context.tr('Verified')),
             selected: selectedStatus == IncidentStatus.verified,
             onSelected: (val) =>
                 onStatusChanged(val ? IncidentStatus.verified : null),
@@ -320,7 +319,7 @@ class _FilterBar extends StatelessWidget {
 
           // Resolved Filter
           FilterChip(
-            label: const Text('Resolved'),
+            label: Text(context.tr('Resolved')),
             selected: selectedStatus == IncidentStatus.resolved,
             onSelected: (val) =>
                 onStatusChanged(val ? IncidentStatus.resolved : null),
@@ -329,7 +328,7 @@ class _FilterBar extends StatelessWidget {
 
           // Rejected Filter
           FilterChip(
-            label: const Text('Rejected'),
+            label: Text(context.tr('Rejected')),
             selected: selectedStatus == IncidentStatus.rejected,
             onSelected: (val) =>
                 onStatusChanged(val ? IncidentStatus.rejected : null),
@@ -380,13 +379,11 @@ class _IncidentList extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'No incidents reported yet',
+                Text(context.tr('No incidents reported yet'),
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  'Help keep your community informed during floods and extreme weather events.',
+                Text(context.tr('Help keep your community informed during floods and extreme weather events.'),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
@@ -394,7 +391,7 @@ class _IncidentList extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: onReportTap,
                   icon: const Icon(Icons.add),
-                  label: const Text('Report an Incident'),
+                  label: Text(context.tr('Report an Incident')),
                 ),
               ],
             ),
@@ -463,8 +460,7 @@ class _ErrorState extends StatelessWidget {
                 color: AppColors.severityRed,
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Failed to load incidents',
+              Text(context.tr('Failed to load incidents'),
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 6),
@@ -477,7 +473,7 @@ class _ErrorState extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Try Again'),
+                label: Text(context.tr('Try Again')),
               ),
             ],
           ),

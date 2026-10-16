@@ -11,6 +11,7 @@ import '../../../utils/map_tile_sources.dart';
 import '../../../utils/sri_lanka_bounds.dart';
 import '../models/evacuation_route.dart';
 import '../providers/preparedness_provider.dart';
+import '../../../l10n/ui_text.dart';
 
 class EvacuationMapScreen extends StatefulWidget {
   const EvacuationMapScreen({super.key, required this.zoneId});
@@ -90,27 +91,25 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     final center = _location ?? route?.startPoint;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Evacuation map')),
+      appBar: AppBar(title: Text(context.tr('Evacuation map'))),
       body: Column(
         children: [
           if (_locationUnavailable)
-            const MaterialBanner(
-              content: Text('Current location is unavailable.'),
+            MaterialBanner(
+              content: Text(context.tr('Current location is unavailable.')),
               actions: [SizedBox.shrink()],
             ),
           if (_activeAlert != null)
             MaterialBanner(
-              content: Text(
-                'Active alert: $_activeAlert. Follow authority instructions.',
+              content: Text(context.tr('Active alert: {_activeAlert}. Follow authority instructions.', {'_activeAlert': _activeAlert}),
               ),
               actions: const [SizedBox.shrink()],
             ),
           Expanded(
             flex: 3,
             child: center == null
-                ? const Center(
-                    child: Text(
-                      'Your location and a saved route are needed to show the map.',
+                ? Center(
+                    child: Text(context.tr('Your location and a saved route are needed to show the map.'),
                     ),
                   )
                 : Stack(
@@ -175,7 +174,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                         top: 12,
                         child: FloatingActionButton.small(
                           heroTag: 'my-location',
-                          tooltip: 'Center on my location',
+                          tooltip: context.tr('Center on my location'),
                           onPressed: _location == null
                               ? null
                               : () => _mapController.move(_location!, 15),
@@ -188,9 +187,8 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
           Expanded(
             flex: 2,
             child: route == null
-                ? const Center(
-                    child: Text(
-                      'No evacuation route is available for this zone yet.',
+                ? Center(
+                    child: Text(context.tr('No evacuation route is available for this zone yet.'),
                     ),
                   )
                 : _RouteInstructions(route: route),
@@ -225,19 +223,17 @@ class _RouteInstructions extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
     children: [
-      Text(
-        'Recommended safe route',
+      Text(context.tr('Recommended safe route'),
         style: Theme.of(
           context,
         ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
       ),
       const SizedBox(height: 4),
-      Text(
-        'Updated ${MaterialLocalizations.of(context).formatShortDate(route.lastUpdated)}',
+      Text(context.tr('Updated {p0}', {'p0': MaterialLocalizations.of(context).formatShortDate(route.lastUpdated)}),
       ),
       const SizedBox(height: 10),
       if (route.instructions.isEmpty)
-        const Text('Follow the highlighted route to the marked safe zone.')
+        Text(context.tr('Follow the highlighted route to the marked safe zone.'))
       else
         ...route.instructions.asMap().entries.map(
           (entry) => ListTile(

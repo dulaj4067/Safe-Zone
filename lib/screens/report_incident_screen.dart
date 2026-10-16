@@ -21,6 +21,7 @@ import '../utils/sri_lanka_bounds.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/incident_card.dart';
 import 'incident_detail_screen.dart';
+import '../l10n/ui_text.dart';
 
 class ReportIncidentScreen extends StatefulWidget {
   final LatLng? initialLocation;
@@ -100,7 +101,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick photo: $e')),
+          SnackBar(content: Text(context.tr('Failed to pick photo: {e}', {'e': e}))),
         );
       }
     }
@@ -121,7 +122,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick video: $e')),
+          SnackBar(content: Text(context.tr('Failed to pick video: {e}', {'e': e}))),
         );
       }
     }
@@ -288,7 +289,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Could not confirm: $e'),
+          content: Text(context.tr('Could not confirm: {e}', {'e': e})),
           backgroundColor: AppColors.severityRed,
         ),
       );
@@ -953,8 +954,7 @@ class _DuplicateDialog extends StatelessWidget {
                           color:
                               Theme.of(context).colorScheme.onSurfaceVariant),
                       const SizedBox(width: 4),
-                      Text(
-                        '~${distanceLabel(_distanceMetres())} away',
+                      Text(context.tr('~{p0} away', {'p0': distanceLabel(_distanceMetres())}),
                         style:
                             AppTheme.dataText(context).copyWith(fontSize: 11),
                       ),
@@ -1106,10 +1106,7 @@ class _ProximityBanner extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '${strings.category(duplicate.category)} • '
-                  '~${distanceLabel(_distanceMetres())} away • '
-                  '${timeAgo(duplicate.createdAt)}',
+                Text(context.tr('{p0} • ~{p1} away • {p2}', {'p0': strings.category(duplicate.category), 'p1': distanceLabel(_distanceMetres()), 'p2': timeAgo(duplicate.createdAt)}),
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall

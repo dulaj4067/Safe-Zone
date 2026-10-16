@@ -4,6 +4,7 @@ import '../models/route_result.dart';
 import '../providers/active_route_provider.dart';
 import '../theme/app_colors.dart';
 import 'severity_badge.dart';
+import '../l10n/ui_text.dart';
 
 /// Strip across the top of the home map while a safe route is active:
 /// where it goes, how long it takes, and whether it crosses an alert zone.
@@ -75,8 +76,7 @@ class ActiveRouteBanner extends StatelessWidget {
                           ),
                           const SizedBox(width: 2),
                           Flexible(
-                            child: Text(
-                              'crosses ${hazard.label.toLowerCase()} zone',
+                            child: Text(context.tr('crosses {p0} zone', {'p0': hazard.label.toLowerCase()}),
                               overflow: TextOverflow.ellipsis,
                               style: textTheme.bodySmall?.copyWith(
                                 color: severityColor(hazard),
@@ -92,7 +92,7 @@ class ActiveRouteBanner extends StatelessWidget {
               ),
               if (onOpenDirections != null)
                 IconButton(
-                  tooltip: 'Open directions',
+                  tooltip: context.tr('Open directions'),
                   visualDensity: VisualDensity.compact,
                   icon: Icon(
                     Icons.directions,
@@ -101,7 +101,7 @@ class ActiveRouteBanner extends StatelessWidget {
                   onPressed: onOpenDirections,
                 ),
               IconButton(
-                tooltip: 'Clear route',
+                tooltip: context.tr('Clear route'),
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.close, size: 20),
                 onPressed: onClear,

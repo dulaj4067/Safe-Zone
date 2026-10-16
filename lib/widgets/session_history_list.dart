@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/ui_text.dart';
 
 class SessionHistoryEntry {
   final String id;
@@ -72,8 +73,7 @@ class _SessionHistoryListState extends State<SessionHistoryList> {
               children: [
                 const Icon(Icons.history, size: 18),
                 const SizedBox(width: 8),
-                Text(
-                  'Session history',
+                Text(context.tr('Session history'),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -82,7 +82,7 @@ class _SessionHistoryListState extends State<SessionHistoryList> {
             ),
             const SizedBox(height: 12),
             if (visible.isEmpty)
-              const Text('No recent sessions yet.')
+              Text(context.tr('No recent sessions yet.'))
             else
               ListView.separated(
                 shrinkWrap: true,
@@ -120,7 +120,7 @@ class _SessionHistoryListState extends State<SessionHistoryList> {
                         _visibleCount = nextCount > sorted.length ? sorted.length : nextCount;
                       });
                     },
-                    child: const Text('Load more'),
+                    child: Text(context.tr('Load more')),
                   ),
                 ),
               ),

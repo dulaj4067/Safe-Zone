@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/validators.dart';
 import '../widgets/a11y/a11y_widgets.dart';
+import '../l10n/ui_text.dart';
 
 /// Requests a password-reset email. The link opens the app on this phone,
 /// signs the user in with a recovery session, and [SetNewPasswordScreen]
@@ -44,7 +45,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final auth = context.watch<AuthProvider>();
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Reset password')),
+      appBar: AppBar(title: Text(context.tr('Reset password'))),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -57,26 +58,22 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       children: [
                         Icon(Icons.mark_email_read_outlined, size: 48, color: theme.colorScheme.primary),
                         const SizedBox(height: 16),
-                        Text('Check your email', style: theme.textTheme.headlineSmall),
+                        Text(context.tr('Check your email'), style: theme.textTheme.headlineSmall),
                         const SizedBox(height: 8),
-                        Text(
-                          'If an account exists for $_sentTo, we\'ve sent a link to reset '
-                          'the password. Open it on this phone — it brings you back to '
-                          'SafeZone to choose a new password. The link expires in an hour.',
+                        Text(context.tr('If an account exists for {_sentTo}, we\'ve sent a link to reset the password. Open it on this phone — it brings you back to SafeZone to choose a new password. The link expires in an hour.', {'_sentTo': _sentTo}),
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          'No email after a few minutes? Check your spam folder.',
+                        Text(context.tr('No email after a few minutes? Check your spam folder.'),
                           style: theme.textTheme.bodySmall,
                         ),
                         const SizedBox(height: 24),
                         FilledButton(
                           onPressed: () => Navigator.pop(context),
-                          child: const Text('Back to sign in'),
+                          child: Text(context.tr('Back to sign in')),
                         ),
                         TextButton(
                           onPressed: auth.isBusy ? null : _submit,
-                          child: const Text('Send the link again'),
+                          child: Text(context.tr('Send the link again')),
                         ),
                       ],
                     )
@@ -85,17 +82,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text(
-                            'Enter the email you signed up with and we\'ll send you a link '
-                            'to choose a new password.',
+                          Text(context.tr('Enter the email you signed up with and we\'ll send you a link to choose a new password.'),
                           ),
                           const SizedBox(height: 20),
                           TextFormField(
                             controller: _email,
                             keyboardType: TextInputType.emailAddress,
                             autofillHints: const [AutofillHints.email],
-                            decoration: const InputDecoration(
-                              labelText: 'Email',
+                            decoration: InputDecoration(
+                              labelText: context.tr('Email'),
                               prefixIcon: Icon(Icons.email_outlined),
                             ),
                             validator: validateEmail,
@@ -115,7 +110,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                     width: 18,
                                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                   )
-                                : const Text('Send reset link'),
+                                : Text(context.tr('Send reset link')),
                           ),
                         ],
                       ),

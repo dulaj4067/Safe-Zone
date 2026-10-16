@@ -25,6 +25,7 @@ import 'shelters_screen.dart';
 import 'home_screen.dart';
 import '../modules/preparedness_hub/screens/preparedness_hub_screen.dart';
 import '../widgets/bottom_nav_bar.dart';
+import '../l10n/ui_text.dart';
 
 /// Top-level shell: fetches the signed-in user's profile (for role gating),
 /// initializes the realtime alert subscription (Story 2), and overlays the
@@ -198,7 +199,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           ? FloatingActionButton.extended(
               heroTag: 'new-alert-fab',
               icon: const Icon(Icons.campaign),
-              label: const Text('New Alert'),
+              label: Text(context.tr('New Alert')),
               onPressed: () {
                 Navigator.push(
                   context,

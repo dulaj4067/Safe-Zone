@@ -15,6 +15,7 @@ import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
 import '../utils/sri_lanka_bounds.dart';
 import '../widgets/a11y/a11y_widgets.dart';
+import '../l10n/ui_text.dart';
 
 /// Story 3: authority-only screen for creating a geo-targeted broadcast.
 /// Guard access to this route at the navigation layer too (e.g. only show
@@ -205,7 +206,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.campaign, semanticLabel: 'Broadcast'),
+                        : Icon(Icons.campaign, semanticLabel: context.tr('Broadcast')),
                     onPressed: (!form.isValid || form.isSubmitting)
                         ? null
                         : () => _submit(form),
@@ -259,11 +260,11 @@ class _BroadcastFormState extends State<_BroadcastForm> {
           border: const OutlineInputBorder(),
         ),
         initialValue: form.alertType,
-        items: const [
-          DropdownMenuItem(value: 'flood', child: Text('Flood')),
-          DropdownMenuItem(value: 'landslide', child: Text('Landslide')),
-          DropdownMenuItem(value: 'cyclone', child: Text('Cyclone')),
-          DropdownMenuItem(value: 'other', child: Text('Other')),
+        items: [
+          DropdownMenuItem(value: 'flood', child: Text(context.tr('Flood'))),
+          DropdownMenuItem(value: 'landslide', child: Text(context.tr('Landslide'))),
+          DropdownMenuItem(value: 'cyclone', child: Text(context.tr('Cyclone'))),
+          DropdownMenuItem(value: 'other', child: Text(context.tr('Other'))),
         ],
         onChanged: (v) {
           if (v != null) context.read<AlertFormProvider>().updateAlertType(v);
@@ -416,11 +417,10 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                     Icons.cell_tower,
                     size: 20,
                     color: context.brandInk,
-                    semanticLabel: 'Delivery channels',
+                    semanticLabel: context.tr('Delivery channels'),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Delivery Channels',
+                  Text(context.tr('Delivery Channels'),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
@@ -461,7 +461,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                         padding: const EdgeInsets.symmetric(horizontal: 6),
                       ),
                       onPressed: () => context.read<AlertFormProvider>().selectAllChannels(),
-                      child: const Text('Select All', style: TextStyle(fontSize: 12)),
+                      child: Text(context.tr('Select All'), style: TextStyle(fontSize: 12)),
                     ),
                   ],
                 ],
@@ -469,8 +469,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            'Simultaneously dispatch across online, cellular, and acoustic channels to guarantee reach regardless of citizen connectivity:',
+          Text(context.tr('Simultaneously dispatch across online, cellular, and acoustic channels to guarantee reach regardless of citizen connectivity:'),
             style: TextStyle(fontSize: 12, color: context.inkMuted),
           ),
           const SizedBox(height: 12),

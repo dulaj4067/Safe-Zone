@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../legal/policy_documents.dart';
 import '../theme/app_colors.dart';
+import '../l10n/ui_text.dart';
 
 /// Read-only view of one policy document (Terms of Use / Privacy Policy).
 class PolicyScreen extends StatelessWidget {
@@ -23,9 +24,7 @@ class PolicyScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           children: [
-            Text(
-              'Version ${document.version} · Last updated '
-              '${DateFormat.yMMMMd().format(document.lastUpdated)}',
+            Text(context.tr('Version {p0} · Last updated {p1}', {'p0': document.version, 'p1': DateFormat.yMMMMd().format(document.lastUpdated)}),
               style: theme.textTheme.bodySmall,
             ),
             if (LegalConfig.pendingLegalReview) ...[
@@ -36,9 +35,7 @@ class PolicyScreen extends StatelessWidget {
                   color: context.cautionTint,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  'Draft pending legal review. It describes how the app works '
-                  'today; some operator details are still to be confirmed.',
+                child: Text(context.tr('Draft pending legal review. It describes how the app works today; some operator details are still to be confirmed.'),
                   style: TextStyle(color: context.inkStrong, fontSize: 13),
                 ),
               ),

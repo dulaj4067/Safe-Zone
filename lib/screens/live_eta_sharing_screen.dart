@@ -16,6 +16,7 @@ import '../utils/format_utils.dart';
 import '../widgets/live_location_marker.dart';
 import '../widgets/loved_one_marker.dart';
 import '../widgets/session_history_list.dart';
+import '../l10n/ui_text.dart';
 
 class LiveEtaSharingScreen extends StatefulWidget {
   final RiskZone? currentRiskZone;
@@ -126,7 +127,7 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
     ];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Live Location - Sharing')),
+      appBar: AppBar(title: Text(context.tr('Live Location - Sharing'))),
       body: Column(
         children: [
           if (safety.errorMessage != null)
@@ -245,7 +246,7 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text('Sharing with', style: Theme.of(context).textTheme.titleSmall),
+              child: Text(context.tr('Sharing with'), style: Theme.of(context).textTheme.titleSmall),
             ),
           ),
           SizedBox(
@@ -335,8 +336,7 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                                 children: [
                                   const Icon(Icons.history),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    'Session history',
+                                  Text(context.tr('Session history'),
                                     style: Theme.of(sheetContext).textTheme.titleMedium,
                                   ),
                                 ],
@@ -352,9 +352,9 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                                     );
                                   }
                                   if (snap.hasError) {
-                                    return const Padding(
+                                    return Padding(
                                       padding: EdgeInsets.symmetric(vertical: 16),
-                                      child: Text("Couldn't load your history. Check your connection and try again."),
+                                      child: Text(context.tr('Couldn\'t load your history. Check your connection and try again.')),
                                     );
                                   }
                                   return SessionHistoryList(
@@ -371,7 +371,7 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                   );
                 },
                 icon: const Icon(Icons.history, size: 18),
-                label: const Text('Session history'),
+                label: Text(context.tr('Session history')),
               ),
             ),
           ),
@@ -421,7 +421,7 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
                   icon: const Icon(Icons.stop_circle_outlined),
-                  label: const Text('Stop sharing'),
+                  label: Text(context.tr('Stop sharing')),
                   onPressed: () async {
                     await context.read<SafetyProvider>().stopSharing();
                     if (context.mounted) Navigator.of(context).pop();

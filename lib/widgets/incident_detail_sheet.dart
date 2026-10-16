@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../widgets/a11y/a11y_widgets.dart';
 import '../widgets/status_badge.dart';
 import '../widgets/incident_card.dart';
+import '../l10n/ui_text.dart';
 
 /// Lightweight bottom-sheet for map marker taps (HomeScreen, IncidentsScreen
 /// map view). Shows a compact incident summary with a "View Details" button
@@ -64,7 +65,7 @@ class IncidentDetailSheet extends StatelessWidget {
                   size: 16,
                   color: Theme.of(context).colorScheme.onSurfaceVariant),
               const SizedBox(width: 4),
-              Text('${incident.credibilityScore} confirmations',
+              Text(context.tr('{p0} confirmations', {'p0': incident.credibilityScore}),
                   style: AppTheme.dataText(context)),
               const Spacer(),
               Icon(
@@ -86,7 +87,7 @@ class IncidentDetailSheet extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: onViewDetails,
-                    child: const Text('View Details'),
+                    child: Text(context.tr('View Details')),
                   ),
                 ),
               if (onViewDetails != null && onConfirm != null)
@@ -95,7 +96,7 @@ class IncidentDetailSheet extends StatelessWidget {
                 Expanded(
                   child: FilledButton(
                     onPressed: onConfirm,
-                    child: const Text('Confirm'),
+                    child: Text(context.tr('Confirm')),
                   ),
                 ),
             ],

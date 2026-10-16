@@ -8,6 +8,7 @@ import '../widgets/splash_screen.dart';
 import 'app_shell.dart';
 import 'onboarding_screen.dart';
 import 'policy_acceptance_screen.dart';
+import '../l10n/ui_text.dart';
 
 /// What a signed-in user sees before the main app:
 ///   1. the current Terms / Privacy Policy, if not yet accepted (required);
@@ -71,8 +72,8 @@ class _SignedInGateState extends State<SignedInGate> {
     if (!mounted) return;
     if (!uploaded) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You\'re offline — your acceptance is saved and will be sent when you reconnect.'),
+        SnackBar(
+          content: Text(context.tr('You\'re offline — your acceptance is saved and will be sent when you reconnect.')),
         ),
       );
     }

@@ -9,6 +9,7 @@ import '../services/supabase_service.dart';
 import '../services/volunteer_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
+import '../l10n/ui_text.dart';
 
 /// Volunteer opportunities from `volunteer_tasks`. Citizens sign up or
 /// withdraw; authorities and volunteer organisations also post new tasks
@@ -116,13 +117,13 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('New volunteer task',
+                  Text(context.tr('New volunteer task'),
                       style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: titleCtrl,
                     textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(labelText: 'Title', hintText: 'Distribute food packs'),
+                    decoration: InputDecoration(labelText: context.tr('Title'), hintText: context.tr('Distribute food packs')),
                     validator: (v) => (v ?? '').trim().length < 3 ? 'Give the task a short title' : null,
                   ),
                   const SizedBox(height: 12),
@@ -131,14 +132,14 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
                     minLines: 2,
                     maxLines: 4,
                     textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(labelText: 'What volunteers will do (optional)'),
+                    decoration: InputDecoration(labelText: context.tr('What volunteers will do (optional)')),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String?>(
                     initialValue: shelterId,
-                    decoration: const InputDecoration(labelText: 'Shelter (optional)'),
+                    decoration: InputDecoration(labelText: context.tr('Shelter (optional)')),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('No specific shelter')),
+                      DropdownMenuItem(value: null, child: Text(context.tr('No specific shelter'))),
                       for (final s in _shelters) DropdownMenuItem(value: s.id, child: Text(s.name)),
                     ],
                     onChanged: (v) => setSheetState(() => shelterId = v),
@@ -147,9 +148,9 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String?>(
                       initialValue: zoneId,
-                      decoration: const InputDecoration(labelText: 'Zone (optional)'),
+                      decoration: InputDecoration(labelText: context.tr('Zone (optional)')),
                       items: [
-                        const DropdownMenuItem(value: null, child: Text('Any zone')),
+                        DropdownMenuItem(value: null, child: Text(context.tr('Any zone'))),
                         for (final z in widget.zones) DropdownMenuItem(value: z.id, child: Text(z.name)),
                       ],
                       onChanged: (v) => setSheetState(() => zoneId = v),
@@ -159,7 +160,7 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
                   TextFormField(
                     controller: neededCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Volunteers needed'),
+                    decoration: InputDecoration(labelText: context.tr('Volunteers needed')),
                     validator: (v) {
                       final n = int.tryParse((v ?? '').trim());
                       if (n == null || n < 1) return 'At least 1';
@@ -187,7 +188,7 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
                               setSheetState(() => saving = false);
                               if (ctx.mounted) {
                                 ScaffoldMessenger.of(ctx).showSnackBar(
-                                  SnackBar(content: Text('Couldn\'t post the task: $e')),
+                                  SnackBar(content: Text(context.tr('Couldn\'t post the task: {e}', {'e': e}))),
                                 );
                               }
                             }
@@ -198,7 +199,7 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
                             height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           )
-                        : const Text('Post task'),
+                        : Text(context.tr('Post task')),
                   ),
                 ],
               ),
@@ -220,7 +221,7 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
 
     Widget body;
     if (_failed) {
-      body = const Center(child: Text('Couldn\'t load volunteer tasks.'));
+      body = Center(child: Text(context.tr('Couldn\'t load volunteer tasks.')));
     } else if (visible == null) {
       body = const Center(child: CircularProgressIndicator());
     } else if (visible.isEmpty) {
@@ -265,7 +266,7 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
           ? FloatingActionButton.extended(
               onPressed: _showCreateSheet,
               icon: const Icon(Icons.add),
-              label: const Text('New task'),
+              label: Text(context.tr('New task')),
             )
           : null,
       body: Column(
@@ -337,16 +338,16 @@ class _TaskCard extends StatelessWidget {
         child: CircularProgressIndicator(strokeWidth: 2),
       );
     } else if (signedUp) {
-      action = OutlinedButton(onPressed: onWithdraw, child: const Text('Withdraw'));
+      action = OutlinedButton(onPressed: onWithdraw, child: Text(context.tr('Withdraw')));
     } else if (task.status != VolunteerTaskStatus.open) {
       action = const SizedBox.shrink();
     } else if (task.isFull) {
-      action = const OutlinedButton(onPressed: null, child: Text('Full'));
+      action = OutlinedButton(onPressed: null, child: Text(context.tr('Full')));
     } else {
       action = FilledButton(
         style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
         onPressed: onSignUp,
-        child: const Text('Sign up'),
+        child: Text(context.tr('Sign up')),
       );
     }
 
@@ -362,12 +363,12 @@ class _TaskCard extends StatelessWidget {
                 Expanded(child: Text(task.title, style: textTheme.titleMedium)),
                 if (canManage)
                   PopupMenuButton<VolunteerTaskStatus>(
-                    tooltip: 'Change status',
+                    tooltip: context.tr('Change status'),
                     onSelected: onStatusChange,
                     itemBuilder: (_) => [
                       for (final s in VolunteerTaskStatus.values)
                         if (s != task.status)
-                          PopupMenuItem(value: s, child: Text('Mark ${s.label.toLowerCase()}')),
+                          PopupMenuItem(value: s, child: Text(context.tr('Mark {p0}', {'p0': s.label.toLowerCase()}))),
                     ],
                     child: _StatusChip(label: task.status.label, color: _statusColor, editable: true),
                   )

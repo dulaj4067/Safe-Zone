@@ -7,6 +7,7 @@ import '../services/consent_service.dart';
 import '../utils/validators.dart';
 import '../widgets/a11y/a11y_widgets.dart';
 import 'policy_screen.dart';
+import '../l10n/ui_text.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -39,7 +40,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final auth = context.watch<AuthProvider>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Create account')),
+      appBar: AppBar(title: Text(context.tr('Create account'))),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -52,14 +53,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'Citizen accounts only',
+                    Text(context.tr('Citizen accounts only'),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'Authority and volunteer-org accounts are set up by an '
-                      'administrator, not through self-registration.',
+                    Text(context.tr('Authority and volunteer-org accounts are set up by an administrator, not through self-registration.'),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 20),
@@ -68,7 +66,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       textCapitalization: TextCapitalization.words,
                       autofillHints: const [AutofillHints.name],
                       maxLength: kMaxNameLength,
-                      decoration: const InputDecoration(labelText: 'Full name', counterText: ''),
+                      decoration: InputDecoration(labelText: context.tr('Full name'), counterText: ''),
                       validator: validateFullName,
                     ),
                     const SizedBox(height: 12),
@@ -76,8 +74,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
                       autofillHints: const [AutofillHints.telephoneNumber],
-                      decoration: const InputDecoration(
-                        labelText: 'Mobile number',
+                      decoration: InputDecoration(
+                        labelText: context.tr('Mobile number'),
                         hintText: '0771234567',
                       ),
                       validator: validatePhone,
@@ -87,7 +85,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       autofillHints: const [AutofillHints.email],
-                      decoration: const InputDecoration(labelText: 'Email'),
+                      decoration: InputDecoration(labelText: context.tr('Email')),
                       validator: validateEmail,
                     ),
                     const SizedBox(height: 12),
@@ -96,8 +94,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       obscureText: _obscure,
                       autofillHints: const [AutofillHints.newPassword],
                       decoration: InputDecoration(
-                        labelText: 'Password',
-                        helperText: 'At least $kMinPasswordLength characters',
+                        labelText: context.tr('Password'),
+                        helperText: context.tr('At least {kMinPasswordLength} characters', {'kMinPasswordLength': kMinPasswordLength}),
                         suffixIcon: IconButton(
                           tooltip: _obscure ? 'Show password' : 'Hide password',
                           icon: Icon(_obscure
@@ -120,10 +118,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 _agreedToTerms = v ?? false;
                                 _showTermsError = false;
                               }),
-                      title: const Text('I agree to the Terms of Use and have read the Privacy Policy'),
+                      title: Text(context.tr('I agree to the Terms of Use and have read the Privacy Policy')),
                       subtitle: _showTermsError
-                          ? Text(
-                              'Please accept to create an account',
+                          ? Text(context.tr('Please accept to create an account'),
                               style: TextStyle(color: Theme.of(context).colorScheme.error),
                             )
                           : null,
@@ -133,11 +130,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       children: [
                         TextButton(
                           onPressed: () => PolicyScreen.open(context, termsOfUse),
-                          child: const Text('Terms of Use'),
+                          child: Text(context.tr('Terms of Use')),
                         ),
                         TextButton(
                           onPressed: () => PolicyScreen.open(context, privacyPolicy),
-                          child: const Text('Privacy Policy'),
+                          child: Text(context.tr('Privacy Policy')),
                         ),
                       ],
                     ),
@@ -157,7 +154,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Create account'),
+                          : Text(context.tr('Create account')),
                     ),
                   ],
                 ),

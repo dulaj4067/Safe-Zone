@@ -16,6 +16,7 @@ import '../utils/sri_lanka_bounds.dart';
 import '../widgets/incident_card.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/status_badge.dart';
+import '../l10n/ui_text.dart';
 
 class EditIncidentScreen extends StatefulWidget {
   final Incident incident;
@@ -82,7 +83,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick photo: $e')),
+          SnackBar(content: Text(context.tr('Failed to pick photo: {e}', {'e': e}))),
         );
       }
     }
@@ -104,7 +105,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick video: $e')),
+          SnackBar(content: Text(context.tr('Failed to pick video: {e}', {'e': e}))),
         );
       }
     }
@@ -182,12 +183,12 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(
               children: [
                 Icon(Icons.check_circle_outline, color: Colors.white),
                 SizedBox(width: 10),
-                Expanded(child: Text('Incident report updated successfully.')),
+                Expanded(child: Text(context.tr('Incident report updated successfully.'))),
               ],
             ),
             backgroundColor: AppColors.severityGreen,
@@ -209,21 +210,20 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Mark Incident as Resolved?'),
-        content: const Text(
-          'Have conditions on the ground cleared (e.g. water receded, road cleared)? This will update community alerts.',
+        title: Text(context.tr('Mark Incident as Resolved?')),
+        content: Text(context.tr('Have conditions on the ground cleared (e.g. water receded, road cleared)? This will update community alerts.'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF546E7A),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Confirm Resolved'),
+            child: Text(context.tr('Confirm Resolved')),
           ),
         ],
       ),
@@ -237,8 +237,8 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Incident marked as Resolved.'),
+          SnackBar(
+            content: Text(context.tr('Incident marked as Resolved.')),
             backgroundColor: Color(0xFF546E7A),
           ),
         );
@@ -258,20 +258,19 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.delete_outline, color: AppColors.severityRed),
             SizedBox(width: 8),
-            Expanded(child: Text('Delete Incident Report?')),
+            Expanded(child: Text(context.tr('Delete Incident Report?'))),
           ],
         ),
-        content: const Text(
-          'Are you sure you want to permanently delete this incident report? It will be immediately removed from the live map.',
+        content: Text(context.tr('Are you sure you want to permanently delete this incident report? It will be immediately removed from the live map.'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -279,7 +278,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
               minimumSize: const Size(0, 40),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete Permanently'),
+            child: Text(context.tr('Delete Permanently')),
           ),
         ],
       ),
@@ -293,8 +292,8 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Incident report deleted successfully.'),
+          SnackBar(
+            content: Text(context.tr('Incident report deleted successfully.')),
             backgroundColor: AppColors.severityGreen,
           ),
         );
@@ -317,12 +316,12 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit Incident Report'),
+        title: Text(context.tr('Edit Incident Report')),
         elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline, color: AppColors.severityRed),
-            tooltip: 'Delete Incident',
+            tooltip: context.tr('Delete Incident'),
             onPressed: isSubmitting ? null : _deleteIncidentDirectly,
           ),
           Padding(
@@ -353,8 +352,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
                     children: [
                       Icon(Icons.info_outline, color: context.brandInk, size: 20),
                       const SizedBox(width: 8),
-                      const Text(
-                        'Incident Status',
+                      Text(context.tr('Incident Status'),
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                       const Spacer(),
@@ -448,15 +446,13 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "I'm Trapped / Emergency SOS",
+                        Text(context.tr('I\'m Trapped / Emergency SOS'),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
                           ),
                         ),
-                        Text(
-                          'Flags this report as critical high-priority rescue emergency',
+                        Text(context.tr('Flags this report as critical high-priority rescue emergency'),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
@@ -482,8 +478,8 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
 
             // ─── Incident Category Dropdown ───────────────────────────────
             DropdownButtonFormField<IncidentCategory>(
-              decoration: const InputDecoration(
-                labelText: 'Incident Category *',
+              decoration: InputDecoration(
+                labelText: context.tr('Incident Category *'),
                 prefixIcon: Icon(Icons.category_outlined),
               ),
               initialValue: _selectedCategory,
@@ -513,7 +509,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
               decoration: InputDecoration(
                 // Optional for SOS reports, matching the report form.
                 labelText: _isSos ? 'Description (optional)' : 'Description *',
-                hintText: 'Update conditions, water depth, roadblocks, or assistance required...',
+                hintText: context.tr('Update conditions, water depth, roadblocks, or assistance required...'),
                 alignLabelWithHint: true,
                 prefixIcon: const Padding(
                   padding: EdgeInsets.only(bottom: 50),
@@ -534,12 +530,10 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Incident Location *',
+                Text(context.tr('Incident Location *'),
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                 ),
-                Text(
-                  'Tap map to adjust pin',
+                Text(context.tr('Tap map to adjust pin'),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -649,8 +643,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
             const SizedBox(height: 20),
 
             // ─── Photo & Video Evidence Upload ───────────────────────────
-            const Text(
-              'Evidence & Media',
+            Text(context.tr('Evidence & Media'),
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             const SizedBox(height: 8),
@@ -665,7 +658,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           icon: const Icon(Icons.add_a_photo_outlined),
-                          label: const Text('Add Photo'),
+                          label: Text(context.tr('Add Photo')),
                           onPressed: () => _showMediaSourceSheet(isVideo: false),
                         )
                       : Stack(
@@ -717,7 +710,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           icon: const Icon(Icons.videocam_outlined),
-                          label: const Text('Add Video'),
+                          label: Text(context.tr('Add Video')),
                           onPressed: () => _showMediaSourceSheet(isVideo: true),
                         )
                       : Container(
@@ -785,8 +778,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Text(
-                      'SAVE INCIDENT CHANGES',
+                  : Text(context.tr('SAVE INCIDENT CHANGES'),
                       style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
                     ),
             ),
@@ -799,7 +791,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
                   minimumSize: const Size.fromHeight(48),
                 ),
                 icon: const Icon(Icons.task_alt, size: 18),
-                label: const Text('Mark Incident as Resolved Now'),
+                label: Text(context.tr('Mark Incident as Resolved Now')),
                 onPressed: isSubmitting ? null : _markResolvedDirectly,
               ),
             const SizedBox(height: 12),
@@ -810,7 +802,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
                 minimumSize: const Size.fromHeight(48),
               ),
               icon: const Icon(Icons.delete_outline, size: 18),
-              label: const Text('Delete Incident Report'),
+              label: Text(context.tr('Delete Incident Report')),
               onPressed: isSubmitting ? null : _deleteIncidentDirectly,
             ),
             const SizedBox(height: 16),
