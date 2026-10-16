@@ -68,23 +68,24 @@ begin
   from (select id from profiles where id <> admin_id order by created_at limit 6) o;
 
   -- ------------------------------------------------------------------ alerts
-  -- affected_zone_id is looked up by district name; centre points are the
+  -- affected_zone_id is looked up by district name (zones are called e.g.
+  -- 'Colombo District', so the match is a prefix); centre points are the
   -- district capitals, radius in metres.
   insert into alerts (title, alert_type, severity, status, affected_zone_id, center_point,
                       radius_meters, instructions, source, created_by, created_at, updated_at)
   values
     ('Heavy rain advisory: Colombo District', 'flood', 'yellow', 'active',
-     (select id from zones where name = 'Colombo' limit 1),
+     (select id from zones where name ilike 'Colombo%' limit 1),
      'SRID=4326;POINT(79.8612 6.9271)', 9000,
      'Heavy rain expected through the evening. Avoid low-lying roads and keep drains clear. Charge your phone and keep documents in a dry bag.',
      'demo', admin_id, now() - interval '50 minutes', now() - interval '50 minutes'),
     ('Flood warning: Kelaniya river basin', 'flood', 'orange', 'active',
-     (select id from zones where name = 'Gampaha' limit 1),
+     (select id from zones where name ilike 'Gampaha%' limit 1),
      'SRID=4326;POINT(79.9220 6.9553)', 6000,
      'The Kelani river is rising. Residents near the river should move valuables upstairs and prepare to leave. Shelters at Kelaniya Vidyalaya and Colombo Central Hall are open.',
      'demo', admin_id, now() - interval '25 minutes', now() - interval '25 minutes'),
     ('Water levels normal: Kalutara', 'flood', 'green', 'active',
-     (select id from zones where name = 'Kalutara' limit 1),
+     (select id from zones where name ilike 'Kalutara%' limit 1),
      'SRID=4326;POINT(79.9607 6.5854)', 7000,
      'River levels have dropped to normal. No action needed; stay tuned for updates.',
      'demo', admin_id, now() - interval '3 hours', now() - interval '3 hours');
@@ -93,7 +94,7 @@ begin
                       radius_meters, instructions, source, created_by, created_at, updated_at, resolved_at)
   values
     ('Landslide warning: Kandy hills (lifted)', 'landslide', 'orange', 'de_escalated',
-     (select id from zones where name = 'Kandy' limit 1),
+     (select id from zones where name ilike 'Kandy%' limit 1),
      'SRID=4326;POINT(80.6337 7.2906)', 5000,
      'Warning lifted: slopes are stable after the rain stopped.',
      'demo', admin_id, now() - interval '2 days', now() - interval '1 day', now() - interval '1 day');
@@ -103,7 +104,7 @@ begin
   -- insert into alerts (title, alert_type, severity, status, affected_zone_id, center_point,
   --                     radius_meters, instructions, source, created_by)
   -- values ('Evacuate now: Kelaniya flood', 'flood', 'red', 'active',
-  --         (select id from zones where name = 'Gampaha' limit 1),
+  --         (select id from zones where name ilike 'Gampaha%' limit 1),
   --         'SRID=4326;POINT(79.9220 6.9553)', 5000,
   --         'Water is entering homes. Leave now for Kelaniya Vidyalaya Relief Camp. Do not walk or drive through floodwater.',
   --         'demo', admin_id);
@@ -174,7 +175,7 @@ begin
   end loop;
 
   -- ---------------------------------------------------------------- feedback
-  select id into zid from zones where name = 'Gampaha' limit 1;
+  select id into zid from zones where name ilike 'Gampaha%' limit 1;
   for rec in
     select * from (values
       (5, 'Nothing urgent, thank you to the volunteers',      'Gampaha'),
@@ -190,25 +191,25 @@ begin
     insert into feedback_forms (submitted_by, rating, needs, zone_id)
     values (coalesce(others[1 + (rec.rating % greatest(coalesce(array_length(others, 1), 1), 1))], admin_id),
             rec.rating, rec.needs,
-            (select id from zones where name = rec.district limit 1));
+            (select id from zones where name ilike rec.district || '%' limit 1));
   end loop;
 
   -- --------------------------------------------------------- preparedness hub
   -- Content rows are keyed (content_type, id); zoneId in the payload is text.
-  for z in select id, name from zones where name in ('Colombo', 'Gampaha', 'Kalutara') loop
+  for z in select id, name from zones where name ilike any (array['Colombo%', 'Gampaha%', 'Kalutara%']) loop
     insert into preparedness_content (content_type, id, zone_id, payload, updated_by) values
-      ('history', 'demo-history-' || lower(z.name) || '-2024', z.id::text,
+      ('history', 'demo-history-' || split_part(lower(z.name), ' ', 1) || '-2024', z.id::text,
        jsonb_build_object(
-         'id', 'demo-history-' || lower(z.name) || '-2024',
+         'id', 'demo-history-' || split_part(lower(z.name), ' ', 1) || '-2024',
          'zoneId', z.id::text,
          'disasterType', 'Flood',
          'date', '2024-06-03T00:00:00.000Z',
-         'severity', case z.name when 'Colombo' then 'high' when 'Gampaha' then 'severe' else 'moderate' end,
+         'severity', case split_part(z.name, ' ', 1) when 'Colombo' then 'high' when 'Gampaha' then 'severe' else 'moderate' end,
          'summary', 'Monsoon floods after several days of heavy rain. Low-lying roads closed and families moved to relief camps in ' || z.name || '.'),
        admin_id),
-      ('history', 'demo-history-' || lower(z.name) || '-2017', z.id::text,
+      ('history', 'demo-history-' || split_part(lower(z.name), ' ', 1) || '-2017', z.id::text,
        jsonb_build_object(
-         'id', 'demo-history-' || lower(z.name) || '-2017',
+         'id', 'demo-history-' || split_part(lower(z.name), ' ', 1) || '-2017',
          'zoneId', z.id::text,
          'disasterType', 'Flood and landslide',
          'date', '2017-05-26T00:00:00.000Z',
@@ -217,7 +218,7 @@ begin
        admin_id);
   end loop;
 
-  select id into zid from zones where name = 'Colombo' limit 1;
+  select id into zid from zones where name ilike 'Colombo%' limit 1;
   if zid is not null then
     insert into preparedness_content (content_type, id, zone_id, payload, updated_by) values
       ('route', 'demo-route-colombo', zid::text,
