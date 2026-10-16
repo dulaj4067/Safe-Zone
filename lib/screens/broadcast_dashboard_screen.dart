@@ -53,7 +53,6 @@ class _BroadcastDashboardScreenState extends State<BroadcastDashboardScreen> {
       appBar: AppBar(
         title: Text(strings.t('dashboardTitle')),
         actions: [
-          const A11yInclusionButton(),
           IconButton(
             icon: const Icon(Icons.receipt_long_outlined, semanticLabel: 'Audit log'),
             tooltip: 'Audit Log',
