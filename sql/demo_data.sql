@@ -134,13 +134,14 @@ begin
     s_ids := s_ids || sid;
 
     -- Supplies scaled to how busy the shelter is; Colombo is nearly out of water.
+    -- Plain insert: the shelter is brand new (its old rows were deleted above), and
+    -- some databases lack the (shelter_id, resource_type) unique constraint.
     insert into shelter_resources (shelter_id, resource_type, quantity, unit) values
       (sid, 'water',    case when rec.name like 'Colombo%' then 40   else greatest(300, rec.capacity * 6) end, 'liters'),
       (sid, 'food',     case when rec.name like 'Colombo%' then 120  else greatest(400, rec.capacity * 4) end, 'meals'),
       (sid, 'medicine', case when rec.type = 'medical_point' then 80 else 12 end,                          'kits'),
       (sid, 'bedding',  greatest(60, rec.capacity - rec.occupancy),                                       'mats'),
-      (sid, 'other',    25,                                                                              'units')
-    on conflict (shelter_id, resource_type) do update set quantity = excluded.quantity;
+      (sid, 'other',    25,                                                                              'units');
   end loop;
 
   -- ------------------------------------------------------------ volunteering
@@ -213,8 +214,7 @@ begin
          'date', '2017-05-26T00:00:00.000Z',
          'severity', 'severe',
          'summary', 'One of the worst floods in a generation. Rivers broke their banks; thousands were evacuated across the Western Province.'),
-       admin_id)
-    on conflict (content_type, id) do update set payload = excluded.payload;
+       admin_id);
   end loop;
 
   select id into zid from zones where name = 'Colombo' limit 1;
@@ -247,8 +247,7 @@ begin
          'scheduledDate', to_char((now() + interval '14 days') at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS".000Z"'),
          'recurrence', 'seasonal',
          'zoneTags', jsonb_build_array(zid::text)),
-       admin_id)
-    on conflict (content_type, id) do update set payload = excluded.payload;
+       admin_id);
   end if;
 end $$;
 
