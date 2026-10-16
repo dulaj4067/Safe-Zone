@@ -1,6 +1,31 @@
 -- Shared preparedness content plus user-owned risk profiles and checklist progress.
 -- Run this once in the Supabase SQL Editor before enabling repository sync.
 
+-- An older test version of these tables may already exist with different
+-- columns, which makes "create table if not exists" skip them and the policies
+-- below fail (for example: column "content_type" does not exist). Drop any
+-- table that lacks the expected key column so it is recreated correctly. The
+-- app is local-first and the starter files re-seed shared content.
+do $$
+declare t record;
+begin
+  for t in
+    select * from (values
+      ('preparedness_content', 'content_type'),
+      ('preparedness_risk_profiles', 'user_id'),
+      ('preparedness_user_checklists', 'user_id')
+    ) as x(tbl, col)
+  loop
+    if exists (select 1 from information_schema.tables
+               where table_schema = 'public' and table_name = t.tbl)
+       and not exists (select 1 from information_schema.columns
+                       where table_schema = 'public' and table_name = t.tbl
+                         and column_name = t.col) then
+      execute format('drop table public.%I cascade', t.tbl);
+    end if;
+  end loop;
+end $$;
+
 create or replace function is_authority()
 returns boolean as $$
 begin
