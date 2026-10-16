@@ -193,7 +193,7 @@ class _MessageThreadScreenState extends State<MessageThreadScreen> {
                   ),
                   const SizedBox(width: 6),
                   IconButton.filled(
-                    tooltip: 'Send message',
+                    tooltip: context.tr('Send message'),
                     style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
                     onPressed: _sending ? null : _send,
                     icon: _sending

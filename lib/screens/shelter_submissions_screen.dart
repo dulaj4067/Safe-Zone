@@ -5,6 +5,7 @@ import '../services/profile_service.dart';
 import '../services/shelter_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
+import '../l10n/ui_text.dart';
 
 /// Authority view of shelters waiting for verification. Each submission
 /// shows what the citizen entered so it can be checked, then is approved
@@ -83,7 +84,7 @@ class _ShelterSubmissionsScreenState extends State<ShelterSubmissionsScreen> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Reject "${shelter.name}"?'),
+        title: Text(context.tr('Reject "{p0}"?', {'p0': shelter.name})),
         content: Form(
           key: formKey,
           child: TextFormField(
@@ -92,14 +93,14 @@ class _ShelterSubmissionsScreenState extends State<ShelterSubmissionsScreen> {
             minLines: 2,
             maxLines: 4,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              labelText: 'Reason (shown to the submitter)',
+            decoration: InputDecoration(
+              labelText: context.tr('Reason (shown to the submitter)'),
             ),
             validator: (v) => (v ?? '').trim().length < 5 ? 'Give a short reason' : null,
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('Cancel'))),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.severityRed),
             onPressed: () {
@@ -107,7 +108,7 @@ class _ShelterSubmissionsScreenState extends State<ShelterSubmissionsScreen> {
                 Navigator.pop(ctx, controller.text.trim());
               }
             },
-            child: const Text('Reject'),
+            child: Text(context.tr('Reject')),
           ),
         ],
       ),
@@ -120,16 +121,16 @@ class _ShelterSubmissionsScreenState extends State<ShelterSubmissionsScreen> {
 
     Widget body;
     if (_failed) {
-      body = ListView(children: const [
+      body = ListView(children: [
         SizedBox(height: 120),
-        Center(child: Text('Couldn\'t load submissions. Pull to retry.')),
+        Center(child: Text(context.tr('Couldn\'t load submissions. Pull to retry.'))),
       ]);
     } else if (pending == null) {
       body = const Center(child: CircularProgressIndicator());
     } else if (pending.isEmpty) {
-      body = ListView(children: const [
+      body = ListView(children: [
         SizedBox(height: 120),
-        Center(child: Text('No shelters are waiting for review.')),
+        Center(child: Text(context.tr('No shelters are waiting for review.'))),
       ]);
     } else {
       body = ListView.separated(
@@ -182,7 +183,7 @@ class _ShelterSubmissionsScreenState extends State<ShelterSubmissionsScreen> {
                             ),
                             onPressed: () => _decide(s, approve: false),
                             icon: const Icon(Icons.close, size: 18),
-                            label: const Text('Reject'),
+                            label: Text(context.tr('Reject')),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -191,7 +192,7 @@ class _ShelterSubmissionsScreenState extends State<ShelterSubmissionsScreen> {
                             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
                             onPressed: () => _decide(s, approve: true),
                             icon: const Icon(Icons.check, size: 18),
-                            label: const Text('Approve'),
+                            label: Text(context.tr('Approve')),
                           ),
                         ),
                       ],
@@ -205,7 +206,7 @@ class _ShelterSubmissionsScreenState extends State<ShelterSubmissionsScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Shelter submissions')),
+      appBar: AppBar(title: Text(context.tr('Shelter submissions'))),
       body: RefreshIndicator(onRefresh: _load, child: body),
     );
   }

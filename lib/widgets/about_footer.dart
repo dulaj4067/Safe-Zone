@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../legal/policy_documents.dart';
 import '../screens/policy_screen.dart';
 import '../theme/app_colors.dart';
+import '../l10n/ui_text.dart';
 
 /// The foot of the Settings page: team logo, app name and version,
 /// copyright, and links to the legal documents. The version is read from
@@ -23,7 +24,7 @@ class AboutFooter extends StatelessWidget {
           // The logo is dark artwork on white, so it sits on a white tile in
           // both themes rather than being tinted.
           Semantics(
-            label: 'The Pioneers logo',
+            label: context.tr('The Pioneers logo'),
             image: true,
             child: Container(
               key: const Key('pioneers_logo'),
@@ -38,8 +39,7 @@ class AboutFooter extends StatelessWidget {
                 'assets/pioneers_logo.jpg',
                 fit: BoxFit.contain,
                 excludeFromSemantics: true,
-                errorBuilder: (context, error, stackTrace) => Text(
-                  'the pioneers',
+                errorBuilder: (context, error, stackTrace) => Text(context.tr('the pioneers'),
                   textAlign: TextAlign.center,
                   style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
@@ -64,8 +64,7 @@ class AboutFooter extends StatelessWidget {
             },
           ),
           const SizedBox(height: 2),
-          Text(
-            'Sri Lanka Disaster Early Warning',
+          Text(context.tr('Sri Lanka Disaster Early Warning'),
             style: textTheme.bodySmall?.copyWith(color: context.inkMuted),
           ),
           const SizedBox(height: 10),
@@ -76,24 +75,22 @@ class AboutFooter extends StatelessWidget {
                 key: const Key('about_terms'),
                 style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                 onPressed: () => PolicyScreen.open(context, termsOfUse),
-                child: const Text('Terms of Use'),
+                child: Text(context.tr('Terms of Use')),
               ),
               TextButton(
                 key: const Key('about_privacy'),
                 style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                 onPressed: () => PolicyScreen.open(context, privacyPolicy),
-                child: const Text('Privacy Policy'),
+                child: Text(context.tr('Privacy Policy')),
               ),
             ],
           ),
           const SizedBox(height: 4),
-          Text(
-            '© $year The Pioneers. All rights reserved.',
+          Text(context.tr('© {year} The Pioneers. All rights reserved.', {'year': year}),
             textAlign: TextAlign.center,
             style: textTheme.bodySmall?.copyWith(color: context.inkMuted),
           ),
-          Text(
-            'Built by The Pioneers',
+          Text(context.tr('Built by The Pioneers'),
             textAlign: TextAlign.center,
             style: textTheme.bodySmall?.copyWith(color: context.inkMuted),
           ),
