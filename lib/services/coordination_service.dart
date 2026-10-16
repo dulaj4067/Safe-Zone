@@ -35,9 +35,14 @@ class CoordinationService {
         .eq('shelter_id', shelterId)
         .or('and(sender_id.eq.$me,recipient_id.eq.$otherUserId),'
             'and(sender_id.eq.$otherUserId,recipient_id.eq.$me)')
-        .order('created_at', ascending: true);
+        .order('created_at', ascending: false)
+        .limit(500);
+    // Newest 500 only (a long-running chat should not load in full); shown
+    // oldest-first.
     return (rows as List)
         .map((r) => CoordinationMessage.fromMap(r as Map<String, dynamic>))
+        .toList()
+        .reversed
         .toList();
   }
 

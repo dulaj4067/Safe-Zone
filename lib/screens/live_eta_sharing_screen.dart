@@ -133,9 +133,9 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
           if (safety.errorMessage != null)
             Container(
               width: double.infinity,
-              color: Colors.red.shade50,
+              color: context.dangerTint,
               padding: const EdgeInsets.all(12),
-              child: Text(context.tr(safety.errorMessage!), style: const TextStyle(color: Colors.red)),
+              child: Text(context.tr(safety.errorMessage!), style: TextStyle(color: context.dangerInk)),
             ),
           Expanded(
             flex: 3,

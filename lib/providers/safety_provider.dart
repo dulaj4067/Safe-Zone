@@ -180,7 +180,37 @@ class SafetyProvider extends ChangeNotifier {
   }
 
   /// Refreshes members' last-known locations (same RPC as the full load).
-  Future<void> fetchCircleLocations() => loadFamilyCircle();
+  /// Lightweight refresh for the 45-second poll: one RPC for member positions.
+  /// It used to call [loadFamilyCircle] (RPC + invites + broadcasts, and a
+  /// loading flash) every cycle. Skipped when nobody in the circle has
+  /// confirmed, since there is no location to fetch.
+  Future<void> fetchCircleLocations() async {
+    final userId = SupabaseService.currentUserId;
+    if (userId == null || _autoRefreshPaused) return;
+    if (!_family.any((m) => m.isConfirmed)) return;
+    try {
+      final rows = await SupabaseService.client.rpc('my_family_circle');
+      final members = (rows as List)
+          .map((r) => FamilyMember.fromMap(r as Map<String, dynamic>))
+          .toList();
+      _family = await _withLastSafe(members);
+      notifyListeners();
+    } catch (_) {
+      // Keep showing the last known positions; the next cycle retries.
+    }
+  }
+
+  bool _autoRefreshPaused = false;
+
+  /// Stop polling while the app is in the background (no one is looking at
+  /// the map, and the phone should not wake the network for it).
+  void pauseAutoRefresh() => _autoRefreshPaused = true;
+
+  void resumeAutoRefresh() {
+    if (!_autoRefreshPaused) return;
+    _autoRefreshPaused = false;
+    fetchCircleLocations();
+  }
 
   /// Public https link for an invite code. Messaging apps only make https
   /// links tappable, so this points at the `family-invite` Edge Function,
@@ -257,6 +287,8 @@ class SafetyProvider extends ChangeNotifier {
   /// low-frequency "where are they" check.
   void _startCircleLocationsAutoRefresh() {
     _circleLocationsRefreshTimer?.cancel();
+    _circleLocationsRefreshTimer = null;
+    if (!_family.any((m) => m.isConfirmed)) return;
     _circleLocationsRefreshTimer =
         Timer.periodic(const Duration(seconds: 45), (_) => fetchCircleLocations());
   }

@@ -50,13 +50,7 @@ class AlertEngagementService {
     //    other people's profiles, so a non-authority sees just themselves.
     List<Map<String, dynamic>> memberProfiles = [];
     try {
-      var query = SupabaseService.client
-          .from('profiles')
-          .select('id, full_name, phone, role, zone_id');
-      if (zoneId != null && zoneId.isNotEmpty) {
-        query = query.eq('zone_id', zoneId);
-      }
-      memberProfiles = List<Map<String, dynamic>>.from(await query);
+      memberProfiles = await _zoneProfiles(zoneId);
     } catch (e) {
       debugPrint('getZoneEngagement: profiles unavailable: $e');
     }
@@ -142,6 +136,35 @@ class AlertEngagementService {
       acknowledgedCount: ackCount,
       residents: residents,
     );
+  }
+
+  // Several dashboard cards often ask about the same zone at once (and again on
+  // every rebuild). The resident list barely changes, so share one query per
+  // zone for a minute instead of re-reading every profile for every card.
+  static final Map<String, ({DateTime at, Future<List<Map<String, dynamic>>> rows})>
+      _profileCache = {};
+  static const _profileCacheTtl = Duration(seconds: 60);
+
+  Future<List<Map<String, dynamic>>> _zoneProfiles(String? zoneId) {
+    final key = zoneId ?? '*';
+    final hit = _profileCache[key];
+    if (hit != null && DateTime.now().difference(hit.at) < _profileCacheTtl) {
+      return hit.rows;
+    }
+    var query = SupabaseService.client
+        .from('profiles')
+        .select('id, full_name, phone, role, zone_id');
+    if (zoneId != null && zoneId.isNotEmpty) {
+      query = query.eq('zone_id', zoneId);
+    }
+    final rows = query.then((r) => List<Map<String, dynamic>>.from(r as List));
+    _profileCache[key] = (at: DateTime.now(), rows: rows);
+    // A failed query must not be cached for the next minute.
+    rows.catchError((Object _) {
+      _profileCache.remove(key);
+      return <Map<String, dynamic>>[];
+    });
+    return rows;
   }
 
   /// Records that a user has seen the alert banner or notification.

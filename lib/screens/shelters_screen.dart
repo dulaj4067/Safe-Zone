@@ -17,7 +17,12 @@ import '../l10n/ui_text.dart';
 class SheltersScreen extends StatefulWidget {
   final AppUser? currentUser;
 
-  const SheltersScreen({super.key, this.currentUser});
+  /// Changes whenever the tab is selected or the app resumes. The shell keeps
+  /// every tab alive, so without this the list was fetched once at start-up
+  /// and a newly approved shelter or a changed status never appeared.
+  final int refreshTick;
+
+  const SheltersScreen({super.key, this.currentUser, this.refreshTick = 0});
 
   @override
   State<SheltersScreen> createState() => _SheltersScreenState();
@@ -42,6 +47,12 @@ class _SheltersScreenState extends State<SheltersScreen> {
     ('relief_camp', 'Relief camps', Icons.holiday_village_outlined),
     ('medical_point', 'Medical points', Icons.local_hospital_outlined),
   ];
+
+  @override
+  void didUpdateWidget(SheltersScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshTick != widget.refreshTick) _load();
+  }
 
   @override
   void initState() {

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert';
 
 import '../models/incident.dart';
@@ -21,6 +22,39 @@ class IncidentDeleteException implements Exception {
 /// offline-first fallback described in Story 1's AC.
 class IncidentService {
   static const _cacheKey = 'cached_incidents_v1';
+
+  /// Closed reports (rejected / resolved) older than this are not fetched.
+  /// They are no longer a live problem, and loading every historical row on
+  /// each refresh made the list slower as the table grew.
+  static const closedReportWindow = Duration(days: 30);
+
+  /// Safety cap on one fetch.
+  static const fetchLimit = 500;
+
+  RealtimeChannel? _channel;
+
+  /// Calls [onChange] whenever any incident is inserted, updated or deleted by
+  /// anyone, so new reports reach other people without a manual reload. The
+  /// payload has no lat/lng (the view adds those), so the caller re-fetches.
+  /// Needs `incidents` in the `supabase_realtime` publication
+  /// (`sql/incident_realtime_migration.sql`); RLS still decides who gets events.
+  void subscribeToChanges(void Function() onChange) {
+    unsubscribe();
+    _channel = SupabaseService.client
+        .channel('public:incidents')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'incidents',
+          callback: (_) => onChange(),
+        )
+        .subscribe();
+  }
+
+  void unsubscribe() {
+    _channel?.unsubscribe();
+    _channel = null;
+  }
 
   /// Fetches incidents via the `incidents_with_latlon` view.
   /// Optionally filters by [status], [category], or [sosOnly].
@@ -52,9 +86,15 @@ class IncidentService {
       query = query.eq('is_sos', true);
     }
 
+    // Admin / full view: every open report plus recently closed ones, capped.
+    if (includeAll && status == null) {
+      final since = DateTime.now().subtract(closedReportWindow).toUtc().toIso8601String();
+      query = query.or('status.in.(pending,verified),updated_at.gte.$since');
+    }
     final rows = await query
         .order('is_sos', ascending: false)
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(fetchLimit);
 
     final incidents = (rows as List)
         .map((row) => Incident.fromMap(row as Map<String, dynamic>))

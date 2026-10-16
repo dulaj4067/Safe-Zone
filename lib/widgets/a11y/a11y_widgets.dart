@@ -59,9 +59,9 @@ class A11yErrorBanner extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
+            Icon(
               Icons.error_outline,
-              color: AppColors.severityRed,
+              color: context.dangerInk,
               size: 22,
               semanticLabel: 'Error',
             ),
@@ -72,8 +72,8 @@ class A11yErrorBanner extends StatelessWidget {
                 children: [
                   Text(
                     message,
-                    style: const TextStyle(
-                      color: AppColors.severityRed,
+                    style: TextStyle(
+                      color: context.dangerInk,
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
                     ),

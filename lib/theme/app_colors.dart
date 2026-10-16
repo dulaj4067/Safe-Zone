@@ -74,6 +74,11 @@ extension ThemedBrandColors on BuildContext {
   /// SOS / danger tint (was [AppColors.sosBackground]).
   Color get dangerTint => isDarkMode ? const Color(0xFF4A2226) : AppColors.sosBackground;
 
+  /// Text and icons for errors that sit on [dangerTint]. Plain severityRed on
+  /// the dark tint was unreadable, so dark mode uses a light salmon (about
+  /// 7:1 contrast) and light mode keeps the strong red.
+  Color get dangerInk => isDarkMode ? const Color(0xFFFFB4B0) : AppColors.severityRed;
+
   /// Caution / offline tint (was [AppColors.offlineAmber]).
   Color get cautionTint => isDarkMode ? const Color(0xFF4A3D14) : AppColors.offlineAmber;
 }

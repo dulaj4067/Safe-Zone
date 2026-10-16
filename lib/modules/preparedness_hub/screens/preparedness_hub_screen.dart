@@ -24,10 +24,15 @@ class PreparednessHubScreen extends StatefulWidget {
     super.key,
     required this.currentUser,
     required this.zones,
+    this.refreshTick = 0,
   });
 
   final AppUser? currentUser;
   final List<Zone> zones;
+
+  /// Changes when the tab is selected or the app resumes, so content an
+  /// authority published meanwhile shows up without restarting the app.
+  final int refreshTick;
 
   @override
   State<PreparednessHubScreen> createState() => _PreparednessHubScreenState();
@@ -35,6 +40,14 @@ class PreparednessHubScreen extends StatefulWidget {
 
 class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
   GuideCategory? _category;
+
+  @override
+  void didUpdateWidget(PreparednessHubScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshTick != widget.refreshTick && mounted) {
+      context.read<PreparednessProvider>().load();
+    }
+  }
 
   @override
   void initState() {

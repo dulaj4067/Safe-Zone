@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../utils/alert_relevance.dart';
 import '../models/alert.dart';
 import '../models/alert_delivery_result.dart';
 import '../models/alert_engagement.dart';
@@ -299,7 +300,14 @@ class AlertProvider extends ChangeNotifier {
     // we can't tell, so the zone rule above decides and it is still shown.
     final nearby = isNearby(alert);
     if (nearby != false) {
-      _bannerAlert = alert;
+      // One banner at a time: a new alert only replaces the one on screen if
+      // it is at least as critical and near for this person.
+      final shown = _bannerAlert;
+      final shownScore = shown == null ? null : alertRelevance(shown, _userLocation);
+      final newScore = alertRelevance(alert, _userLocation) ?? 0;
+      if (shown == null || shownScore == null || newScore >= shownScore) {
+        _bannerAlert = alert;
+      }
       channelsUsed.add(DeliveryChannel.inApp);
     }
     // Critical alerts also take over the screen, but only when we know the
@@ -551,6 +559,23 @@ class AlertProvider extends ChangeNotifier {
   /// reconnecting so alerts missed while offline get synced in per the
   /// alert_offline_cache pattern described in Story 2.
   Future<void> refresh() => _loadInitial();
+
+  /// Re-opens the Realtime subscription and re-fetches the list. Realtime does
+  /// not replay what was missed while the phone was offline or the app was in
+  /// the background, so call this when the app resumes or the network returns;
+  /// otherwise new alerts only show up after a restart.
+  Future<void> reconnect() async {
+    try {
+      _service.unsubscribe();
+      _service.subscribeToAlerts(
+        onInsert: _handleRealtimeInsert,
+        onUpdate: _handleRealtimeUpdate,
+      );
+    } catch (_) {
+      // No backend (tests) or a transient failure: the fetch below still runs.
+    }
+    await _loadInitial();
+  }
 
   @override
   void dispose() {
