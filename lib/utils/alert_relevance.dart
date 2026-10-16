@@ -9,7 +9,7 @@ import '../models/alert.dart';
 ///
 /// Beyond [rangeMultiplier] times an alert's own radius it is too far away to
 /// matter at all, and the result is `null`.
-const double kAlertRelevanceRangeMultiplier = 6.0;
+const double kAlertRelevanceRangeMultiplier = 1.25;
 
 double alertSeverityWeight(AlertSeverity severity) {
   switch (severity) {

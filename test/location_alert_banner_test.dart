@@ -42,12 +42,14 @@ void main() {
     expect(await bannerShownAt(tester, const LatLng(6.9615, 79.9010)), isTrue);
   });
 
-  testWidgets('still shows a few kilometres outside the radius', (tester) async {
-    // Colombo Fort is about 11 km away: inside the 6x relevance range.
-    expect(await bannerShownAt(tester, const LatLng(6.9344, 79.8428)), isTrue);
+  testWidgets('hides a few kilometres outside the radius', (tester) async {
+    // Colombo Fort is about 11 km away: outside the circle, so no banner. (It
+    // used to show up to 6x the radius, so people outside a red zone got a red
+    // banner.)
+    expect(await bannerShownAt(tester, const LatLng(6.9344, 79.8428)), isFalse);
   });
 
-  testWidgets('hides for someone far away (beyond 6x the radius)', (tester) async {
+  testWidgets('hides for someone far away', (tester) async {
     // Kandy is about 95 km away; Galle about 120 km.
     expect(await bannerShownAt(tester, const LatLng(7.2906, 80.6337)), isFalse);
     expect(await bannerShownAt(tester, const LatLng(6.0535, 80.2210)), isFalse);

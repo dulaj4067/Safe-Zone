@@ -14,8 +14,9 @@ import '../services/location_service.dart';
 Future<void> recenterOnUser(
   BuildContext context,
   MapController controller,
-  LatLng? live,
-) async {
+  LatLng? live, {
+  void Function(LatLng fix)? onFix,
+}) async {
   final messenger = ScaffoldMessenger.of(context);
   var target = live;
 
@@ -39,6 +40,11 @@ Future<void> recenterOnUser(
     ));
     return;
   }
+
+  // The screen draws the blue dot from its own tracked position. If the button
+  // had to fetch a fresh fix, hand it over, otherwise the map moves but the dot
+  // stays missing until the app is left and reopened.
+  if (live == null) onFix?.call(target);
 
   try {
     final zoom = controller.camera.zoom;

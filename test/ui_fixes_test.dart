@@ -25,10 +25,16 @@ DisasterAlert _alert(String id, AlertSeverity s, double lat, double lng, {int ra
 void main() {
   const here = LatLng(6.9, 79.9);
 
-  test('relevance: a nearby orange alert outranks a distant red one', () {
-    final nearOrange = _alert('a', AlertSeverity.orange, 6.9, 79.9);
-    final farRed = _alert('b', AlertSeverity.red, 6.9, 79.935); // ~3.9 km away
-    expect(alertRelevance(nearOrange, here)!, greaterThan(alertRelevance(farRed, here)!));
+  test('relevance: an alert you are inside outranks a milder one at its edge', () {
+    final insideOrange = _alert('a', AlertSeverity.orange, 6.9, 79.9);
+    // yellow circle whose edge is just past you (within the 1.25x margin)
+    final edgeYellow = _alert('b', AlertSeverity.yellow, 6.9, 79.912, radius: 1100);
+    expect(alertRelevance(insideOrange, here)!, greaterThan(alertRelevance(edgeYellow, here)!));
+  });
+
+  test('relevance: outside the alert (beyond 1.25x its radius) is not relevant', () {
+    final farRed = _alert('b', AlertSeverity.red, 6.9, 79.935); // ~3.9 km away, radius 1 km
+    expect(alertRelevance(farRed, here), isNull);
   });
 
   test('relevance: red on top of you beats everything', () {

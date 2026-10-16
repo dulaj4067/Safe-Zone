@@ -46,7 +46,10 @@ class AlertProvider extends ChangeNotifier {
 
   /// How far past an alert's own radius it still counts as "near": the same
   /// 6x rule the Home banner uses, so both agree.
-  static const double nearRangeMultiplier = 6.0;
+  // How far past an alert's own radius still counts as "near". It was 6x, so
+  // someone 20 km from a 6 km alert still got a red banner; 1.25x is the edge of
+  // the drawn circle plus a small margin for GPS error.
+  static const double nearRangeMultiplier = 1.25;
   bool _isOffline = false;
   DateTime? _lastUpdated;
   bool _myZoneOnly = false;

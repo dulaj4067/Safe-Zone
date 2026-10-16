@@ -148,6 +148,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     } else if (state == AppLifecycleState.resumed) {
       _loadShelters();
       _checkForDriftAndPrompt();
+      // Permission may have just been granted in Settings, or the first fix
+      // never arrived: start tracking again so the dot appears without a restart.
+      if (_liveLocation == null) {
+        _positionSub?.cancel();
+        _positionSub = null;
+        _startWatchingLocation();
+      }
     }
   }
 
@@ -231,6 +238,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // clearing it on a transient GPS/provider error.
       },
     );
+  }
+
+  /// The My Location button found a position on its own: adopt it so the dot
+  /// shows, alerts know where we are, and tracking starts if it had not.
+  void _adoptFix(LatLng fix) {
+    if (!mounted) return;
+    setState(() {
+      _liveLocation = fix;
+      _locationDenied = false;
+    });
+    context.read<AlertProvider>().updateUserLocation(fix);
+    _updatePlaceName(fix);
+    if (_positionSub == null) _startWatchingLocation();
   }
 
   final PlaceNameService _placeNames = PlaceNameService();
@@ -401,6 +421,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     districtLabel: districtLabel,
                     currentUser: widget.currentUser,
                     resumeCenter: resumeTarget,
+                    onLocationFound: _adoptFix,
                   ),
                 ),
               ),
@@ -529,6 +550,9 @@ class _SafeZoneMap extends StatefulWidget {
   /// on the next frame (resume-from-drift behaviour).
   final LatLng? resumeCenter;
 
+  /// Forwarded to the map's My Location button.
+  final void Function(LatLng fix)? onLocationFound;
+
   const _SafeZoneMap({
     required this.center,
     required this.incidents,
@@ -538,6 +562,7 @@ class _SafeZoneMap extends StatefulWidget {
     required this.districtLabel,
     this.currentUser,
     this.resumeCenter,
+    this.onLocationFound,
   });
 
   @override
@@ -959,6 +984,7 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
             controller: _mapController,
             initialCenter: widget.center,
             liveLocation: widget.liveLocation,
+            onLocationFound: widget.onLocationFound,
             resumeCenter: widget.resumeCenter,
             // The route banner takes the top of the map while active.
             topLeftOverlay: widget.districtLabel != null && activeRoute == null
