@@ -135,7 +135,7 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
               width: double.infinity,
               color: Colors.red.shade50,
               padding: const EdgeInsets.all(12),
-              child: Text(safety.errorMessage!, style: const TextStyle(color: Colors.red)),
+              child: Text(context.tr(safety.errorMessage!), style: const TextStyle(color: Colors.red)),
             ),
           Expanded(
             flex: 3,
@@ -230,11 +230,11 @@ class _LiveEtaSharingScreenState extends State<LiveEtaSharingScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Expanded(child: _StatTile(label: 'ETA', value: _formatEta(eta), icon: Icons.schedule)),
+                Expanded(child: _StatTile(label: context.tr('ETA'), value: _formatEta(eta), icon: Icons.schedule)),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _StatTile(
-                    label: 'Distance left',
+                    label: context.tr('Distance left'),
                     value: '${km.toStringAsFixed(1)} km',
                     icon: Icons.route,
                   ),

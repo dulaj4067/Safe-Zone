@@ -67,7 +67,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       autofillHints: const [AutofillHints.name],
                       maxLength: kMaxNameLength,
                       decoration: InputDecoration(labelText: context.tr('Full name'), counterText: ''),
-                      validator: validateFullName,
+                      validator: (v) => validateFullName(v, tr: context.tr),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -78,7 +78,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         labelText: context.tr('Mobile number'),
                         hintText: '0771234567',
                       ),
-                      validator: validatePhone,
+                      validator: (v) => validatePhone(v, tr: context.tr),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -86,7 +86,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       keyboardType: TextInputType.emailAddress,
                       autofillHints: const [AutofillHints.email],
                       decoration: InputDecoration(labelText: context.tr('Email')),
-                      validator: validateEmail,
+                      validator: (v) => validateEmail(v, tr: context.tr),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -104,7 +104,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           onPressed: () => setState(() => _obscure = !_obscure),
                         ),
                       ),
-                      validator: validatePassword,
+                      validator: (v) => validatePassword(v, tr: context.tr),
                     ),
                     const SizedBox(height: 12),
                     CheckboxListTile(
@@ -140,7 +140,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     if (auth.error != null) ...[
                       const SizedBox(height: 12),
-                      A11yErrorBanner(message: auth.error!),
+                      A11yErrorBanner(message: context.tr(auth.error!)),
                     ],
                     const SizedBox(height: 20),
                     FilledButton(

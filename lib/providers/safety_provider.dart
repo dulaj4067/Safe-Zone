@@ -141,7 +141,7 @@ class SafetyProvider extends ChangeNotifier {
           .toList();
       _errorMessage = null;
     } catch (e) {
-      _errorMessage = 'Couldn\'t load your family circle. Pull to retry.';
+      _errorMessage = "Couldn't load your family circle. Pull to retry.";
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -245,7 +245,7 @@ class SafetyProvider extends ChangeNotifier {
       _family = _family.where((m) => m.linkId != linkId).toList();
       _errorMessage = null;
     } catch (e) {
-      _errorMessage = 'Couldn\'t remove that member. Try again.';
+      _errorMessage = "Couldn't remove that member. Try again.";
     }
     notifyListeners();
   }
@@ -293,7 +293,7 @@ class SafetyProvider extends ChangeNotifier {
         'accept': accept,
       });
     } catch (e) {
-      _errorMessage = 'Failed to respond: $e';
+      _errorMessage = 'Could not respond to the request. Please try again.';
     }
     _pendingRequests = _pendingRequests.where((r) => r.id != requestId).toList();
     notifyListeners();
@@ -352,14 +352,14 @@ class SafetyProvider extends ChangeNotifier {
         // it — never imply a share that the server didn't accept.
         debugPrint('startSharingEta insert failed: $e');
         _activeShareId = _kLocalOnlyShare;
-        _errorMessage = 'Couldn’t start sharing — your family can’t see '
-            'your location. Check your connection and try again.';
+        _errorMessage = "Couldn't start sharing. Your family can't see your location. "
+            'Check your connection and try again.';
       }
     } else {
       _activeShareId = _kLocalOnlyShare;
       _errorMessage = userId == null
           ? 'Sign in to share your location with your family.'
-          : 'Location permission is off, so your family can’t see your location.';
+          : "Location permission is off, so your family can't see your location.";
     }
 
     _positionSubscription?.cancel();
@@ -409,7 +409,7 @@ class SafetyProvider extends ChangeNotifier {
         // Transient: the next position fix retries the same idempotent update.
         debugPrint('location share update failed: $e');
         _errorMessage =
-            'Your family may be seeing an older location — reconnecting…';
+            'Your family may be seeing an older location. Reconnecting...';
         notifyListeners();
       }
     }
@@ -434,7 +434,7 @@ class SafetyProvider extends ChangeNotifier {
             .from('location_shares')
             .update({'is_active': false}).eq('id', _activeShareId!);
       } catch (e) {
-        _errorMessage = 'Failed to stop sharing: $e';
+        _errorMessage = 'Could not stop sharing. Please try again.';
       }
     }
     _isSharing = false;
@@ -518,7 +518,7 @@ class SafetyProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('sendImSafeBroadcast failed: $e');
       _errorMessage =
-          'Couldn\'t send "I\'m Safe" — check your connection and try again.';
+          "Couldn't send \"I'm Safe\". Check your connection and try again.";
       notifyListeners();
       return false;
     }

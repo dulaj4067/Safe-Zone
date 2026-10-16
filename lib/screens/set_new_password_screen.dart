@@ -70,19 +70,19 @@ class _SetNewPasswordScreenState extends State<SetNewPasswordScreen> {
                           onPressed: () => setState(() => _obscure = !_obscure),
                         ),
                       ),
-                      validator: validatePassword,
+                      validator: (v) => validatePassword(v, tr: context.tr),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _confirm,
                       obscureText: _obscure,
                       decoration: InputDecoration(labelText: context.tr('Confirm new password')),
-                      validator: (v) => v != _password.text ? 'Passwords don\'t match' : null,
+                      validator: (v) => v != _password.text ? context.tr("Passwords don't match") : null,
                       onFieldSubmitted: (_) => _save(),
                     ),
                     if (auth.error != null) ...[
                       const SizedBox(height: 12),
-                      A11yErrorBanner(message: auth.error!),
+                      A11yErrorBanner(message: context.tr(auth.error!)),
                     ],
                     const SizedBox(height: 20),
                     FilledButton(

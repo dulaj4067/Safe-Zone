@@ -198,7 +198,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(provider.errorMessage ?? 'Failed to update report. Please try again.'),
+            content: Text(context.tr(provider.errorMessage ?? 'Failed to update report. Please try again.')),
             backgroundColor: AppColors.severityRed,
           ),
         );
@@ -246,7 +246,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(provider.errorMessage ?? 'Failed to resolve incident.'),
+            content: Text(context.tr(provider.errorMessage ?? 'Failed to resolve incident.')),
             backgroundColor: AppColors.severityRed,
           ),
         );
@@ -301,7 +301,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(provider.errorMessage ?? 'Failed to delete incident.'),
+            content: Text(context.tr(provider.errorMessage ?? 'Failed to delete incident.')),
             backgroundColor: AppColors.severityRed,
           ),
         );
@@ -519,7 +519,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
               maxLines: 3,
               validator: (val) {
                 if (!_isSos && (val == null || val.trim().isEmpty)) {
-                  return 'Please provide a short description';
+                  return context.tr('Please provide a short description');
                 }
                 return null;
               },

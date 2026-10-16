@@ -675,7 +675,9 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
         content: Text(
           success
               ? strings.t('sosSent')
-              : provider.errorMessage ?? strings.t('sosFailed'),
+              : provider.errorMessage != null
+                  ? context.tr(provider.errorMessage!)
+                  : strings.t('sosFailed'),
         ),
         backgroundColor: success
             ? AppColors.severityRed

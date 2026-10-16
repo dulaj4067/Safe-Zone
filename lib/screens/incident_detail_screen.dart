@@ -143,7 +143,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            success ? 'Incident marked as Resolved.' : (provider.errorMessage ?? 'Failed to resolve incident.'),
+            success ? context.tr('Incident marked as Resolved.') : context.tr(provider.errorMessage ?? 'Failed to resolve incident.'),
           ),
           backgroundColor: success ? const Color(0xFF546E7A) : AppColors.severityRed,
         ),
@@ -166,7 +166,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            success ? 'Incident re-opened as active.' : (provider.errorMessage ?? 'Failed to update incident.'),
+            success ? context.tr('Incident re-opened as active.') : context.tr(provider.errorMessage ?? 'Failed to update incident.'),
           ),
           backgroundColor: success ? AppColors.severityGreen : AppColors.severityRed,
         ),
@@ -276,7 +276,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(provider.errorMessage ?? 'Failed to update status.'),
+            content: Text(context.tr(provider.errorMessage ?? 'Failed to update status.')),
             backgroundColor: AppColors.severityRed,
           ),
         );
@@ -333,7 +333,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(provider.errorMessage ?? 'Failed to delete incident.'),
+            content: Text(context.tr(provider.errorMessage ?? 'Failed to delete incident.')),
             backgroundColor: AppColors.severityRed,
           ),
         );
@@ -432,7 +432,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(provider.errorMessage ?? 'Failed to delete incident.'),
+            content: Text(context.tr(provider.errorMessage ?? 'Failed to delete incident.')),
             backgroundColor: AppColors.severityRed,
           ),
         );

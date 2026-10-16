@@ -337,7 +337,9 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              provider.errorMessage ?? strings.t('reportFailed'),
+              provider.errorMessage != null
+                  ? context.tr(provider.errorMessage!)
+                  : strings.t('reportFailed'),
             ),
             backgroundColor: AppColors.severityRed,
           ),

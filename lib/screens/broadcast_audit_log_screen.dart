@@ -49,8 +49,8 @@ class _BroadcastAuditLogScreenState extends State<BroadcastAuditLogScreen> {
   Future<void> _clearLogs() async {
     final confirmed = await confirmDestructive(
       context,
-      title: 'Clear Audit Logs?',
-      body: 'Are you sure you want to clear all authority broadcast audit history? This action cannot be undone unless restored.',
+      title: context.tr('Clear Audit Logs?'),
+      body: context.tr('Are you sure you want to clear all authority broadcast audit history? This action cannot be undone unless restored.'),
       confirmLabel: 'Clear All',
     );
 
@@ -167,7 +167,7 @@ class _BroadcastAuditLogScreenState extends State<BroadcastAuditLogScreen> {
                         message: _selectedAction == null
                             ? 'No broadcast audit logs recorded.'
                             : 'No ${entryActionName(_selectedAction)} audit entries found.',
-                        hint: 'Actions such as alert creation, multi-channel dispatch, resolution, and archival will be logged here automatically.',
+                        hint: context.tr('Actions such as alert creation, multi-channel dispatch, resolution, and archival will be logged here automatically.'),
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.all(12),

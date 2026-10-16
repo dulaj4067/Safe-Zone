@@ -58,7 +58,7 @@ class RoutingService {
 
     final response = await http.get(uri);
     if (response.statusCode != 200) {
-      throw RouteException('Routing request failed (${response.statusCode}).');
+      throw RouteException('Routing request failed. Please try again.');
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -67,9 +67,7 @@ class RoutingService {
       throw RouteException('No route found between those points.');
     }
     if (code != 'Ok') {
-      throw RouteException(
-        data['message'] as String? ?? 'Routing failed: $code',
-      );
+      throw RouteException('Routing request failed. Please try again.');
     }
 
     final routes = data['routes'] as List?;

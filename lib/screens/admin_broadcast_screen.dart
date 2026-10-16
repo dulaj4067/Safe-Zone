@@ -478,8 +478,8 @@ class _BroadcastFormState extends State<_BroadcastForm> {
           _buildChannelTile(
             context,
             key: const Key('channel_push_tile'),
-            title: 'Push Notification',
-            subtitle: 'Instant in-app alerts and OS-level lock screen notifications',
+            title: context.tr('Push Notification'),
+            subtitle: context.tr('Instant in-app alerts and OS-level lock screen notifications'),
             icon: Icons.notifications_active_outlined,
             iconColor: context.brandAccent,
             value: form.dispatchPush,
@@ -491,8 +491,8 @@ class _BroadcastFormState extends State<_BroadcastForm> {
           _buildChannelTile(
             context,
             key: const Key('channel_sms_tile'),
-            title: 'SMS Cellular Broadcast',
-            subtitle: 'Offline fallback message sent to residents without mobile data',
+            title: context.tr('SMS Cellular Broadcast'),
+            subtitle: context.tr('Offline fallback message sent to residents without mobile data'),
             icon: Icons.sms_outlined,
             iconColor: AppColors.severityOrange,
             value: form.dispatchSms,
@@ -504,8 +504,8 @@ class _BroadcastFormState extends State<_BroadcastForm> {
           _buildChannelTile(
             context,
             key: const Key('channel_siren_tile'),
-            title: 'Siren-Trigger Channel',
-            subtitle: 'Acoustic sirens and high-priority DND override audio alarm',
+            title: context.tr('Siren-Trigger Channel'),
+            subtitle: context.tr('Acoustic sirens and high-priority DND override audio alarm'),
             icon: Icons.volume_up_outlined,
             iconColor: AppColors.severityRed,
             value: form.dispatchSiren,

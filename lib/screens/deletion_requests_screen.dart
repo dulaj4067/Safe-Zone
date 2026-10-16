@@ -52,7 +52,7 @@ class _DeletionRequestsScreenState extends State<DeletionRequestsScreen> {
       _reload();
     } on DeletionException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr(e.message))));
       }
     } catch (_) {
       if (mounted) {

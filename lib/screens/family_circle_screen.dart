@@ -11,6 +11,7 @@ import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
 import 'live_eta_sharing_screen.dart';
 import '../l10n/ui_text.dart';
+import '../utils/error_messages.dart';
 
 /// Google-family-style circle: everyone joins through a single-use invite
 /// link and has to confirm (email + in-app) before anyone's location is
@@ -46,7 +47,7 @@ class _FamilyCircleScreenState extends State<FamilyCircleScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      ).showSnackBar(SnackBar(content: Text(context.tr(friendlyError(e)))));
     } finally {
       if (mounted) setState(() => _creatingInvite = false);
     }
@@ -120,7 +121,7 @@ class _FamilyCircleScreenState extends State<FamilyCircleScreen> {
                   if (safety.errorMessage != null) ...[
                     const SizedBox(height: 12),
                     Text(
-                      safety.errorMessage!,
+                      context.tr(safety.errorMessage!),
                       style: const TextStyle(color: AppColors.severityRed),
                     ),
                   ],
@@ -511,7 +512,7 @@ Future<void> acceptFamilyInvite(BuildContext context, String code) async {
     if (!context.mounted) return;
     await showFamilyRequestDialog(context, request);
   } catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+    messenger.showSnackBar(SnackBar(content: Text(context.tr(friendlyError(e)))));
   }
 }
 

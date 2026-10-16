@@ -145,8 +145,8 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
                   key: const ValueKey('offline_last_known_alerts_card'),
                   alerts: criticalAlerts,
                   maxItems: ContextRecallCard.maxOfflineItems,
-                  title: 'Last-Known Alerts',
-                  subtitle: 'Offline critical alert recall',
+                  title: context.tr('Last-Known Alerts'),
+                  subtitle: context.tr('Offline critical alert recall'),
                   isOffline: true,
                   onAcknowledge: (alert) =>
                       context.read<AlertProvider>().acknowledgeAlert(alert.id),
@@ -465,7 +465,7 @@ class _ErrorState extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                errorMessage,
+                context.tr(errorMessage),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),

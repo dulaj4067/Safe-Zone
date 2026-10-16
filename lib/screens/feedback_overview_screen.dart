@@ -60,7 +60,7 @@ class _FeedbackOverviewScreenState extends State<FeedbackOverviewScreen> {
       body = A11yEmptyState(
         icon: Icons.error_outline,
         message: context.tr('Could not load citizen feedback.'),
-        hint: 'Check your network connection and try again.',
+        hint: context.tr('Check your network connection and try again.'),
         actionLabel: 'Retry',
         onAction: _load,
       );

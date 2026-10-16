@@ -93,12 +93,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               labelText: context.tr('Email'),
                               prefixIcon: Icon(Icons.email_outlined),
                             ),
-                            validator: validateEmail,
+                            validator: (v) => validateEmail(v, tr: context.tr),
                             onFieldSubmitted: (_) => _submit(),
                           ),
                           if (auth.error != null) ...[
                             const SizedBox(height: 12),
-                            A11yErrorBanner(message: auth.error!),
+                            A11yErrorBanner(message: context.tr(auth.error!)),
                           ],
                           const SizedBox(height: 20),
                           FilledButton(

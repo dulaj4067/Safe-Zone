@@ -499,10 +499,10 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
           Wrap(
             spacing: 6,
             children: [
-              _buildSimChip(context, label: 'Low (20%)', ack: 0.2, seen: 0.3),
-              _buildSimChip(context, label: 'Moderate (50%)', ack: 0.5, seen: 0.65),
-              _buildSimChip(context, label: 'High (80%)', ack: 0.8, seen: 0.9),
-              _buildSimChip(context, label: 'Full (100%)', ack: 1.0, seen: 1.0),
+              _buildSimChip(context, label: context.tr('Low (20%)'), ack: 0.2, seen: 0.3),
+              _buildSimChip(context, label: context.tr('Moderate (50%)'), ack: 0.5, seen: 0.65),
+              _buildSimChip(context, label: context.tr('High (80%)'), ack: 0.8, seen: 0.9),
+              _buildSimChip(context, label: context.tr('Full (100%)'), ack: 1.0, seen: 1.0),
             ],
           ),
         ],

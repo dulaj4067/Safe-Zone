@@ -131,7 +131,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
         _showError(context.tr('Deletion request received. Your data hasn\'t been deleted yet.'));
       }
     } on DeletionException catch (e) {
-      _showError(e.message);
+      _showError(context.tr(e.message));
     } catch (_) {
       _showError(context.tr('Couldn\'t send the request — check your connection and try again.'));
     } finally {
@@ -145,7 +145,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
       await _deletion.sendConfirmationEmail();
       _showError(context.tr('We emailed you a 6-digit code. Enter it here to confirm; nothing is deleted yet.'));
     } on DeletionException catch (e) {
-      _showError(context.tr('{p0} You can ask for the email again from here.', {'p0': e.message}));
+      _showError(context.tr('{p0} You can ask for the email again from here.', {'p0': context.tr(e.message)}));
     } catch (_) {
       _showError(context.tr('Couldn\'t send the email. Check your connection and try again.'));
     }
@@ -185,7 +185,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
                     errorText: serverError,
                   ),
                   validator: (v) =>
-                      isValidDeletionCode(v) ? null : 'Enter all 6 digits',
+                      isValidDeletionCode(v) ? null : context.tr('Enter all 6 digits'),
                 ),
               ],
             ),
@@ -212,24 +212,24 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
                         setDialog(() {
                           checking = false;
                           serverError = switch (result) {
-                            DeletionCodeResult.wrong => 'That code is not right. Try again.',
-                            DeletionCodeResult.expired => 'That code has expired. Ask for a new email.',
+                            DeletionCodeResult.wrong => context.tr('That code is not right. Try again.'),
+                            DeletionCodeResult.expired => context.tr('That code has expired. Ask for a new email.'),
                             DeletionCodeResult.tooManyTries =>
-                              'Too many wrong codes. Ask for a new email.',
+                              context.tr('Too many wrong codes. Ask for a new email.'),
                             DeletionCodeResult.noCode =>
-                              'No code has been emailed yet. Ask for a new email.',
-                            _ => 'There is no deletion request waiting for a code.',
+                              context.tr('No code has been emailed yet. Ask for a new email.'),
+                            _ => context.tr('There is no deletion request waiting for a code.'),
                           };
                         });
                       } on DeletionException catch (e) {
                         setDialog(() {
                           checking = false;
-                          serverError = e.message;
+                          serverError = context.tr(e.message);
                         });
                       } catch (_) {
                         setDialog(() {
                           checking = false;
-                          serverError = 'Could not check the code. Check your connection.';
+                          serverError = context.tr('Could not check the code. Check your connection.');
                         });
                       }
                     },
@@ -267,7 +267,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
       await _deletion.cancel();
       await _loadRequest();
     } on DeletionException catch (e) {
-      _showError(e.message);
+      _showError(context.tr(e.message));
     } catch (_) {
       _showError(context.tr('Couldn\'t cancel — check your connection and try again.'));
     } finally {

@@ -136,7 +136,7 @@ class _CoordinationShortcuts extends StatelessWidget {
           Expanded(
             child: _ShortcutButton(
               icon: Icons.volunteer_activism_outlined,
-              label: 'Volunteers',
+              label: context.tr('Volunteers'),
               onTap: () => open(VolunteerTasksScreen(zones: zones)),
             ),
           ),
@@ -144,7 +144,7 @@ class _CoordinationShortcuts extends StatelessWidget {
           Expanded(
             child: _ShortcutButton(
               icon: Icons.chat_bubble_outline,
-              label: 'Messages',
+              label: context.tr('Messages'),
               onTap: () => open(const MessagesScreen()),
             ),
           ),
@@ -152,7 +152,7 @@ class _CoordinationShortcuts extends StatelessWidget {
           Expanded(
             child: _ShortcutButton(
               icon: Icons.reviews_outlined,
-              label: 'Feedback',
+              label: context.tr('Feedback'),
               onTap: () => open(FeedbackOverviewScreen(zones: zones)),
             ),
           ),
@@ -322,19 +322,19 @@ class _AlertDashboardCard extends StatelessWidget {
                   children: [
                     _buildChannelBadge(
                       icon: Icons.notifications_active,
-                      label: 'Push',
+                      label: context.tr('Push'),
                       color: context.brandAccent,
                     ),
                     const SizedBox(width: 4),
                     _buildChannelBadge(
                       icon: Icons.sms_outlined,
-                      label: 'SMS',
+                      label: context.tr('SMS'),
                       color: AppColors.severityOrange,
                     ),
                     const SizedBox(width: 4),
                     _buildChannelBadge(
                       icon: Icons.volume_up,
-                      label: 'Siren',
+                      label: context.tr('Siren'),
                       color: AppColors.severityRed,
                     ),
                   ],
@@ -424,8 +424,8 @@ class _AlertDashboardCard extends StatelessWidget {
                 TextButton(
                   onPressed: () => _confirmAndRun(
                     context,
-                    title: 'Resolve alert?',
-                    body: 'Citizens will see this as de-escalated.',
+                    title: context.tr('Resolve alert?'),
+                    body: context.tr('Citizens will see this as de-escalated.'),
                     action: () =>
                         context.read<AlertProvider>().resolveAlert(alert.id),
                   ),
@@ -435,8 +435,8 @@ class _AlertDashboardCard extends StatelessWidget {
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
                   onPressed: () => _confirmAndRun(
                     context,
-                    title: 'Archive alert?',
-                    body: 'This removes it from the live dashboard entirely.',
+                    title: context.tr('Archive alert?'),
+                    body: context.tr('This removes it from the live dashboard entirely.'),
                     action: () =>
                         context.read<AlertProvider>().archiveAlert(alert.id),
                   ),
@@ -852,7 +852,7 @@ class _EscalateSheetState extends State<_EscalateSheet> {
 
           // Severity picker
           Semantics(
-            label: 'Severity level selector',
+            label: context.tr('Severity level selector'),
             child: DropdownButtonFormField<AlertSeverity>(
               key: const Key('escalate_severity_dropdown'),
               decoration: InputDecoration(

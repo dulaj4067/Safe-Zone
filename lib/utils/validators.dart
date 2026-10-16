@@ -3,6 +3,16 @@
 /// value is valid, or a message to show under the field.
 library;
 
+/// Translates an English message (with {placeholders}); screens pass
+/// `context.tr`. Without one, messages come out in English.
+typedef Translate = String Function(String english, [Map<String, Object?>? args]);
+
+String _english(String message, [Map<String, Object?>? args]) {
+  var out = message;
+  args?.forEach((name, value) => out = out.replaceAll('{$name}', '$value'));
+  return out;
+}
+
 const int kMaxNameLength = 80;
 const int kMaxEmailLength = 254;
 
@@ -12,21 +22,25 @@ const int kMaxEmailLength = 254;
 const int kMinPasswordLength = 6;
 const int kMaxPasswordLength = 72; // bcrypt ignores anything longer
 
-String? validateFullName(String? value) {
+String? validateFullName(String? value, {Translate? tr}) {
+  final t = tr ?? _english;
   final v = value?.trim() ?? '';
-  if (v.isEmpty) return 'Enter your name';
-  if (v.length < 2) return 'Name is too short';
-  if (v.length > kMaxNameLength) return 'Keep it under $kMaxNameLength characters';
+  if (v.isEmpty) return t('Enter your name');
+  if (v.length < 2) return t('Name is too short');
+  if (v.length > kMaxNameLength) {
+    return t('Keep it under {max} characters', {'max': kMaxNameLength});
+  }
   return null;
 }
 
 final RegExp _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$');
 
-String? validateEmail(String? value) {
+String? validateEmail(String? value, {Translate? tr}) {
+  final t = tr ?? _english;
   final v = value?.trim() ?? '';
-  if (v.isEmpty) return 'Enter your email';
+  if (v.isEmpty) return t('Enter your email');
   if (v.length > kMaxEmailLength || !_emailPattern.hasMatch(v)) {
-    return 'Enter a valid email address';
+    return t('Enter a valid email address');
   }
   return null;
 }
@@ -35,15 +49,16 @@ String? validateEmail(String? value) {
 /// international number written with a leading + (8–15 digits). Spaces,
 /// dashes and brackets are allowed. Stored in one canonical form — see
 /// [normalizePhone] — because people are matched by phone number.
-String? validatePhone(String? value) {
+String? validatePhone(String? value, {Translate? tr}) {
+  final t = tr ?? _english;
   final v = value?.trim() ?? '';
-  if (v.isEmpty) return 'Enter your mobile number';
+  if (v.isEmpty) return t('Enter your mobile number');
   if (_uuidPattern.hasMatch(v)) {
     // Accounts created without a phone were given their account id here.
-    return 'That looks like an account ID, not a phone number';
+    return t('That looks like an account ID, not a phone number');
   }
   if (normalizePhone(v) == null) {
-    return 'Enter a mobile number, e.g. 0771234567 or +44 7700 900123';
+    return t('Enter a mobile number, e.g. 0771234567 or +44 7700 900123');
   }
   return null;
 }
@@ -86,15 +101,16 @@ String _asciiDigits(String input) {
   return out.toString();
 }
 
-String? validatePassword(String? value) {
+String? validatePassword(String? value, {Translate? tr}) {
+  final t = tr ?? _english;
   final v = value ?? '';
-  if (v.isEmpty) return 'Choose a password';
+  if (v.isEmpty) return t('Choose a password');
   if (v.length < kMinPasswordLength) {
-    return 'Use at least $kMinPasswordLength characters';
+    return t('Use at least {min} characters', {'min': kMinPasswordLength});
   }
   if (v.length > kMaxPasswordLength) {
-    return 'Keep it under $kMaxPasswordLength characters';
+    return t('Keep it under {max} characters', {'max': kMaxPasswordLength});
   }
-  if (v.trim().isEmpty) return 'Password can\'t be only spaces';
+  if (v.trim().isEmpty) return t("Password can't be only spaces");
   return null;
 }

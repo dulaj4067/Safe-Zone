@@ -124,7 +124,8 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
                     controller: titleCtrl,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(labelText: context.tr('Title'), hintText: context.tr('Distribute food packs')),
-                    validator: (v) => (v ?? '').trim().length < 3 ? 'Give the task a short title' : null,
+                    validator: (v) =>
+                        (v ?? '').trim().length < 3 ? context.tr('Give the task a short title') : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -163,8 +164,8 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
                     decoration: InputDecoration(labelText: context.tr('Volunteers needed')),
                     validator: (v) {
                       final n = int.tryParse((v ?? '').trim());
-                      if (n == null || n < 1) return 'At least 1';
-                      if (n > 500) return 'That\'s a lot — max 500';
+                      if (n == null || n < 1) return context.tr('At least 1');
+                      if (n > 500) return context.tr('That is a lot. The maximum is 500.');
                       return null;
                     },
                   ),

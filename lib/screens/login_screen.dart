@@ -91,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   if (auth.error != null) ...[
                     const SizedBox(height: 4),
-                    A11yErrorBanner(message: auth.error!),
+                    A11yErrorBanner(message: context.tr(auth.error!)),
                   ],
                   if (auth.unconfirmedEmail != null) ...[
                     const SizedBox(height: 4),

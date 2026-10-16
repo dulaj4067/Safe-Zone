@@ -119,7 +119,7 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                       children: [
                         _HubAction(
                           icon: Icons.map_outlined,
-                          label: 'Evacuation map',
+                          label: context.tr('Evacuation map'),
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -131,7 +131,7 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                         ),
                         _HubAction(
                           icon: Icons.checklist_rtl_outlined,
-                          label: 'Checklist',
+                          label: context.tr('Checklist'),
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -143,7 +143,7 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                         ),
                         _HubAction(
                           icon: Icons.volunteer_activism_outlined,
-                          label: 'Volunteer',
+                          label: context.tr('Volunteer'),
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -154,7 +154,7 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                         ),
                         _HubAction(
                           icon: Icons.history,
-                          label: 'Disaster history',
+                          label: context.tr('Disaster history'),
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -167,7 +167,7 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                         if (isAuthority)
                           _HubAction(
                             icon: Icons.edit_note,
-                            label: 'Manage guides',
+                            label: context.tr('Manage guides'),
                             onTap: () => _openAuthorityRoute(
                               context,
                               ManageGuidesScreen(
@@ -179,7 +179,7 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                         if (isAuthority)
                           _HubAction(
                             icon: Icons.fact_check_outlined,
-                            label: 'Checklist items',
+                            label: context.tr('Checklist items'),
                             onTap: () => _openAuthorityRoute(
                               context,
                               ManageChecklistItemsScreen(
@@ -190,7 +190,7 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                         if (isAuthority)
                           _HubAction(
                             icon: Icons.notifications_active_outlined,
-                            label: 'Reminders',
+                            label: context.tr('Reminders'),
                             onTap: () => _openAuthorityRoute(
                               context,
                               ManageRemindersScreen(
@@ -208,7 +208,7 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                         scrollDirection: Axis.horizontal,
                         children: [
                           _CategoryChip(
-                            label: 'All',
+                            label: context.tr('All'),
                             selected: _category == null,
                             onTap: () => setState(() => _category = null),
                           ),

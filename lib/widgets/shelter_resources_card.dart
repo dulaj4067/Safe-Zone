@@ -99,8 +99,8 @@ class _ShelterResourcesCardState extends State<ShelterResourcesCard> {
                   decoration: InputDecoration(labelText: context.tr('Quantity on hand')),
                   validator: (v) {
                     final q = double.tryParse((v ?? '').trim());
-                    if (q == null) return 'Enter a number';
-                    if (q < 0) return 'Can\'t be negative';
+                    if (q == null) return context.tr('Enter a number');
+                    if (q < 0) return context.tr("Can't be negative");
                     return null;
                   },
                 ),
@@ -109,7 +109,7 @@ class _ShelterResourcesCardState extends State<ShelterResourcesCard> {
                   controller: unitCtrl,
                   decoration: InputDecoration(labelText: context.tr('Unit (liters, meals, kits…)')),
                   validator: (v) =>
-                      (v ?? '').trim().isEmpty ? 'Enter a unit' : null,
+                      (v ?? '').trim().isEmpty ? context.tr('Enter a unit') : null,
                 ),
               ],
             ),

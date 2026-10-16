@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart'
     show FunctionException, PostgrestException;
 
+import '../utils/error_messages.dart';
 import 'supabase_service.dart';
 
 /// Status of the signed-in user's account-deletion request.
@@ -116,7 +117,7 @@ class AccountDeletionService {
       throw DeletionException(
         details is Map && details['error'] is String
             ? details['error'] as String
-            : 'Could not send the confirmation email (${e.status}). Please try again.',
+            : 'Could not send the confirmation email. Please try again.',
       );
     }
   }
@@ -152,14 +153,14 @@ class AccountDeletionService {
       );
       final data = res.data;
       if (data is! Map || data['status'] != 'completed') {
-        throw DeletionException('The server didn’t confirm the deletion.');
+        throw DeletionException("The server didn't confirm the deletion.");
       }
     } on FunctionException catch (e) {
       final details = e.details;
       throw DeletionException(
         details is Map && details['error'] is String
             ? details['error'] as String
-            : 'Deletion failed (${e.status}). It can be retried safely.',
+            : 'Deletion failed. It can be retried safely.',
       );
     }
   }
@@ -168,9 +169,9 @@ class AccountDeletionService {
     // Missing function = the migration hasn't been applied on this backend.
     if (e.code == 'PGRST202' || e.code == '42883') {
       return 'Account deletion isn\'t available on this server yet. '
-          'Please contact the operator through Send Feedback.';
+          'Please contact the operator through Give feedback in Settings.';
     }
-    return e.message;
+    return friendlyError(e);
   }
 }
 
