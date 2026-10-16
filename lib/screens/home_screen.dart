@@ -62,11 +62,17 @@ class HomeScreen extends StatefulWidget {
   final AppUser? currentUser;
   final ValueChanged<ActivityEntry>? onResumeActivity;
 
+  /// Bumped by AppShell each time the Home tab is selected. The tab stays
+  /// alive in an IndexedStack, so without this the map would keep showing
+  /// the shelters it loaded at startup (e.g. missing one just approved).
+  final int visitCount;
+
   const HomeScreen({
     super.key,
     this.zones = const [],
     this.currentUser,
     this.onResumeActivity,
+    this.visitCount = 0,
   });
 
   @override
@@ -113,6 +119,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   @override
+  void didUpdateWidget(HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.visitCount != oldWidget.visitCount) _loadShelters();
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _positionSub?.cancel();
@@ -133,6 +145,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             false; // reset so the next foreground entry can fire
       }
     } else if (state == AppLifecycleState.resumed) {
+      _loadShelters();
       _checkForDriftAndPrompt();
     }
   }

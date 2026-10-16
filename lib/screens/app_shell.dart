@@ -46,6 +46,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   }
   List<Zone> _zones = [];
   int _tabIndex = 0;
+
+  /// Incremented whenever the Home tab is selected so it refreshes shelters.
+  int _homeVisits = 0;
   bool _loadingProfile = true;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   late final InterruptionDetector _interruptionDetector;
@@ -156,6 +159,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         zones: _zones,
         currentUser: _currentUser,
         onResumeActivity: _resumeActivity,
+        visitCount: _homeVisits,
       ),
       IncidentsScreen(currentUser: _currentUser),
       SheltersScreen(currentUser: _currentUser),
@@ -220,7 +224,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         currentIndex: _tabIndex >= tabs.length ? 0 : _tabIndex,
         isAuthority: isAuthority,
         onDestinationSelected: (i) {
-          setState(() => _tabIndex = i);
+          setState(() {
+            _tabIndex = i;
+            if (i == 0) _homeVisits++;
+          });
         },
       ),
     );
