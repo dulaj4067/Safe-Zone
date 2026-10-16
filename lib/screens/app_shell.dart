@@ -9,6 +9,7 @@ import '../models/app_user.dart';
 import '../models/zone.dart';
 import '../providers/accessibility_provider.dart';
 import '../providers/alert_provider.dart';
+import '../providers/incident_provider.dart';
 import '../providers/map_focus_provider.dart';
 import '../providers/safety_provider.dart';
 import '../services/activity_history_service.dart';
@@ -52,6 +53,27 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
   /// Incremented whenever the Home tab is selected so it refreshes shelters.
   int _homeVisits = 0;
+
+  /// Bumped to make tabs that fetch their own data (Shelters, Prep Hub) reload.
+  int _refreshTick = 0;
+  bool _wasOffline = false;
+
+  /// Pulls fresh data for everything that can go stale while the app sits in
+  /// the background or the network drops: Realtime does not replay missed
+  /// events, so alerts and incidents re-subscribe and re-fetch.
+  DateTime? _lastLiveRefresh;
+
+  void _refreshLiveData() {
+    if (!mounted) return;
+    // Pulling the notification shade also pauses/resumes the app; don't
+    // hammer the backend for that.
+    final last = _lastLiveRefresh;
+    if (last != null && DateTime.now().difference(last) < const Duration(seconds: 20)) return;
+    _lastLiveRefresh = DateTime.now();
+    setState(() => _refreshTick++);
+    unawaited(context.read<AlertProvider>().reconnect());
+    unawaited(context.read<IncidentProvider>().reconnect());
+  }
   bool _loadingProfile = true;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   late final InterruptionDetector _interruptionDetector;
@@ -88,9 +110,16 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       onInterruption: () => context.read<ActivityHistoryService>().markInterrupted(),
     );
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
-      (results) => _interruptionDetector.onConnectivityChanged(
-        results.every((result) => result == ConnectivityResult.none) == false,
-      ),
+      (results) {
+        final online = results.every((result) => result == ConnectivityResult.none) == false;
+        _interruptionDetector.onConnectivityChanged(online);
+        if (!online) {
+          _wasOffline = true;
+        } else if (_wasOffline) {
+          _wasOffline = false;
+          _refreshLiveData();
+        }
+      },
     );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final uid = SupabaseService.currentUserId;
@@ -120,6 +149,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _interruptionDetector.onLifecycleState(state);
+    if (state == AppLifecycleState.resumed) _refreshLiveData();
   }
 
   @override
@@ -172,8 +202,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         visitCount: _homeVisits,
       ),
       IncidentsScreen(currentUser: _currentUser),
-      SheltersScreen(currentUser: _currentUser),
-      PreparednessHubScreen(currentUser: _currentUser, zones: _zones),
+      SheltersScreen(currentUser: _currentUser, refreshTick: _refreshTick),
+      PreparednessHubScreen(
+        currentUser: _currentUser,
+        zones: _zones,
+        refreshTick: _refreshTick,
+      ),
       if (isAuthority) BroadcastDashboardScreen(zones: _zones),
       SettingsScreen(
         currentUser: _currentUser,
@@ -252,7 +286,13 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           setState(() {
             _tabIndex = i;
             if (i == 0) _homeVisits++;
+            // Shelters and Prep Hub fetch their own data and stay alive in
+            // the IndexedStack, so reload them whenever they are opened.
+            if (i == 2 || i == 3) _refreshTick++;
           });
+          if (i == 1) {
+            unawaited(context.read<IncidentProvider>().refresh(silent: true));
+          }
         },
       ),
     );

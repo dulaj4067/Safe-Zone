@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -118,6 +119,7 @@ class IncidentProvider extends ChangeNotifier {
   Future<void> load({bool forceRefresh = false}) async {
     if (_hasLoadedOnce && !forceRefresh) return;
     _hasLoadedOnce = true;
+    _startRealtime();
 
     final (cached, cachedAt) = await _service.readCache();
     if (cached.isNotEmpty) {
@@ -129,15 +131,61 @@ class IncidentProvider extends ChangeNotifier {
     await refresh();
   }
 
+  Timer? _realtimeDebounce;
+  bool _realtimeOn = false;
+
+  /// Live updates: someone else's new or changed report triggers a refresh.
+  /// Bursts (several events at once) collapse into one fetch.
+  void _startRealtime() {
+    if (_realtimeOn) return;
+    // Incidents are only readable by signed-in users, so there is nothing to
+    // listen for before sign-in.
+    try {
+      if (SupabaseService.currentUserId == null) return;
+      _service.subscribeToChanges(() {
+        _realtimeDebounce?.cancel();
+        _realtimeDebounce = Timer(const Duration(milliseconds: 600), () {
+          if (!_disposed) refresh(silent: true);
+        });
+      });
+      _realtimeOn = true;
+    } catch (_) {
+      // No backend (tests) or the subscription failed: pull-to-refresh and
+      // resume refreshes still keep the list current.
+    }
+  }
+
+  /// Re-opens the live subscription and re-fetches. Call when the app resumes
+  /// or the network returns: Realtime does not replay what was missed.
+  Future<void> reconnect() async {
+    _realtimeOn = false;
+    _startRealtime();
+    await refresh(silent: true);
+  }
+
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _realtimeDebounce?.cancel();
+    _service.unsubscribe();
+    super.dispose();
+  }
+
   /// Fetches fresh data from Supabase regardless of load state. Use this
   /// for pull-to-refresh. If the network call fails, whatever's already
   /// on screen (cache or a previous successful fetch) is left in place
   /// rather than cleared, so the map doesn't go blank on a dropped
   /// connection — [isOffline] flips to true so the UI can show a banner.
-  Future<void> refresh() async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
+  Future<void> refresh({bool silent = false}) async {
+    // A background refresh must not flash the loading spinner over a list the
+    // person is already reading.
+    if (!silent) {
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
+    }
 
     try {
       final fresh = await _service.fetchIncidents(includeAll: true);
@@ -149,7 +197,7 @@ class IncidentProvider extends ChangeNotifier {
       _errorMessage = friendlyError(e);
     } finally {
       _isLoading = false;
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     }
   }
 
@@ -225,8 +273,12 @@ class IncidentProvider extends ChangeNotifier {
         updatedAt: DateTime.now(),
       );
 
-      await _service.submitIncident(draft);
-      await refresh();
+      final created = await _service.submitIncident(draft);
+      // Show the report straight away (an authority's own included), even if
+      // the follow-up fetch is slow or fails; the refresh then replaces it.
+      _incidents = [created, ..._incidents.where((i) => i.id != created.id)];
+      notifyListeners();
+      await refresh(silent: true);
       return true;
     } catch (e) {
       _errorMessage = friendlyError(e);

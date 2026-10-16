@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../models/alert.dart';
 import '../providers/alert_provider.dart';
+import '../utils/alert_relevance.dart';
 import 'alert_banner.dart';
 
 /// A reusable, location-aware wrapper around your existing AlertBanner.
@@ -47,14 +48,6 @@ class LocationAlertBanner extends StatefulWidget {
 
 class _LocationAlertBannerState extends State<LocationAlertBanner>
     with SingleTickerProviderStateMixin {
-  static const Distance _distance = Distance();
-
-  /// Beyond this multiple of an alert's own radius, it's considered too
-  /// far to be relevant at all — without this, a very severe but
-  /// distant alert (e.g. across the whole district) would keep scoring
-  /// above zero forever and never let the banner clear.
-  static const double _relevanceRangeMultiplier = 6.0;
-
   late final AnimationController _shakeController;
   late final Animation<double> _shakeOffset;
   Timer? _repeatTimer;
@@ -86,19 +79,6 @@ class _LocationAlertBannerState extends State<LocationAlertBanner>
     super.dispose();
   }
 
-  static double _severityWeight(AlertSeverity severity) {
-    switch (severity) {
-      case AlertSeverity.red:
-        return 100;
-      case AlertSeverity.orange:
-        return 50;
-      case AlertSeverity.yellow:
-        return 20;
-      case AlertSeverity.green:
-        return 5;
-    }
-  }
-
   /// Combines severity and proximity so a closer, more severe alert
   /// always outranks a farther or milder one — e.g. a nearby orange
   /// alert can outrank a distant red one, and a red alert right on top
@@ -109,15 +89,8 @@ class _LocationAlertBannerState extends State<LocationAlertBanner>
   /// then decays smoothly toward 0 the farther beyond that radius the
   /// user is, rather than dropping to 0 the instant they step outside
   /// the geofence line.
-  static double? _relevanceScore(DisasterAlert alert, double distanceMeters) {
-    if (distanceMeters > alert.radiusMeters * _relevanceRangeMultiplier) {
-      return null; // too far away to matter at all
-    }
-    final proximity = distanceMeters <= alert.radiusMeters
-        ? 1.0
-        : alert.radiusMeters / distanceMeters;
-    return _severityWeight(alert.severity) * proximity;
-  }
+  static double? _relevanceScore(DisasterAlert alert, LatLng here) =>
+      alertRelevance(alert, here);
 
   /// Picks the single most relevant alert for [userLocation] out of all
   /// currently active ones.
@@ -126,8 +99,7 @@ class _LocationAlertBannerState extends State<LocationAlertBanner>
     double bestScore = 0;
 
     for (final alert in alerts) {
-      final d = _distance(widget.userLocation, LatLng(alert.centerLat, alert.centerLng));
-      final score = _relevanceScore(alert, d);
+      final score = _relevanceScore(alert, widget.userLocation);
       if (score != null && score > bestScore) {
         bestScore = score;
         best = alert;
@@ -160,8 +132,14 @@ class _LocationAlertBannerState extends State<LocationAlertBanner>
 
   @override
   Widget build(BuildContext context) {
-    final alerts = context.watch<AlertProvider>().activeAlerts;
-    final match = _matchFor(alerts);
+    final provider = context.watch<AlertProvider>();
+    final match = _matchFor(provider.activeAlerts);
+    // The app-wide banner at the top of the screen is already showing the most
+    // relevant alert; a second strip underneath it is just a duplicate.
+    if (provider.bannerAlert != null) {
+      _syncShakeWith(null);
+      return const SizedBox.shrink();
+    }
     _syncShakeWith(match);
 
     if (match == null || match.id == _dismissedAlertId) {

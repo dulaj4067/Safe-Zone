@@ -56,7 +56,7 @@ class _ImSafeScreenState extends State<ImSafeScreen> {
               ),
               const SizedBox(height: 32),
               if (safety.errorMessage != null)
-                Text(context.tr(safety.errorMessage!), style: const TextStyle(color: Colors.red)),
+                Text(context.tr(safety.errorMessage!), style: TextStyle(color: context.dangerInk)),
               if (safety.lastBroadcastAt != null)
                 Text(
                   strings.f('sentAt', {

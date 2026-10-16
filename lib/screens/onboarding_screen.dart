@@ -210,14 +210,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ],
                     ),
                   ),
-                  const Spacer(),
-                  if (!isLast)
-                    Flexible(
-                      child: TextButton(
-                        onPressed: _finishing ? null : () => _goTo(_stepCount - 1),
-                        child: Text(strings.t('obSkip')),
-                      ),
+                  // Expanded + Align pins Skip to the trailing edge. A Flexible
+                  // next to a Spacer splits the free space in half, which left
+                  // the button floating in the middle of the screen.
+                  Expanded(
+                    child: Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: isLast
+                          ? const SizedBox.shrink()
+                          : TextButton(
+                              onPressed: _finishing ? null : () => _goTo(_stepCount - 1),
+                              child: Text(strings.t('obSkip')),
+                            ),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -237,25 +243,31 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Row(
                 children: [
-                  // Flexible lets long translations wrap instead of overflowing.
-                  if (_step > 0)
-                    Flexible(
-                      child: TextButton(
-                        onPressed: _finishing ? null : () => _goTo(_step - 1),
-                        child: Text(strings.t('obBack')),
-                      ),
+                  // Back sits on the leading edge and Next on the trailing edge;
+                  // each half wraps long translations instead of overflowing.
+                  Expanded(
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: _step > 0
+                          ? TextButton(
+                              onPressed: _finishing ? null : () => _goTo(_step - 1),
+                              child: Text(strings.t('obBack')),
+                            )
+                          : const SizedBox.shrink(),
                     ),
-                  const Spacer(),
-                  Flexible(
-                    flex: 2,
-                    child: FilledButton(
-                      key: const Key('onboarding_next'),
-                      onPressed: _finishing ? null : (isLast ? _finish : () => _goTo(_step + 1)),
-                      child: Text(
-                        isLast
-                            ? strings.t(widget.replay ? 'obDone' : 'obStart')
-                            : strings.t('obNext'),
-                        textAlign: TextAlign.center,
+                  ),
+                  Expanded(
+                    child: Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: FilledButton(
+                        key: const Key('onboarding_next'),
+                        onPressed: _finishing ? null : (isLast ? _finish : () => _goTo(_step + 1)),
+                        child: Text(
+                          isLast
+                              ? strings.t(widget.replay ? 'obDone' : 'obStart')
+                              : strings.t('obNext'),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
                   ),

@@ -658,16 +658,16 @@ class _ErrorBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.red.shade50,
+      color: context.dangerTint,
       borderRadius: BorderRadius.circular(10),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            const Icon(Icons.error_outline, color: Colors.red, size: 18),
+            Icon(Icons.error_outline, color: context.dangerInk, size: 18),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(message, style: const TextStyle(color: Colors.red)),
+              child: Text(message, style: TextStyle(color: context.dangerInk)),
             ),
           ],
         ),
