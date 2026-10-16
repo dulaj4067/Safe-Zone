@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/family_member.dart';
 import '../models/risk_zone.dart';
 import '../models/safety_circle_request.dart';
@@ -179,23 +180,43 @@ class _FamilyCircleScreenState extends State<FamilyCircleScreen> {
                   SizedBox(
                     width: double.infinity,
                     height: 52,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.share_location),
-                      label: Text(
-                        confirmedCount == 0
-                            ? 'Invite someone to start sharing'
-                            : 'Share my location with family ($confirmedCount)',
-                      ),
-                      onPressed: confirmedCount == 0
-                          ? null
-                          : () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => LiveEtaSharingScreen(
-                                  currentRiskZone: widget.currentRiskZone,
-                                ),
-                              ),
+                    // While a share is running this is the way to end it:
+                    // the map already shows the location, so there is no need
+                    // to open the live screen just to find "Stop sharing".
+                    child: safety.isSharing
+                        ? ElevatedButton.icon(
+                            key: const Key('stop_sharing_button'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.severityRed,
+                              foregroundColor: Colors.white,
                             ),
-                    ),
+                            icon: const Icon(Icons.stop_circle_outlined),
+                            label: Text(appStringsOf(context).t('stopSharing')),
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              final text = appStringsOf(context, listen: false)
+                                  .t('stoppedSharing');
+                              await context.read<SafetyProvider>().stopSharing();
+                              messenger.showSnackBar(SnackBar(content: Text(text)));
+                            },
+                          )
+                        : ElevatedButton.icon(
+                            icon: const Icon(Icons.share_location),
+                            label: Text(
+                              confirmedCount == 0
+                                  ? 'Invite someone to start sharing'
+                                  : 'Share my location with family ($confirmedCount)',
+                            ),
+                            onPressed: confirmedCount == 0
+                                ? null
+                                : () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => LiveEtaSharingScreen(
+                                        currentRiskZone: widget.currentRiskZone,
+                                      ),
+                                    ),
+                                  ),
+                          ),
                   ),
                 ],
               ),

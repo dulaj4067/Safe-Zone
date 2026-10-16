@@ -8,7 +8,9 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
+import '../models/alert.dart';
 import '../models/incident.dart';
+import '../utils/severity_haptics.dart';
 import '../providers/accessibility_provider.dart';
 import '../providers/incident_provider.dart';
 import '../services/location_service.dart';
@@ -354,8 +356,13 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
 
     if (mounted) {
       if (success) {
-        // Optional vibration as a non-visual, non-audible confirmation.
-        pulseHapticOf(context);
+        // Vibration as a non-visual, non-audible confirmation: an SOS report
+        // gets the strongest (red) pattern, an ordinary one a single pulse.
+        if (_isSos) {
+          severityHapticOf(context, AlertSeverity.red);
+        } else {
+          pulseHapticOf(context);
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
