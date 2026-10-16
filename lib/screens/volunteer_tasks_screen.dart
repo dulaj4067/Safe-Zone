@@ -233,7 +233,8 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
   }
 
   /// Asks before an irreversible action; returns true when confirmed.
-  Future<bool> _confirm(String title, String message, String action) async {
+  Future<bool> _confirm(String title, String message, String action,
+      {bool destructive = false}) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -241,7 +242,13 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
         content: Text(message),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(action)),
+          FilledButton(
+            style: destructive
+                ? FilledButton.styleFrom(backgroundColor: AppColors.severityRed)
+                : null,
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(action),
+          ),
         ],
       ),
     );
@@ -303,6 +310,7 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
                   ? '"${task.title}" and the $signedUp volunteer sign-up${signedUp == 1 ? '' : 's'} on it will be removed.'
                   : '"${task.title}" will be removed.',
               'Delete',
+              destructive: true,
             )) {
               return;
             }
@@ -398,14 +406,22 @@ class _TaskCard extends StatelessWidget {
         child: CircularProgressIndicator(strokeWidth: 2),
       );
     } else if (signedUp) {
-      action = OutlinedButton(onPressed: onWithdraw, child: const Text('Withdraw'));
+      action = OutlinedButton(
+        style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+        onPressed: onWithdraw,
+        child: const Text('Withdraw'),
+      );
     } else if (task.status != VolunteerTaskStatus.open) {
       action = const SizedBox.shrink();
     } else if (task.isFull) {
-      action = const OutlinedButton(onPressed: null, child: Text('Full'));
+      action = OutlinedButton(
+        style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+        onPressed: null,
+        child: const Text('Full'),
+      );
     } else {
       action = FilledButton(
-        style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
+        style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
         onPressed: onSignUp,
         child: const Text('Sign up'),
       );
@@ -430,7 +446,13 @@ class _TaskCard extends StatelessWidget {
                         if (s != task.status)
                           PopupMenuItem(value: s, child: Text('Mark ${s.label.toLowerCase()}')),
                     ],
-                    child: _StatusChip(label: task.status.label, color: _statusColor, editable: true),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 48),
+                      child: Center(
+                        widthFactor: 1,
+                        child: _StatusChip(label: task.status.label, color: _statusColor, editable: true),
+                      ),
+                    ),
                   )
                 else
                   _StatusChip(label: task.status.label, color: _statusColor),
@@ -518,11 +540,15 @@ class _StatusChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700)),
+          // Ink text keeps >= 4.5:1 on the tint in both themes; the status
+          // colour stays in the border and arrow.
+          Text(label,
+              style: TextStyle(color: context.inkStrong, fontSize: 12, fontWeight: FontWeight.w700)),
           if (editable) Icon(Icons.arrow_drop_down, size: 16, color: color),
         ],
       ),
