@@ -318,6 +318,45 @@ Remain in a safe location until authorities issue an all-clear. The first wave m
     }
   }
 
+  // The hub screens ask for guides, routes, history, checklist items and
+  // reminders back to back. One query returns every type (the table is small),
+  // reused for a few seconds, instead of five round-trips per screen load.
+  Map<String, List<Map<String, dynamic>>>? _contentSnapshot;
+  DateTime? _contentSnapshotAt;
+  Future<Map<String, List<Map<String, dynamic>>>>? _contentInFlight;
+
+  void _invalidateContentSnapshot() {
+    _contentSnapshot = null;
+    _contentSnapshotAt = null;
+  }
+
+  Future<Map<String, List<Map<String, dynamic>>>> _allContent() async {
+    final at = _contentSnapshotAt;
+    final snap = _contentSnapshot;
+    if (snap != null && at != null && DateTime.now().difference(at) < const Duration(seconds: 15)) {
+      return snap;
+    }
+    return _contentInFlight ??= () async {
+      try {
+        final rows = await SupabaseService.client
+            .from('preparedness_content')
+            .select('content_type, payload')
+            .order('updated_at');
+        final byType = <String, List<Map<String, dynamic>>>{};
+        for (final row in rows as List) {
+          byType
+              .putIfAbsent(row['content_type'] as String, () => [])
+              .add(Map<String, dynamic>.from(row['payload'] as Map));
+        }
+        _contentSnapshot = byType;
+        _contentSnapshotAt = DateTime.now();
+        return byType;
+      } finally {
+        _contentInFlight = null;
+      }
+    }();
+  }
+
   // Content entries are read through the local cache first, and the backend is
   // used as a refresh source when the user is authenticated and sync is enabled.
   Future<List<T>> _readContent<T>(
@@ -329,13 +368,8 @@ Remain in a safe location until authorities issue an all-clear. The first wave m
     if (_canSync) {
       try {
         await _flushPendingContentMutations();
-        final rows = await SupabaseService.client
-            .from('preparedness_content')
-            .select('payload')
-            .eq('content_type', type)
-            .order('updated_at');
-        final values = rows
-            .map((row) => Map<String, dynamic>.from(row['payload'] as Map))
+        final byType = await _allContent();
+        final values = (byType[type] ?? const <Map<String, dynamic>>[])
             .where((value) => !_demoContentIds.contains(value['id']))
             .toList();
         final merged = await _overlayPendingContent(type, values);
@@ -447,6 +481,7 @@ Remain in a safe location until authorities issue an all-clear. The first wave m
       }
     }
     await _savePendingMutations(remaining);
+    if (pending.length != remaining.length) _invalidateContentSnapshot();
   }
 
   Future<void> _upsertContent(
@@ -455,6 +490,7 @@ Remain in a safe location until authorities issue an all-clear. The first wave m
     Map<String, dynamic> payload, {
     String? zoneId,
   }) async {
+    _invalidateContentSnapshot();
     if (!_canSync) return;
     final key = 'preparedness_content:$type:$id';
     try {
@@ -481,6 +517,7 @@ Remain in a safe location until authorities issue an all-clear. The first wave m
   }
 
   Future<void> _deleteContent(String type, String id) async {
+    _invalidateContentSnapshot();
     if (!_canSync) return;
     final key = 'preparedness_content:$type:$id';
     try {

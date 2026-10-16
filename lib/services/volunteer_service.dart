@@ -10,7 +10,7 @@ class VolunteerService {
         .from('volunteer_tasks')
         .select('*, volunteer_assignments(volunteer_id)');
     if (shelterId != null) query = query.eq('shelter_id', shelterId);
-    final rows = await query.order('created_at', ascending: false);
+    final rows = await query.order('created_at', ascending: false).limit(300);
     return (rows as List)
         .map((r) => VolunteerTask.fromMap(r as Map<String, dynamic>))
         .toList();

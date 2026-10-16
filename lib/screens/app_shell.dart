@@ -149,7 +149,14 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _interruptionDetector.onLifecycleState(state);
-    if (state == AppLifecycleState.resumed) _refreshLiveData();
+    if (!mounted) return;
+    final safety = context.read<SafetyProvider>();
+    if (state == AppLifecycleState.paused) {
+      safety.pauseAutoRefresh();
+    } else if (state == AppLifecycleState.resumed) {
+      safety.resumeAutoRefresh();
+      _refreshLiveData();
+    }
   }
 
   @override
@@ -169,12 +176,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     }
 
     try {
-      final profileRow = await SupabaseService.client
-          .from('profiles')
-          .select()
-          .eq('id', userId)
-          .single();
-      final zoneRows = await SupabaseService.client.from('zones').select();
+      // Independent queries: start both, then await, so they run together.
+      final profileFuture =
+          SupabaseService.client.from('profiles').select().eq('id', userId).single();
+      final zonesFuture = SupabaseService.client.from('zones').select();
+      final profileRow = await profileFuture;
+      final zoneRows = await zonesFuture;
 
       setState(() {
         _currentUser = AppUser.fromMap(profileRow);

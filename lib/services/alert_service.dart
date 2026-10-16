@@ -54,7 +54,8 @@ class AlertService {
         .from('alerts')
         .select()
         .inFilter('status', ['active', 'escalated'])
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(200);
 
     final alerts =
         (rows as List).map((r) => DisasterAlert.fromMap(r)).toList();

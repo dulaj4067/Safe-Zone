@@ -19,7 +19,8 @@ class ShelterService {
       rows = await SupabaseService.client
           .from('shelters')
           .select()
-          .eq('approval_status', 'approved');
+          .eq('approval_status', 'approved')
+          .limit(1000);
     } on PostgrestException catch (e) {
       if (!_missingApprovalColumn(e)) rethrow;
       final all = await SupabaseService.client.from('shelters').select();
