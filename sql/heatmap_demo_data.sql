@@ -45,7 +45,14 @@ declare
   k         int;
   want      int;
   capped    boolean := false;
+  cat_type    text;
+  status_type text;
 begin
+  select format_type(atttypid, atttypmod) into cat_type
+  from pg_attribute where attrelid = 'public.incidents'::regclass and attname = 'category';
+  select format_type(atttypid, atttypmod) into status_type
+  from pg_attribute where attrelid = 'public.incidents'::regclass and attname = 'status';
+
   -- The reporter: an admin profile if there is one.
   select id into rep from profiles order by (role = 'admin') desc, created_at limit 1;
   -- Up to 6 other profiles to act as confirming community members.
@@ -99,10 +106,17 @@ begin
     from pts p
     order by p.name, p.i
   loop
-    insert into incidents
-      (reporter_id, category, description, location, status, is_sos,
-       credibility_score, created_at, updated_at)
-    values (
+    -- category and status are enums in some databases and plain text in
+    -- others, so cast each value to whatever type the column really has.
+    execute format(
+      'insert into incidents
+         (reporter_id, category, description, location, status, is_sos,
+          credibility_score, created_at, updated_at)
+       values ($1, $2::%s, $3, $4, $5::%s, $6, 0, $7, $7)
+       returning id',
+      cat_type, status_type)
+    into inc
+    using
       rep,
       case
         when rec.is_sos then 'trapped_person'
@@ -114,11 +128,7 @@ begin
       ST_SetSRID(ST_MakePoint(rec.lng, rec.lat), 4326)::geography,
       rec.status,
       rec.is_sos,
-      0,
-      now() - (rec.i || ' hours')::interval,
-      now() - (rec.i || ' hours')::interval
-    )
-    returning id into inc;
+      now() - (rec.i || ' hours')::interval;
 
     -- Community confirmations; the trigger keeps credibility_score in step.
     want := least(rec.confirms, n_members);
