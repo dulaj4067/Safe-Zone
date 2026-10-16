@@ -97,7 +97,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     // selection, so drop it and tighten the padding.
                     showSelectedIcon: false,
                     style: const ButtonStyle(
-                      visualDensity: VisualDensity.compact,
+                      // 48dp tall, like every other tap target; the default
+                      // density is kept (compact dropped it below 48).
+                      minimumSize: WidgetStatePropertyAll(Size(0, 48)),
                       padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 6)),
                     ),
                     segments: const [
@@ -444,7 +446,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: context.brandAccent,
                 side: BorderSide(color: context.brandAccent),
-                minimumSize: const Size.fromHeight(42),
+                minimumSize: const Size.fromHeight(48),
               ),
               icon: const Icon(Icons.campaign, size: 18),
               label: const Text('Create New Broadcast Alert'),
@@ -465,7 +467,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.riverTeal,
                 foregroundColor: Colors.white,
-                minimumSize: const Size.fromHeight(42),
+                minimumSize: const Size.fromHeight(48),
               ),
               icon: const Icon(Icons.fact_check_outlined, size: 18),
               label: const Text('Review Citizen Incident Reports'),
@@ -485,7 +487,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: context.brandInk,
                 side: BorderSide(color: context.brandInk),
-                minimumSize: const Size.fromHeight(42),
+                minimumSize: const Size.fromHeight(48),
               ),
               icon: const Icon(Icons.accessibility_new_rounded, size: 18),
               label: const Text('Inclusion & Accessibility Settings'),
@@ -497,7 +499,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: context.brandInk,
                 side: BorderSide(color: context.brandInk),
-                minimumSize: const Size.fromHeight(42),
+                minimumSize: const Size.fromHeight(48),
               ),
               icon: const Icon(Icons.person_remove_outlined, size: 18),
               label: const Text('Account Deletion Requests'),
@@ -667,7 +669,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     SizedBox(
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(44),
+                          minimumSize: const Size.fromHeight(48),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -698,7 +700,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.severityRed,
-                          minimumSize: const Size.fromHeight(44),
+                          minimumSize: const Size.fromHeight(48),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
