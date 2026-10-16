@@ -27,6 +27,7 @@ import 'messages_screen.dart';
 import 'privacy_settings_screen.dart';
 import 'volunteer_tasks_screen.dart';
 import '../widgets/a11y/a11y_widgets.dart';
+import '../widgets/about_footer.dart';
 
 /// Settings screen tailored for both [UserRole.member] (Citizens) and
 /// [UserRole.authority] / [UserRole.admin] / [UserRole.volunteerOrg].
@@ -110,7 +111,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Card(
               child: ListTile(
                 key: const Key('inclusion_settings_tile'),
-                leading: Icon(Icons.accessibility_new_rounded, color: context.brandInk),
+                leading: Icon(Icons.visibility_outlined, color: context.brandInk),
                 title: Text(appStringsOf(context).t('inclusionTitle')),
                 subtitle: Text(appStringsOf(context).t('inclusionSubtitle')),
                 trailing: const Icon(Icons.chevron_right),
@@ -143,12 +144,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildHotlinesCard(context),
             const SizedBox(height: 20),
 
-            // ─── System & About ────────────────────────────────────────────
-            _buildSectionHeader('Network & System Status', Icons.info_outline),
-            const SizedBox(height: 8),
-            _buildSystemStatusCard(context),
-            const SizedBox(height: 28),
-
             // ─── Privacy & Data ────────────────────────────────────────────
             _buildSectionHeader('Privacy & Data', Icons.privacy_tip_outlined),
             const SizedBox(height: 8),
@@ -169,7 +164,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             // ─── Logout Button ─────────────────────────────────────────────
             _buildLogoutButton(context),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+            const AboutFooter(),
           ],
         ),
       ),
@@ -459,17 +455,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 );
               },
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: context.brandInk,
-                side: BorderSide(color: context.brandInk),
-                minimumSize: const Size.fromHeight(42),
-              ),
-              icon: const Icon(Icons.accessibility_new_rounded, size: 18),
-              label: const Text('Inclusion & Accessibility Settings'),
-              onPressed: () => showA11yInclusionSheet(context),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
@@ -962,56 +947,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: context.brandInk,
             fontSize: 14,
           ),
-        ),
-      ),
-    );
-  }
-
-  // ─── System Status ─────────────────────────────────────────────────────────
-
-  Widget _buildSystemStatusCard(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: const BoxDecoration(
-                    color: AppColors.severityGreen,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Early-Warning Network Active',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const Spacer(),
-                Text(
-                  'v1.0.0',
-                  style: AppTheme.dataText(context).copyWith(fontSize: 12),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Connected Node',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                Text(
-                  'Supabase Realtime Gateway',
-                  style: AppTheme.dataText(context).copyWith(fontSize: 11),
-                ),
-              ],
-            ),
-          ],
         ),
       ),
     );

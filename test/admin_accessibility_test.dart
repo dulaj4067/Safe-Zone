@@ -325,19 +325,25 @@ void main() {
           value: a11y,
           child: MaterialApp(
             home: Scaffold(
-              appBar: AppBar(
-                actions: const [A11yInclusionButton()],
+              body: Builder(
+                builder: (context) => Center(
+                  child: ElevatedButton(
+                    onPressed: () => showA11yInclusionSheet(context),
+                    child: const Text('open'),
+                  ),
+                ),
               ),
             ),
           ),
         ),
       );
 
-      // Tap accessibility button to open sheet
-      await tester.tap(find.byType(A11yInclusionButton));
+      // The sheet is opened from Settings now (no icon on other pages).
+      await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Inclusion and access'), findsOneWidget);
+      expect(find.text('Accessibility'), findsOneWidget);
+      expect(find.textContaining('Inclusion'), findsNothing);
       expect(find.text('Data saver'), findsOneWidget);
       expect(find.text('Glare-aware contrast'), findsOneWidget);
       expect(find.text('Captions and transcripts'), findsOneWidget);

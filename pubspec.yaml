@@ -56,6 +56,7 @@ dependencies:
   timezone: ^0.11.1
   app_links: ^7.2.1
   share_plus: ^13.3.1
+  package_info_plus: ^10.2.2
 
 dev_dependencies:
   flutter_test:
@@ -92,6 +93,7 @@ flutter:
   #   - images/a_dot_ham.jpeg
   assets:
     - assets/logo.png
+    - assets/pioneers_logo.jpg
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
