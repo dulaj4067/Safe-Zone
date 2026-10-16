@@ -16,7 +16,10 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
 
-  static const String criticalChannelId = 'sz_critical_alerts';
+  // Android freezes a channel's sound once it exists, so the channel that
+  // plays the siren needs a new id (v2); the old one is removed on start.
+  static const String legacyCriticalChannelId = 'sz_critical_alerts';
+  static const String criticalChannelId = 'sz_critical_alerts_v2';
   static const String criticalChannelName = 'Critical Life-Safety Alerts';
   static const String criticalChannelDescription =
       'Life-threatening emergency alerts that bypass Do Not Disturb and silent mode.';
@@ -82,6 +85,8 @@ class NotificationService {
       description: criticalChannelDescription,
       importance: Importance.max,
       playSound: true,
+      // res/raw/siren.wav: the same wail as the in-app critical screen.
+      sound: const RawResourceAndroidNotificationSound('siren'),
       enableVibration: true,
       vibrationPattern: criticalVibration,
       audioAttributesUsage: AudioAttributesUsage.alarm,
@@ -98,6 +103,7 @@ class NotificationService {
       enableVibration: true,
     );
 
+    await android.deleteNotificationChannel(channelId: legacyCriticalChannelId);
     await android.createNotificationChannel(criticalChannel);
     await android.createNotificationChannel(generalChannel);
   }
@@ -166,6 +172,7 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.max,
       playSound: true,
+      sound: const RawResourceAndroidNotificationSound('siren'),
       enableVibration: true,
       vibrationPattern: criticalVibration,
       audioAttributesUsage: AudioAttributesUsage.alarm,

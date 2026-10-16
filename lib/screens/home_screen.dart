@@ -200,12 +200,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _locationService.getCurrentLocation().then((fix) {
       if (mounted && fix != null && _liveLocation == null) {
         setState(() => _liveLocation = fix);
+        context.read<AlertProvider>().updateUserLocation(fix);
         _updatePlaceName(fix);
       }
     });
     _positionSub = _locationService.watchPosition().listen(
       (position) {
-        if (mounted) setState(() => _liveLocation = position);
+        if (mounted) {
+          setState(() => _liveLocation = position);
+          context.read<AlertProvider>().updateUserLocation(position);
+        }
         _updatePlaceName(position);
       },
       onError: (_) {
@@ -246,31 +250,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return nearest?.name;
   }
 
-  /// `sampleRiskZones` is hardcoded sample data with no real backend source
-  /// (see its doc comment) — assigning a real user a "current risk zone"
-  /// from it would mean showing them a fabricated flood-risk warning, which
-  /// is actively misleading for a disaster app. Gated to debug builds only,
-  /// same as `_debugSampleZones` below, until a real zone-risk data source
-  /// exists. In release builds this always returns null, so "Share my ETA"
-  /// simply has no zone context rather than a made-up one.
-  RiskZone? _nearestRiskZone(LatLng center) {
-    if (!kDebugMode) return null;
-    RiskZone? nearest;
-    double? bestDistance;
-    for (final zone in sampleRiskZones) {
-      final centroid = zone.boundary.reduce(
-        (a, b) => LatLng(
-          (a.latitude + b.latitude) / 2,
-          (a.longitude + b.longitude) / 2,
-        ),
-      );
-      final d = _distance(center, centroid);
-      if (bestDistance == null || d < bestDistance) {
-        bestDistance = d;
-        nearest = zone;
+  /// The risk zone the person is standing in, built from a real active
+  /// alert: the most severe alert whose circle contains [live]. Null without
+  /// a GPS fix or outside every alert, so "Share my ETA" shows no zone
+  /// rather than a made-up one (it used to read hardcoded sample data in
+  /// debug builds, which put every tester "in Kelaniya").
+  RiskZone? _currentRiskZone(LatLng? live, List<DisasterAlert> alerts) {
+    if (live == null) return null;
+    DisasterAlert? worst;
+    for (final alert in alerts) {
+      final inside = _distance(live, LatLng(alert.centerLat, alert.centerLng)) <=
+          alert.radiusMeters;
+      if (inside && (worst == null || alert.severity.index > worst.severity.index)) {
+        worst = alert;
       }
     }
-    return nearest;
+    if (worst == null) return null;
+    final centre = LatLng(worst.centerLat, worst.centerLng);
+    return RiskZone(
+      id: worst.id,
+      name: worst.title,
+      level: switch (worst.severity) {
+        AlertSeverity.red => RiskLevel.severe,
+        AlertSeverity.orange => RiskLevel.high,
+        AlertSeverity.yellow => RiskLevel.moderate,
+        AlertSeverity.green => RiskLevel.low,
+      },
+      // A 36-point ring approximating the alert's circle.
+      boundary: [
+        for (var deg = 0; deg < 360; deg += 10)
+          _distance.offset(centre, worst.radiusMeters.toDouble(), deg.toDouble()),
+      ],
+    );
   }
 
   @override
@@ -285,7 +296,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final effectiveCenter = _liveLocation ?? _initialCenter;
     final districtLabel = (_liveLocation != null ? _placeName : null) ??
         _nearestZoneName(effectiveCenter);
-    final nearestRiskZone = _nearestRiskZone(effectiveCenter);
+    final nearestRiskZone = _currentRiskZone(_liveLocation, activeAlerts);
 
     // Consume the resume-centre once so the map animates to it this frame
     // and subsequent rebuilds don't re-trigger the move.
@@ -320,8 +331,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 );
               },
             ),
-            if (activeAlerts.isNotEmpty)
-              LocationAlertBanner(userLocation: effectiveCenter),
+            // Only with a real GPS fix: the default map centre is not where
+            // the person is, so it must not decide who sees a warning.
+            if (activeAlerts.isNotEmpty && _liveLocation != null)
+              LocationAlertBanner(userLocation: _liveLocation!),
             if (_locationDenied) const _LocationDeniedBanner(),
             if (isAlertsOffline) const OfflineStrip(),
             Padding(

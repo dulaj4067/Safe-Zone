@@ -14,6 +14,7 @@ import '../services/activity_history_service.dart';
 import '../services/onboarding_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/alert_banner.dart';
+import '../widgets/critical_alert_takeover.dart';
 import '../widgets/safety_circle_request_banner.dart';
 import '../widgets/splash_screen.dart';
 import 'admin_broadcast_screen.dart';
@@ -191,6 +192,20 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
               right: 0,
               child: SafetyCircleRequestBanner(),
             ),
+          // Last, so it covers everything, including the nav bar's area.
+          if (alertProvider.criticalTakeover != null)
+            Positioned.fill(
+              child: CriticalAlertTakeover(
+                key: ValueKey(alertProvider.criticalTakeover!.id),
+                alert: alertProvider.criticalTakeover!,
+                sirenEnabled: alertProvider.sirenOverride,
+                onDismiss: () => context.read<AlertProvider>().dismissTakeover(),
+                onFindShelter: () {
+                  context.read<AlertProvider>().dismissTakeover();
+                  setState(() => _tabIndex = 2); // Shelters
+                },
+              ),
+            ),
         ],
       ),
       // Home tab only — on the other tabs it covers list content.
@@ -216,7 +231,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       // Hidden until the profile has loaded: the splash shouldn't look like
       // a usable app, and the tab set depends on the user's role.
-      bottomNavigationBar: _loadingProfile ? null : BottomNavBar(
+      // Also hidden while the critical alert owns the screen.
+      bottomNavigationBar: (_loadingProfile || alertProvider.criticalTakeover != null) ? null : BottomNavBar(
         currentIndex: _tabIndex >= tabs.length ? 0 : _tabIndex,
         isAuthority: isAuthority,
         onDestinationSelected: (i) {

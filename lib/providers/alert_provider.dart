@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../models/alert.dart';
 import '../models/alert_delivery_result.dart';
@@ -26,6 +27,19 @@ class AlertProvider extends ChangeNotifier {
 
   List<DisasterAlert> _activeAlerts = [];
   DisasterAlert? _bannerAlert; // most recent unread alert, shown as banner
+
+  /// A critical alert that applies to this person, shown full-screen with a
+  /// siren until dismissed.
+  DisasterAlert? _criticalTakeover;
+
+  /// The person's last known position, pushed in by the Home screen. Null
+  /// until there is a GPS fix.
+  LatLng? _userLocation;
+  static const Distance _distance = Distance();
+
+  /// How far past an alert's own radius it still counts as "near": the same
+  /// 6x rule the Home banner uses, so both agree.
+  static const double nearRangeMultiplier = 6.0;
   bool _isOffline = false;
   DateTime? _lastUpdated;
   bool _myZoneOnly = false;
@@ -57,6 +71,8 @@ class AlertProvider extends ChangeNotifier {
   AlertDeliveryResult? get lastDeliveryResult => _lastDeliveryResult;
   List<AlertDeliveryResult> get deliveryHistory => List.unmodifiable(_deliveryHistory);
   DisasterAlert? get bannerAlert => _bannerAlert;
+  DisasterAlert? get criticalTakeover => _criticalTakeover;
+  LatLng? get userLocation => _userLocation;
   bool get isOffline => _isOffline;
   DateTime? get lastUpdated => _lastUpdated;
   NotificationService get notificationService => _notificationService;
@@ -146,6 +162,47 @@ class AlertProvider extends ChangeNotifier {
     return alert.affectedZoneId == _userZoneId;
   }
 
+  /// Whether [alert] is close enough to the person to matter: true or false
+  /// once there is a GPS fix, null while their position is unknown.
+  bool? isNearby(DisasterAlert alert) {
+    final here = _userLocation;
+    if (here == null) return null;
+    final metres = _distance(here, LatLng(alert.centerLat, alert.centerLng));
+    return metres <= alert.radiusMeters * nearRangeMultiplier;
+  }
+
+  /// Called by the Home screen with each GPS fix. Drops a banner or takeover
+  /// that the person has since moved away from, but never spams listeners
+  /// while the situation is unchanged.
+  void updateUserLocation(LatLng? where) {
+    _userLocation = where;
+    var changed = false;
+    final banner = _bannerAlert;
+    if (banner != null && isNearby(banner) == false) {
+      _bannerAlert = null;
+      changed = true;
+    }
+    final takeover = _criticalTakeover;
+    if (takeover != null && isNearby(takeover) == false) {
+      _criticalTakeover = null;
+      changed = true;
+    }
+    if (changed) notifyListeners();
+  }
+
+  /// Shows the critical screen for [alert] right now, bypassing the zone and
+  /// proximity checks. Used by Settings > Test Critical Siren.
+  void previewCriticalTakeover(DisasterAlert alert) {
+    _criticalTakeover = alert;
+    notifyListeners();
+  }
+
+  void dismissTakeover() {
+    if (_criticalTakeover == null) return;
+    _criticalTakeover = null;
+    notifyListeners();
+  }
+
   void _syncBannerWithFilter() {
     if (_bannerAlert != null && !alertAffectsMyZone(_bannerAlert!)) {
       _bannerAlert = null;
@@ -206,9 +263,25 @@ class AlertProvider extends ChangeNotifier {
     bool fallbackTriggered = false;
     String? failureReason;
 
-    // In-App banner is an active channel for citizen life-safety whenever app is active
-    _bannerAlert = alert;
-    channelsUsed.add(DeliveryChannel.inApp);
+    // In-App banner is an active channel for citizen life-safety whenever app is active.
+    // With a GPS fix it is only shown to people near the alert; without one
+    // we can't tell, so the zone rule above decides and it is still shown.
+    final nearby = isNearby(alert);
+    if (nearby != false) {
+      _bannerAlert = alert;
+      channelsUsed.add(DeliveryChannel.inApp);
+    }
+    // Critical alerts also take over the screen, but only when we know the
+    // person is near it, or (no fix) it is their saved zone: a full-screen
+    // siren is too disruptive to fire on a guess.
+    if (alert.severity.isCritical &&
+        (nearby == true ||
+            (nearby == null &&
+                _userZoneId != null &&
+                _userZoneId!.isNotEmpty &&
+                alert.affectedZoneId == _userZoneId))) {
+      _criticalTakeover = alert;
+    }
 
     // 1. Primary Channel: Operating System push notification — skipped
     // entirely (no fallback either) when the citizen has turned off push
@@ -288,6 +361,9 @@ class AlertProvider extends ChangeNotifier {
         // Story 2 AC: clear any active banner tied to a now-resolved alert.
         if (_bannerAlert?.id == alert.id) {
           _bannerAlert = null;
+        }
+        if (_criticalTakeover?.id == alert.id) {
+          _criticalTakeover = null;
         }
         _notificationService.cancelAlert(alert.id);
       } else {
