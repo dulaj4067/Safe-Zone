@@ -548,6 +548,11 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
   bool _showHeatmap = false;
   BaseMapStyle _baseMapStyle = BaseMapStyle.street;
 
+  /// Share of the alert zone's fill kept at [zoom]: all of it zoomed out, a
+  /// fifth when zoomed right in.
+  static double _zoneFillFade(double zoom) =>
+      (1 - (zoom - 12) / 3 * 0.8).clamp(0.2, 1.0);
+
   bool _isOpen(Incident i) =>
       i.status == IncidentStatus.pending || i.status == IncidentStatus.verified;
 
@@ -996,14 +1001,20 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
               // Heatmap layer — sits between the base tiles and the alert
               // circles so it never obscures interactive elements.
               if (_showHeatmap) HeatmapLayer(incidents: incidents),
-              CircleLayer(
+              // Alert zones are sized in metres, so zoomed in a 3 km zone would
+              // wash the whole screen; fade the fill with zoom and keep the
+              // outline, so the area stays readable without hiding the map.
+              Builder(
+                builder: (zoneContext) {
+                  final fade = _zoneFillFade(MapCamera.of(zoneContext).zoom);
+                  return CircleLayer(
                 circles: [
                   for (final alert in alerts)
                     CircleMarker(
                       point: LatLng(alert.centerLat, alert.centerLng),
                       radius: alert.radiusMeters.toDouble(),
                       useRadiusInMeter: true,
-                      color: severityFillColor(alert.severity),
+                      color: severityFillColor(alert.severity).withValues(alpha: 0.33 * fade),
                       borderColor: severityColor(alert.severity),
                       borderStrokeWidth: 1.5,
                     ),
@@ -1013,11 +1024,13 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                         point: zone.center,
                         radius: zone.radiusMeters,
                         useRadiusInMeter: true,
-                        color: severityFillColor(zone.severity),
+                        color: severityFillColor(zone.severity).withValues(alpha: 0.33 * fade),
                         borderColor: severityColor(zone.severity),
                         borderStrokeWidth: 1.5,
                       ),
                 ],
+              );
+                },
               ),
               if (activeRoute != null)
                 PolylineLayer(
