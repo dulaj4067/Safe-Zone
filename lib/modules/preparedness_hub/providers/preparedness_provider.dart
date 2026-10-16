@@ -172,6 +172,11 @@ class PreparednessProvider extends ChangeNotifier {
   Future<List<DisasterHistoryRecord>> historyForZone(String zoneId) =>
       _repository.getHistory(zoneId);
 
+  Future<void> saveHistoryRecord(DisasterHistoryRecord record) async {
+    await _repository.saveHistoryRecord(record);
+    notifyListeners();
+  }
+
   Future<String?> getActiveAlertForZone(String zoneId) =>
       _repository.getActiveAlertForZone(zoneId);
 }

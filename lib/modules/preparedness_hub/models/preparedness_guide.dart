@@ -1,4 +1,24 @@
-enum GuideCategory { flood, fire, earthquake, general }
+enum GuideCategory {
+  flood,
+  fire,
+  earthquake,
+  landslide,
+  tsunami,
+  cyclone,
+  general,
+}
+
+extension GuideCategoryLabel on GuideCategory {
+  String get label => switch (this) {
+    GuideCategory.flood => 'Flood',
+    GuideCategory.fire => 'Fire',
+    GuideCategory.earthquake => 'Earthquake',
+    GuideCategory.landslide => 'Landslide',
+    GuideCategory.tsunami => 'Tsunami',
+    GuideCategory.cyclone => 'Cyclone / severe weather',
+    GuideCategory.general => 'General',
+  };
+}
 
 class PreparednessGuide {
   const PreparednessGuide({

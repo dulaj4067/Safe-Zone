@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -18,7 +20,9 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
   final Map<String, dynamic> _profile = {};
 
   bool _loading = true;
+  bool _generating = false;
   String? _errorMessage;
+  Timer? _generationDebounce;
 
   bool get _canGenerateChecklist =>
       _profile['locationType'] is String &&
@@ -75,9 +79,12 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
   Future<void> _saveProfileAndRefresh() async {
     final provider = context.read<PreparednessProvider>();
     final userId = widget.currentUser?.id;
-    if (userId == null) return;
+    if (userId == null || !_canGenerateChecklist) return;
     try {
-      setState(() => _errorMessage = null);
+      setState(() {
+        _errorMessage = null;
+        _generating = true;
+      });
       final profile = {
         ..._profile,
         'hasElderlyMember': _profile['hasElderlyMember'] == 'yes',
@@ -87,7 +94,25 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
       await provider.loadUserChecklist(userId, profile: profile);
     } catch (error) {
       if (mounted) setState(() => _errorMessage = error.toString());
+    } finally {
+      if (mounted) setState(() => _generating = false);
     }
+  }
+
+  void _onProfileChanged(String key, dynamic value) {
+    setState(() => _profile[key] = value);
+    if (!_canGenerateChecklist) return;
+    _generationDebounce?.cancel();
+    _generationDebounce = Timer(
+      const Duration(milliseconds: 300),
+      _saveProfileAndRefresh,
+    );
+  }
+
+  @override
+  void dispose() {
+    _generationDebounce?.cancel();
+    super.dispose();
   }
 
   @override
@@ -139,9 +164,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                           child: Text('Urban / general'),
                         ),
                       ],
-                      onChanged: (value) => setState(
-                        () => _profile['locationType'] = value ?? 'urban',
-                      ),
+                      onChanged: (value) =>
+                          _onProfileChanged('locationType', value ?? 'urban'),
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
@@ -160,9 +184,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                         ),
                         DropdownMenuItem(value: '5+', child: Text('5+ people')),
                       ],
-                      onChanged: (value) => setState(
-                        () => _profile['householdSize'] = value ?? '3-4',
-                      ),
+                      onChanged: (value) =>
+                          _onProfileChanged('householdSize', value ?? '3-4'),
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
@@ -175,7 +198,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                         DropdownMenuItem(value: 'no', child: Text('No')),
                       ],
                       onChanged: (value) =>
-                          setState(() => _profile['hasElderlyMember'] = value),
+                          _onProfileChanged('hasElderlyMember', value),
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
@@ -188,7 +211,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                         DropdownMenuItem(value: 'no', child: Text('No')),
                       ],
                       onChanged: (value) =>
-                          setState(() => _profile['hasDisabledMember'] = value),
+                          _onProfileChanged('hasDisabledMember', value),
                     ),
                     DropdownButtonFormField<bool>(
                       initialValue: _profile['hasVehicle'] as bool?,
@@ -200,18 +223,16 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
                         DropdownMenuItem(value: false, child: Text('No')),
                       ],
                       onChanged: (value) =>
-                          setState(() => _profile['hasVehicle'] = value),
+                          _onProfileChanged('hasVehicle', value),
                     ),
                     const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _canGenerateChecklist
-                            ? _saveProfileAndRefresh
-                            : null,
-                        icon: const Icon(Icons.save_outlined),
-                        label: const Text('Generate checklist'),
-                      ),
+                    Text(
+                      _generating
+                          ? 'Generating your checklist...'
+                          : _canGenerateChecklist
+                          ? 'Your checklist updates automatically when you change an answer.'
+                          : 'Select an answer for each question to generate your checklist.',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),

@@ -38,7 +38,7 @@ class ManageGuidesScreen extends StatelessWidget {
                 child: ListTile(
                   title: Text(guide.title),
                   subtitle: Text(
-                    '${guide.category.name}  -  ${guide.isArchived ? 'Archived' : 'Published'}',
+                    '${guide.category.label}  -  ${guide.isArchived ? 'Archived' : 'Published'}',
                   ),
                   leading: Icon(
                     guide.isArchived
@@ -162,12 +162,8 @@ class _GuideEditorState extends State<_GuideEditor> {
             decoration: const InputDecoration(labelText: 'Category'),
             items: GuideCategory.values
                 .map(
-                  (value) => DropdownMenuItem(
-                    value: value,
-                    child: Text(
-                      value.name[0].toUpperCase() + value.name.substring(1),
-                    ),
-                  ),
+                  (value) =>
+                      DropdownMenuItem(value: value, child: Text(value.label)),
                 )
                 .toList(),
             onChanged: (value) =>

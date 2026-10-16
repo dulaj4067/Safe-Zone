@@ -105,6 +105,10 @@ class _ChecklistEditorState extends State<_ChecklistEditor> {
     final tags = <String>{
       'riverside',
       'low-lying',
+      'hillside',
+      'urban',
+      'small-household',
+      'medium-household',
       'elderly-household',
       'disabled-household',
       'no-vehicle',
