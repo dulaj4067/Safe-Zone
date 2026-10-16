@@ -722,12 +722,40 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
 
   bool _sendingSos = false;
 
+  /// True from the first tap until the SOS flow ends (dialog open, sending).
+  /// Without it, tapping fast stacked several confirm dialogs and filed several
+  /// identical SOS reports.
+  bool _sosBusy = false;
+
   /// One-tap "I'm trapped" report from the map: no form and no description,
   /// just a Trapped Person SOS pinned at the device's live GPS position.
   /// Asks once first, since a stray tap would page rescuers for nothing.
   Future<void> _sendSos() async {
+    if (_sosBusy) return;
+    _sosBusy = true;
+    try {
+      await _sendSosOnce();
+    } finally {
+      _sosBusy = false;
+    }
+  }
+
+  Future<void> _sendSosOnce() async {
     final messenger = ScaffoldMessenger.of(context);
     final strings = appStringsOf(context, listen: false);
+    final existing = context.read<IncidentProvider>().activeOwnSos();
+    if (existing != null) {
+      final mins = DateTime.now().difference(existing.createdAt).inMinutes;
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(context.tr(
+              'Your SOS was sent {mins} min ago and is still active. Help is being alerted.',
+              {'mins': mins})),
+          backgroundColor: AppColors.deepEstuary,
+        ));
+      return;
+    }
     final location = widget.liveLocation;
     if (location == null) {
       messenger.showSnackBar(

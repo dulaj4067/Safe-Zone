@@ -225,6 +225,31 @@ class IncidentProvider extends ChangeNotifier {
 
   /// Submits a new incident report. Handles media upload if files are
   /// provided, then creates the incident record.
+  /// How long your own SOS counts as still active. Tapping SOS again inside
+  /// this window does not file another one.
+  static const sosCooldown = Duration(minutes: 10);
+
+  static const sosAlreadyActiveMessage =
+      'You already sent an SOS a moment ago. Help is being alerted.';
+
+  /// Your own SOS that is still open and recent, or null. Spamming the SOS
+  /// button used to file a pile of identical trapped-person reports, which made
+  /// the duplicate-report check fire for everyone else and buried real reports.
+  Incident? activeOwnSos() {
+    final me = SupabaseService.currentUserId;
+    if (me == null) return null;
+    final cutoff = DateTime.now().subtract(sosCooldown);
+    for (final i in _incidents) {
+      if (i.isSos &&
+          i.reporterId == me &&
+          (i.status == IncidentStatus.pending || i.status == IncidentStatus.verified) &&
+          i.createdAt.isAfter(cutoff)) {
+        return i;
+      }
+    }
+    return null;
+  }
+
   Future<bool> submitIncident({
     required IncidentCategory category,
     required String description,
@@ -234,6 +259,16 @@ class IncidentProvider extends ChangeNotifier {
     File? photoFile,
     File? videoFile,
   }) async {
+    // One SOS at a time: ignore a second tap while one is being sent, and a new
+    // one while your last is still active.
+    if (isSos) {
+      if (_isSubmitting) return false;
+      if (activeOwnSos() != null) {
+        _errorMessage = sosAlreadyActiveMessage;
+        notifyListeners();
+        return false;
+      }
+    }
     _isSubmitting = true;
     _errorMessage = null;
     notifyListeners();
