@@ -1,8 +1,30 @@
+/// Where a shelter is in the submit → verify → approve/reject workflow.
+/// Only [approved] shelters appear on the public Shelters page.
+enum ShelterApproval {
+  pending,
+  approved,
+  rejected;
+
+  static ShelterApproval fromDb(String? value) => switch (value) {
+        'pending' => ShelterApproval.pending,
+        'rejected' => ShelterApproval.rejected,
+        _ => ShelterApproval.approved,
+      };
+
+  String get label => switch (this) {
+        ShelterApproval.pending => 'Awaiting review',
+        ShelterApproval.approved => 'Approved',
+        ShelterApproval.rejected => 'Rejected',
+      };
+}
+
 /// A designated safe shelter location, mapped to the `shelters` table.
 ///
 /// Columns read: id, name, type, location (PostGIS point), capacity,
-/// occupancy, status, managed_by, contact_phone, updated_at. The table has
-/// no address column, so [address] stays null unless one is ever added.
+/// occupancy, status, managed_by, contact_phone, updated_at, plus the
+/// approval workflow fields added by
+/// sql/shelter_workflow_and_volunteer_fixes_migration.sql. Rows from a
+/// database without that migration read as approved.
 class Shelter {
   final String id;
   final String name;
@@ -27,6 +49,17 @@ class Shelter {
   final String? managedBy;
   final DateTime? updatedAt;
 
+  /// Free-text notes from whoever runs the shelter (facilities, access).
+  final String? description;
+
+  final ShelterApproval approval;
+
+  /// Who submitted the shelter for review.
+  final String? submittedBy;
+
+  /// Why an authority rejected the submission, shown to the submitter.
+  final String? rejectionReason;
+
   Shelter({
     required this.id,
     required this.name,
@@ -40,6 +73,10 @@ class Shelter {
     this.contactPhone,
     this.managedBy,
     this.updatedAt,
+    this.description,
+    this.approval = ShelterApproval.approved,
+    this.submittedBy,
+    this.rejectionReason,
   });
 
   factory Shelter.fromMap(Map<String, dynamic> map) {
@@ -66,6 +103,10 @@ class Shelter {
       updatedAt: map['updated_at'] != null
           ? DateTime.tryParse(map['updated_at'] as String)
           : null,
+      description: map['description'] as String?,
+      approval: ShelterApproval.fromDb(map['approval_status'] as String?),
+      submittedBy: map['submitted_by'] as String?,
+      rejectionReason: map['rejection_reason'] as String?,
     );
   }
 
