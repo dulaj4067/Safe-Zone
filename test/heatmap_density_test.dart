@@ -33,12 +33,18 @@ void main() {
     }
   });
 
-  test('a tight cluster reads as a hotspot', () {
-    final cluster = [
-      for (var i = 0; i < 5; i++) _at(6.9556 + i * 0.001, 79.9222 + i * 0.001),
+  test('a lone report is green, a few are orange, a big cluster is red', () {
+    List<Incident> cluster(int n) => [
+      for (var i = 0; i < n; i++) _at(6.9556 + i * 0.0004, 79.9222 + i * 0.0004),
     ];
-    final d = HeatmapLayer.densities(cluster);
-    expect(HeatmapLayer.intensity(d[2]), greaterThan(0.9));
+    double peak(int n) =>
+        HeatmapLayer.densities(cluster(n)).map(HeatmapLayer.intensity).reduce((a, b) => a > b ? a : b);
+
+    expect(peak(1), lessThan(0.15), reason: 'lone report stays green');
+    expect(peak(5), inInclusiveRange(0.3, 0.7), reason: 'a handful is mid-scale');
+    expect(peak(14), greaterThan(0.9), reason: 'a dozen-plus is red');
+    expect(peak(5), greaterThan(peak(1)));
+    expect(peak(14), greaterThan(peak(5)));
   });
 
   test('nearby reports reinforce each other across any grid boundary', () {

@@ -12,8 +12,9 @@ import '../models/incident.dart';
 /// Each report spreads a Gaussian "influence" around itself, so reports
 /// near each other add up into a hotspot — independent of any grid lines.
 /// Colour comes from a fixed scale rather than "relative to the busiest
-/// spot": a lone report stays green, and red only appears where several
-/// reports genuinely overlap. (Normalising to the busiest spot made every
+/// spot": a lone report stays green, a handful close together reads
+/// yellow to orange, and red only appears where a dozen or so reports
+/// genuinely pile up. (Normalising to the busiest spot made every
 /// isolated report render as maximum red whenever no two were close.)
 class HeatmapLayer extends StatelessWidget {
   final List<Incident> incidents;
@@ -21,9 +22,11 @@ class HeatmapLayer extends StatelessWidget {
   /// How far a report's influence reaches (Gaussian sigma).
   static const double bandwidthMetres = 1500;
 
-  /// Weighted density at which the colour tops out at red — roughly four
-  /// ordinary reports right on top of each other.
-  static const double saturationDensity = 4.0;
+  /// Weighted density at which the colour tops out at red — roughly ten
+  /// ordinary reports right on top of each other. (It was 4, which made a
+  /// lone report read yellow and any group of four already full red, so
+  /// small and large clusters looked the same.)
+  static const double saturationDensity = 10.0;
 
   const HeatmapLayer({super.key, required this.incidents});
 
