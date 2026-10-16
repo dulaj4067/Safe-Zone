@@ -760,8 +760,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             updatedAt: DateTime.now(),
                           );
 
-                          await NotificationService()
-                              .showCriticalAlert(testAlert);
+                          // Open the full-screen critical alert (siren,
+                          // vibration, shelter and 119 buttons) so the whole
+                          // experience can be tried without publishing, then
+                          // post the notification; a notification failure
+                          // must not hide the screen.
+                          context
+                              .read<AlertProvider>()
+                              .previewCriticalTakeover(testAlert);
+                          try {
+                            await NotificationService()
+                                .showCriticalAlert(testAlert);
+                          } catch (_) {}
 
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
