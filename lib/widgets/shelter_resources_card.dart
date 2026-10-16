@@ -81,7 +81,7 @@ class _ShelterResourcesCardState extends State<ShelterResourcesCard> {
                     decoration: InputDecoration(labelText: context.tr('Supply')),
                     items: [
                       for (final t in missingTypes)
-                        DropdownMenuItem(value: t, child: Text(t.label)),
+                        DropdownMenuItem(value: t, child: Text(context.tr(t.label))),
                     ],
                     onChanged: (t) {
                       if (t == null) return;

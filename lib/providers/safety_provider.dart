@@ -10,10 +10,12 @@ import '../services/supabase_service.dart';
 import '../services/location_service.dart';
 import '../utils/format_utils.dart';
 import '../widgets/session_history_list.dart' show SessionHistoryEntry;
+import '../utils/error_messages.dart';
 
 /// A family-circle action that failed, with a message safe to show as-is
 /// (e.g. "This invite link has expired. Ask for a new one.").
-class FamilyCircleException implements Exception {
+class FamilyCircleException implements Exception, UserMessage {
+  @override
   final String message;
   const FamilyCircleException(this.message);
 
@@ -196,7 +198,7 @@ class SafetyProvider extends ChangeNotifier {
       await loadFamilyCircle();
       return inviteLinkFor(code as String);
     } on PostgrestException catch (e) {
-      throw FamilyCircleException(e.message);
+      throw FamilyCircleException(friendlyError(e));
     }
   }
 
@@ -231,7 +233,7 @@ class SafetyProvider extends ChangeNotifier {
         ),
       );
     } on PostgrestException catch (e) {
-      throw FamilyCircleException(e.message);
+      throw FamilyCircleException(friendlyError(e));
     }
   }
 

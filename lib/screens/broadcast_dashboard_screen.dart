@@ -214,7 +214,7 @@ class _SeverityFilterRow extends StatelessWidget {
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(
-                  label: Text(s.label),
+                  label: Text(context.tr(s.label)),
                   selected: selected == s,
                   onSelected: (_) => onSelected(selected == s ? null : s),
                 ),
@@ -875,7 +875,7 @@ class _EscalateSheetState extends State<_EscalateSheet> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(s.label),
+                      Text(context.tr(s.label)),
                     ],
                   ),
                 );

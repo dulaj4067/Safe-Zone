@@ -147,7 +147,7 @@ class _BroadcastAuditLogScreenState extends State<BroadcastAuditLogScreen> {
                             ? Colors.white
                             : action.color,
                       ),
-                      label: Text(action.label),
+                      label: Text(context.tr(action.label)),
                       selected: _selectedAction == action,
                       onSelected: (_) => setState(() =>
                           _selectedAction = _selectedAction == action ? null : action),

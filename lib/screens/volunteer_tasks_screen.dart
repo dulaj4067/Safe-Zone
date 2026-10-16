@@ -371,10 +371,10 @@ class _TaskCard extends StatelessWidget {
                         if (s != task.status)
                           PopupMenuItem(value: s, child: Text(context.tr('Mark {p0}', {'p0': s.label.toLowerCase()}))),
                     ],
-                    child: _StatusChip(label: task.status.label, color: _statusColor, editable: true),
+                    child: _StatusChip(label: context.tr(task.status.label), color: _statusColor, editable: true),
                   )
                 else
-                  _StatusChip(label: task.status.label, color: _statusColor),
+                  _StatusChip(label: context.tr(task.status.label), color: _statusColor),
               ],
             ),
             const SizedBox(height: 4),

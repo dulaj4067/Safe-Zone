@@ -73,7 +73,7 @@ class ShelterPreviewCard extends StatelessWidget {
                         ),
                         Text(
                           [
-                            shelter.typeLabel,
+                            context.tr(shelter.typeLabel),
                             if (metres != null) '${distanceLabel(metres)} away',
                           ].join(' · '),
                           style: textTheme.bodySmall,

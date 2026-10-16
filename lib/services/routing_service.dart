@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import '../models/route_result.dart';
+import '../utils/error_messages.dart';
 
 /// Wraps the free, keyless OSRM public routing API (router.project-osrm.org)
 /// — no API key, no billing account, no key-restriction footguns to trip
@@ -91,7 +92,8 @@ class RoutingService {
   }
 }
 
-class RouteException implements Exception {
+class RouteException implements Exception, UserMessage {
+  @override
   final String message;
   RouteException(this.message);
   @override

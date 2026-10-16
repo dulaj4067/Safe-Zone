@@ -243,7 +243,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
               backgroundColor: StatusBadge.backgroundColor(targetStatus),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(targetStatus.label),
+            child: Text(context.tr(targetStatus.label)),
           ),
         ],
       ),
@@ -535,7 +535,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _incident.category.label,
+                        context.tr(_incident.category.label),
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -964,7 +964,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                       ),
                     ),
                   ] else ...[
-                    Text(context.tr('This incident is currently {p0}.', {'p0': _incident.status.label.toLowerCase()}),
+                    Text(context.tr('This incident is currently {p0}.', {'p0': context.tr(_incident.status.label).toLowerCase()}),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],

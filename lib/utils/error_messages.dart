@@ -5,6 +5,13 @@ import 'package:http/http.dart' show ClientException;
 import 'package:supabase_flutter/supabase_flutter.dart'
     show AuthException, FunctionException, PostgrestException;
 
+/// An exception whose [message] is already written for people (our own
+/// FamilyCircleException, DeletionException, RouteException...), so
+/// [friendlyError] can show it as it is.
+abstract interface class UserMessage {
+  String get message;
+}
+
 /// Plain-English, user-facing wording for errors, so people see
 /// "Email or password is incorrect." instead of
 /// "AuthApiException(message: Invalid login credentials, ...)".
@@ -141,6 +148,7 @@ String friendlyError(Object error) {
       error is HandshakeException) {
     return kNetworkError;
   }
+  if (error is UserMessage) return (error as UserMessage).message;
   if (error is FunctionException) return kGenericError;
   // Our own StateErrors (e.g. "You don't have permission to edit this
   // shelter.") are already written for people.

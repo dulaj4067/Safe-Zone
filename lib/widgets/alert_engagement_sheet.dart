@@ -669,7 +669,7 @@ class _AlertEngagementSheetState extends State<AlertEngagementSheet> {
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
-              res.status.label,
+              context.tr(res.status.label),
               style: TextStyle(
                 color: statusColor,
                 fontSize: 10,

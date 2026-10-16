@@ -255,7 +255,7 @@ class _ShelterCard extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           [
-                            shelter.typeLabel,
+                            context.tr(shelter.typeLabel),
                             if (m != null) distanceLabel(m),
                           ].join(' · '),
                           style: textTheme.bodySmall,

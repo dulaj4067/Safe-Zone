@@ -204,7 +204,8 @@ class OpenDeletionRequest {
   );
 }
 
-class DeletionException implements Exception {
+class DeletionException implements Exception, UserMessage {
+  @override
   final String message;
   DeletionException(this.message);
   @override

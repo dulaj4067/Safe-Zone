@@ -286,7 +286,7 @@ Future<void> showMapFilterSheet(
                               size: 16,
                               color: categoryColor(c),
                             ),
-                            label: Text(c.label),
+                            label: Text(context.tr(c.label)),
                             selected: !filters.hiddenCategories.contains(c),
                             onSelected: (show) {
                               final hidden = {...filters.hiddenCategories};

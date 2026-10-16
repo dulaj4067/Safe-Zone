@@ -278,7 +278,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
         ),
         initialValue: form.severity,
         items: AlertSeverity.values.map((s) {
-          return DropdownMenuItem(value: s, child: Text(s.label));
+          return DropdownMenuItem(value: s, child: Text(context.tr(s.label)));
         }).toList(),
         onChanged: (v) {
           if (v != null) context.read<AlertFormProvider>().updateSeverity(v);

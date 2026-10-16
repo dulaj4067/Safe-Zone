@@ -40,7 +40,7 @@ class IncidentDetailSheet extends StatelessWidget {
                 ),
               Expanded(
                 child: Text(
-                  incident.category.label,
+                  context.tr(incident.category.label),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),

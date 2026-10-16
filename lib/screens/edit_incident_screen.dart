@@ -490,7 +490,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
                     children: [
                       Icon(categoryIcon(cat), color: categoryColor(cat), size: 18),
                       const SizedBox(width: 10),
-                      Text(cat.label),
+                      Text(context.tr(cat.label)),
                     ],
                   ),
                 );

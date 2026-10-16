@@ -329,13 +329,13 @@ class _ShelterDetailScreenState extends State<ShelterDetailScreen> {
                         ),
                         title: Text(
                           e.incident.isSos
-                              ? 'SOS · ${e.incident.category.label}'
-                              : e.incident.category.label,
+                              ? 'SOS · ${context.tr(e.incident.category.label)}'
+                              : context.tr(e.incident.category.label),
                         ),
                         subtitle: Text(
                           [
                             distanceLabel(e.metres),
-                            e.incident.status.label,
+                            context.tr(e.incident.status.label),
                             timeAgo(e.incident.createdAt),
                           ].join(' · '),
                         ),
@@ -394,7 +394,7 @@ class _Header extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                [shelter.typeLabel, ?away].join(' · '),
+                [context.tr(shelter.typeLabel), ?away].join(' · '),
                 style: textTheme.bodyMedium?.copyWith(
                   color: textTheme.bodySmall?.color,
                 ),
@@ -771,8 +771,12 @@ class _VolunteerNeeds extends StatelessWidget {
               leading: const Icon(Icons.volunteer_activism_outlined),
               title: Text(t.title),
               subtitle: Text(
-                '${t.status.label} · ${t.signedUpCount}/${t.volunteersNeeded} volunteers'
-                '${t.isFull ? ' · filled' : ''}',
+                context.tr('{status} · {n}/{m} volunteers', {
+                      'status': context.tr(t.status.label),
+                      'n': t.signedUpCount,
+                      'm': t.volunteersNeeded,
+                    }) +
+                    (t.isFull ? ' · ${context.tr('filled')}' : ''),
               ),
             ),
         ],
