@@ -30,12 +30,26 @@ class HeatmapLayer extends StatelessWidget {
 
   const HeatmapLayer({super.key, required this.incidents});
 
-  /// SOS and trapped-person reports count more; unverified ones a bit
-  /// less, so a pile of unconfirmed reports doesn't outweigh verified ones.
+  /// How much one report heats the map. Only confirmed reports count in
+  /// full:
+  ///
+  /// - **verified** (an authority confirmed it): 1.0, plus 0.1 for each
+  ///   community confirmation (up to +0.5);
+  /// - **pending**: a faint 0.2 on its own, rising 0.2 with each community
+  ///   confirmation, so four neighbours confirming it makes it count as
+  ///   much as an authority-verified one;
+  /// - **rejected** or **resolved**: 0, since they are no longer a live
+  ///   problem.
+  ///
+  /// SOS and trapped-person reports count 1.5 times as much.
   static double weightOf(Incident i) {
-    var w = 1.0;
+    final confirmations = i.credibilityScore < 0 ? 0 : i.credibilityScore;
+    var w = switch (i.status) {
+      IncidentStatus.verified => 1.0 + 0.1 * math.min(confirmations, 5),
+      IncidentStatus.pending => math.min(0.2 + 0.2 * confirmations, 1.0),
+      IncidentStatus.rejected || IncidentStatus.resolved => 0.0,
+    };
     if (i.isSos || i.category == IncidentCategory.trappedPerson) w *= 1.5;
-    if (i.status == IncidentStatus.pending) w *= 0.75;
     return w;
   }
 
@@ -71,6 +85,8 @@ class HeatmapLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Rejected and resolved reports add no heat, so they are not drawn.
+    final incidents = this.incidents.where((i) => weightOf(i) > 0).toList();
     if (incidents.isEmpty) return const SizedBox.shrink();
     final density = densities(incidents);
 
