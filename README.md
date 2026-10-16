@@ -30,14 +30,14 @@ Built by **The Pioneers** for the Y3S2 UEE module.
 ## Features
 
 ### For citizens
-- **Real-time alerts**: severity-banded warnings (green to red) delivered live. Critical red alerts use a dedicated alarm channel that can bypass Do Not Disturb, with SMS and in-app fallback if push fails.
+- **Real-time alerts**: severity-banded warnings (green to red) delivered live, one banner at a time (the most critical and nearest). The app reconnects and catches up after the network drops or the app returns from the background. Critical red alerts use a dedicated alarm channel that can bypass Do Not Disturb, with SMS and in-app fallback if push fails.
 - **Interactive map**: street and topographic layers, your live GPS position, shelters, incidents and active alert zones on one map. Maps are locked to Sri Lanka.
-- **Incident reporting**: photo and video evidence, an SOS flag for life-threatening reports, community confirmation with a credibility score, and duplicate warnings for nearby reports. The pin starts on your GPS position and can be moved by hand.
+- **Incident reporting**: new reports from other people appear on the list and map without a manual reload. Photo and video evidence, an SOS flag for life-threatening reports, community confirmation with a credibility score, and duplicate warnings for nearby reports. The pin starts on your GPS position and can be moved by hand.
 - **Shelters**: capacity, occupancy, status, live supply levels (water, food, medicine, bedding), safe-route directions, a one-tap call to the shelter desk, and two-way messaging with the shelter manager (managers can also start a chat with their volunteers).
 - **Manage your shelter**: run a shelter, relief camp or medical point? Submit it for verification. Once an authority approves it, it appears publicly and you manage its details, supplies and messages from the normal shelter page.
 - **Volunteering**: sign up for tasks, see how many helpers each still needs, and withdraw yourself at any time.
 - **Safety Circle and family invites**: one-tap "I'm Safe" broadcasts (with email), live ETA sharing, last-known-location markers, and invite links to add family.
-- **Preparedness Hub**: disaster guides, evacuation routes and local disaster history.
+- **Preparedness Hub**: disaster guides by category, a personal checklist built from a short household risk profile, evacuation routes, reminders and local disaster history. It works offline and syncs when you are back online.
 - **Privacy and control**: onboarding with consent, a privacy settings screen, and in-app account deletion.
 - **Accessibility and inclusion**: Sinhala, Tamil, Arabic (right-to-left) and English; light, dark and system themes; text scaling up to 2x; screen-reader support; captions for siren alerts; a Data Saver mode; optional vibration; and 44dp touch targets.
 
@@ -45,6 +45,7 @@ Built by **The Pioneers** for the Y3S2 UEE module.
 - **Broadcast dashboard**: create geo-targeted alerts by zone or by a point on the map (starting from your GPS position), with acknowledgement and delivery tracking.
 - **Incident review**: verify or reject citizen reports.
 - **Shelter submissions**: approve a submitted shelter or reject it with a reason the submitter sees.
+- **Preparedness content**: publish guides, evacuation routes, checklist items, reminders and disaster history records.
 - **Volunteer tasks**: post, edit, delete and move tasks through open, in progress and completed.
 - **Feedback overview**: citizen ratings and needs, summarised by zone.
 - **Account deletion requests** and a broadcast audit log.
@@ -97,6 +98,14 @@ Built by **The Pioneers** for the Y3S2 UEE module.
    | 13 | `sql/shelter_workflow_and_volunteer_fixes_migration.sql` | shelter submit/approve workflow, owner management, volunteer withdrawal |
    | 14 | `sql/messaging_privacy_and_unread_migration.sql` | private message threads, manager-initiated chats, unread tracking |
    | 15 | `sql/deletion_email_confirmation_migration.sql` | emailed confirmation code for account deletion |
+   | 16 | `sql/preparedness_guide_starters_migration.sql` | starter disaster guides (flood, fire, earthquake, landslide, tsunami, cyclone) |
+   | 17 | `sql/preparedness_checklist_starters_migration.sql` | starter checklist items tied to household risk factors |
+   | 18 | `sql/incident_realtime_migration.sql` | live incident updates (adds `incidents` to the Realtime publication) |
+   | 19 | `sql/query_performance_migration.sql` | indexes and a faster `is_authority()` for row-level security |
+
+   Run 12 to 17 in order: the two starter files need the tables from `preparedness_hub_migration.sql`. That migration drops and recreates a Preparedness Hub table that exists with an older shape.
+
+   **Optional demo data** (for a walkthrough): `sql/demo_data.sql` adds alerts, shelters with supplies, volunteer tasks, feedback and Preparedness Hub history and a route. `sql/heatmap_demo_data.sql` adds incident clusters for the heatmap. Both are safe to re-run and have a cleanup note at the bottom.
 
    `sql/cleanup_security_test_rows.sql` is a one-off clean-up of old test data, not part of the setup.
 
@@ -178,7 +187,8 @@ test/             # Unit and widget tests
 ## Known Limitations
 
 - The Sinhala, Tamil and Arabic text is machine-drafted and needs a native-speaker review. Long legal text and a few secondary screens are English only.
-- The Preparedness Hub stores guides, routes and history on the device rather than in Supabase.
+- Alerts reach phones through Supabase Realtime while the app is running; there is no server push (Firebase) yet, so a closed app is not woken. The SMS channel in the broadcast form is simulated (no SMS gateway is connected).
+- The broadcast audit log and alert preferences are stored on the device, not in the database.
 - There are no push notifications yet for shelter messages or shelter approval decisions. Unread counts show inside the app only.
 - Shelter approval is checked by an authority by hand; there is no automatic verification.
 

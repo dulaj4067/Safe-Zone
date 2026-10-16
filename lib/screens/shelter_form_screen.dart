@@ -10,6 +10,7 @@ import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
 import '../utils/sri_lanka_bounds.dart';
 import '../widgets/map_controls.dart';
+import '../l10n/ui_text.dart';
 
 /// One form for both filing a new shelter and editing an existing one.
 ///
@@ -110,9 +111,8 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
     if (here == null) {
       if (!silent) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Couldn\'t get your location. Tap the map to set it.',
+          SnackBar(
+            content: Text(context.tr('Couldn\'t get your location. Tap the map to set it.'),
             ),
           ),
         );
@@ -211,10 +211,7 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
                     Icon(Icons.verified_outlined, color: context.brandInk),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        'An authority will verify this shelter before it appears '
-                        'on the public Shelters page. You can follow its status '
-                        'under Manage your shelter.',
+                      child: Text(context.tr('An authority will verify this shelter before it appears on the public Shelters page. You can follow its status under Manage your shelter.'),
                         style: TextStyle(color: context.brandInk),
                       ),
                     ),
@@ -226,14 +223,14 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
               controller: _name,
               textInputAction: TextInputAction.next,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(labelText: 'Shelter name *'),
+              decoration: InputDecoration(labelText: context.tr('Shelter name *')),
               validator: (v) =>
                   (v ?? '').trim().length < 3 ? 'Enter the shelter name' : null,
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _type,
-              decoration: const InputDecoration(labelText: 'Type'),
+              decoration: InputDecoration(labelText: context.tr('Type')),
               items: [
                 for (final t in _types)
                   DropdownMenuItem(value: t.$1, child: Text(t.$2)),
@@ -245,8 +242,8 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
               controller: _address,
               textInputAction: TextInputAction.next,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Address (optional)',
+              decoration: InputDecoration(
+                labelText: context.tr('Address (optional)'),
               ),
             ),
             const SizedBox(height: 12),
@@ -255,9 +252,9 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
               minLines: 2,
               maxLines: 4,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'About this shelter (optional)',
-                hintText: 'Facilities, access, who it is for',
+              decoration: InputDecoration(
+                labelText: context.tr('About this shelter (optional)'),
+                hintText: context.tr('Facilities, access, who it is for'),
               ),
             ),
             const SizedBox(height: 12),
@@ -266,8 +263,8 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
               textInputAction: TextInputAction.next,
               autofillHints: const [AutofillHints.telephoneNumber],
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Emergency desk phone (optional)',
+              decoration: InputDecoration(
+                labelText: context.tr('Emergency desk phone (optional)'),
               ),
               validator: _validatePhone,
             ),
@@ -275,8 +272,8 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
             TextFormField(
               controller: _capacity,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Capacity (people) *',
+              decoration: InputDecoration(
+                labelText: context.tr('Capacity (people) *'),
               ),
               validator: (v) {
                 final n = int.tryParse((v ?? '').trim());
@@ -296,8 +293,8 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
                     child: TextFormField(
                       controller: _occupancy,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'People sheltered now',
+                      decoration: InputDecoration(
+                        labelText: context.tr('People sheltered now'),
                       ),
                       validator: (v) {
                         final n = int.tryParse((v ?? '').trim());
@@ -309,7 +306,7 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       initialValue: _status,
-                      decoration: const InputDecoration(labelText: 'Status'),
+                      decoration: InputDecoration(labelText: context.tr('Status')),
                       items: [
                         for (final s in _statuses)
                           DropdownMenuItem(value: s.$1, child: Text(s.$2)),
@@ -321,17 +318,14 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
               ),
             ],
             const SizedBox(height: 20),
-            Text('Location *', style: Theme.of(context).textTheme.titleSmall),
+            Text(context.tr('Location *'), style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 4),
-            Text(
-              'Starts at your current position. Tap the map to move the pin.',
+            Text(context.tr('Starts at your current position. Tap the map to move the pin.'),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
             Semantics(
-              label:
-                  'Map for choosing the shelter location. Tap the map to move '
-                  'the pin, or use the My location button to place it at your position.',
+              label: context.tr('Map for choosing the shelter location. Tap the map to move the pin, or use the My location button to place it at your position.'),
               child: SizedBox(
                 height: 240,
                 child: ClipRRect(
@@ -386,8 +380,7 @@ class _ShelterFormScreenState extends State<ShelterFormScreen> {
                 if (_locating) ...[
                   const Icon(Icons.gps_not_fixed, size: 16),
                   const SizedBox(width: 8),
-                  Text(
-                    'Finding your location…',
+                  Text(context.tr('Finding your location…'),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ] else

@@ -120,7 +120,7 @@ class IncidentDetailSheet extends StatelessWidget {
                 ),
                 onPressed: onVerify,
                 icon: const Icon(Icons.verified_outlined),
-                label: const Text('Verify report'),
+                label: Text(context.tr('Verify report')),
               ),
             ),
           ],

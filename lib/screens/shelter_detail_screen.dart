@@ -291,8 +291,8 @@ class _ShelterDetailScreenState extends State<ShelterDetailScreen> {
                     ListTile(
                       key: const Key('edit_shelter_tile'),
                       leading: const Icon(Icons.edit_outlined),
-                      title: const Text('Edit shelter details'),
-                      subtitle: const Text('Info, capacity, occupancy and open/full/closed'),
+                      title: Text(context.tr('Edit shelter details')),
+                      subtitle: Text(context.tr('Info, capacity, occupancy and open/full/closed')),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () async {
                         final saved = await Navigator.push<bool>(
@@ -305,8 +305,8 @@ class _ShelterDetailScreenState extends State<ShelterDetailScreen> {
                     const Divider(height: 1),
                     ListTile(
                       leading: const Icon(Icons.chat_bubble_outline),
-                      title: const Text('Messages'),
-                      subtitle: const Text('Replies from people asking about this shelter'),
+                      title: Text(context.tr('Messages')),
+                      subtitle: Text(context.tr('Replies from people asking about this shelter')),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => _push(const MessagesScreen()),
                     ),

@@ -8,6 +8,7 @@ import '../utils/format_utils.dart';
 import 'messages_screen.dart';
 import 'shelter_detail_screen.dart';
 import 'shelter_form_screen.dart';
+import '../l10n/ui_text.dart';
 
 /// "Manage your shelter": the shelters the signed-in user has submitted or
 /// runs, with where each one is in the review process.
@@ -72,11 +73,11 @@ class _ManageShelterScreenState extends State<ManageShelterScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Withdraw this submission?'),
-        content: Text('"${shelter.name}" will be removed. You can submit it again later.'),
+        title: Text(context.tr('Withdraw this submission?')),
+        content: Text(context.tr('"{p0}" will be removed. You can submit it again later.', {'p0': shelter.name})),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Withdraw')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('Keep'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(context.tr('Withdraw'))),
         ],
       ),
     );
@@ -107,9 +108,9 @@ class _ManageShelterScreenState extends State<ManageShelterScreen> {
 
     Widget body;
     if (_failed) {
-      body = ListView(children: const [
+      body = ListView(children: [
         SizedBox(height: 120),
-        Center(child: Text('Couldn\'t load your shelters. Pull to retry.')),
+        Center(child: Text(context.tr('Couldn\'t load your shelters. Pull to retry.'))),
       ]);
     } else if (shelters == null) {
       body = const Center(child: CircularProgressIndicator());
@@ -120,16 +121,12 @@ class _ManageShelterScreenState extends State<ManageShelterScreen> {
           const SizedBox(height: 60),
           Icon(Icons.night_shelter_outlined, size: 56, color: context.inkMuted),
           const SizedBox(height: 16),
-          Text(
-            'You haven\'t submitted a shelter yet',
+          Text(context.tr('You haven\'t submitted a shelter yet'),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
-          Text(
-            'Run a shelter, relief camp or medical point? Submit it here. Once an '
-            'authority has verified it, it appears on the Shelters page and you can '
-            'manage its supplies, details and messages.',
+          Text(context.tr('Run a shelter, relief camp or medical point? Submit it here. Once an authority has verified it, it appears on the Shelters page and you can manage its supplies, details and messages.'),
             textAlign: TextAlign.center,
             style: TextStyle(color: context.inkMuted),
           ),
@@ -154,11 +151,11 @@ class _ManageShelterScreenState extends State<ManageShelterScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage your shelter')),
+      appBar: AppBar(title: Text(context.tr('Manage your shelter'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),
         icon: const Icon(Icons.add_home_work_outlined),
-        label: const Text('Submit a shelter'),
+        label: Text(context.tr('Submit a shelter')),
       ),
       body: RefreshIndicator(onRefresh: _load, child: body),
     );
@@ -261,13 +258,12 @@ class _MyShelterCard extends StatelessWidget {
                   color: AppColors.severityRed.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text('Reason: ${shelter.rejectionReason}'),
+                child: Text(context.tr('Reason: {p0}', {'p0': shelter.rejectionReason})),
               ),
             ],
             if (shelter.approval == ShelterApproval.pending) ...[
               const SizedBox(height: 10),
-              Text(
-                'An authority is verifying this shelter. It is not on the public page yet.',
+              Text(context.tr('An authority is verifying this shelter. It is not on the public page yet.'),
                 style: textTheme.bodySmall,
               ),
             ],
@@ -281,19 +277,19 @@ class _MyShelterCard extends StatelessWidget {
                     style: _tapTarget,
                     onPressed: onOpen,
                     icon: const Icon(Icons.inventory_2_outlined, size: 18),
-                    label: const Text('Manage'),
+                    label: Text(context.tr('Manage')),
                   ),
                   OutlinedButton.icon(
                     style: _tapTarget,
                     onPressed: onEdit,
                     icon: const Icon(Icons.edit_outlined, size: 18),
-                    label: const Text('Edit details'),
+                    label: Text(context.tr('Edit details')),
                   ),
                   OutlinedButton.icon(
                     style: _tapTarget,
                     onPressed: onMessages,
                     icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                    label: const Text('Messages'),
+                    label: Text(context.tr('Messages')),
                   ),
                 ] else ...[
                   OutlinedButton.icon(
@@ -307,7 +303,7 @@ class _MyShelterCard extends StatelessWidget {
                   TextButton(
                     style: _tapTarget,
                     onPressed: onWithdraw,
-                    child: const Text('Withdraw'),
+                    child: Text(context.tr('Withdraw')),
                   ),
                 ],
               ],

@@ -186,7 +186,7 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                         children: [
                           _HubAction(
                             icon: Icons.edit_note,
-                            label: 'Manage guides',
+                            label: context.tr('Manage guides'),
                             admin: true,
                             onTap: () => _openAuthorityRoute(
                               context,
@@ -198,7 +198,7 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                           ),
                           _HubAction(
                             icon: Icons.fact_check_outlined,
-                            label: 'Checklist items',
+                            label: context.tr('Checklist items'),
                             admin: true,
                             onTap: () => _openAuthorityRoute(
                               context,
@@ -209,7 +209,7 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                           ),
                           _HubAction(
                             icon: Icons.notifications_active_outlined,
-                            label: 'Reminders',
+                            label: context.tr('Reminders'),
                             admin: true,
                             onTap: () => _openAuthorityRoute(
                               context,
@@ -242,8 +242,7 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            'Guides',
+                          child: Text(context.tr('Guides'),
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w800,
                             ),
@@ -303,8 +302,7 @@ class _PreparednessHubScreenState extends State<PreparednessHubScreen> {
                           color: theme.colorScheme.outline,
                         ),
                         const SizedBox(height: 12),
-                        Text(
-                          'No guides in this category yet.',
+                        Text(context.tr('No guides in this category yet.'),
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodyLarge?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
@@ -369,8 +367,7 @@ class _HeroHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Ready when it matters.',
+                Text(context.tr('Ready when it matters.'),
                   style: text.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w800,
                     color: scheme.onPrimary,
@@ -378,8 +375,7 @@ class _HeroHeader extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  'Practical guidance for your community.',
+                Text(context.tr('Practical guidance for your community.'),
                   style: text.bodyMedium?.copyWith(
                     color: scheme.onPrimary.withValues(alpha: 0.85),
                   ),
@@ -721,8 +717,7 @@ class _GuideCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Text(
-                        'Read guide',
+                      Text(context.tr('Read guide'),
                         style: theme.textTheme.labelLarge?.copyWith(
                           color: scheme.primary,
                           fontWeight: FontWeight.w700,
@@ -841,8 +836,7 @@ class GuideDetailScreen extends StatelessWidget {
                         color: scheme.onSurfaceVariant,
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        'Updated ${MaterialLocalizations.of(context).formatShortDate(guide.updatedAt)}',
+                      Text(context.tr('Updated {p0}', {'p0': MaterialLocalizations.of(context).formatShortDate(guide.updatedAt)}),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),

@@ -128,12 +128,12 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
       if (r.status == DeletionStatus.awaitingEmail) {
         await _sendConfirmation();
       } else {
-        _say('Deletion request received. Your data hasn\'t been deleted yet.');
+        _say(context.tr('Deletion request received. Your data hasn\'t been deleted yet.'));
       }
     } on DeletionException catch (e) {
       _say(e.message);
     } catch (_) {
-      _say('Couldn\'t send the request — check your connection and try again.');
+      _say(context.tr('Couldn\'t send the request — check your connection and try again.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -143,12 +143,12 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
   Future<void> _sendConfirmation() async {
     try {
       await _deletion.sendConfirmationEmail();
-      _say('We emailed you a 6-digit code. Enter it here to confirm; nothing is deleted yet.');
+      _say(context.tr('We emailed you a 6-digit code. Enter it here to confirm; nothing is deleted yet.'));
     } on DeletionException catch (e) {
       if (!mounted) return;
-      _say('{p0} You can ask for the email again from here.', {'p0': context.tr(e.message)});
+      _say(context.tr('{p0} You can ask for the email again from here.'), {'p0': context.tr(e.message)});
     } catch (_) {
-      _say('Couldn\'t send the email. Check your connection and try again.');
+      _say(context.tr('Couldn\'t send the email. Check your connection and try again.'));
     }
   }
 
@@ -249,7 +249,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
     controller.dispose();
     if (confirmed == true) {
       await _loadRequest();
-      _say('Confirmed. An administrator will review your request. Nothing is deleted yet.');
+      _say(context.tr('Confirmed. An administrator will review your request. Nothing is deleted yet.'));
     }
   }
 
@@ -270,7 +270,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
     } on DeletionException catch (e) {
       _say(e.message);
     } catch (_) {
-      _say('Couldn\'t cancel — check your connection and try again.');
+      _say(context.tr('Couldn\'t cancel — check your connection and try again.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -321,7 +321,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
               trailing: const Icon(Icons.open_in_new),
               onTap: () async {
                 final opened = await Geolocator.openAppSettings();
-                if (!opened) _say('Couldn\'t open your phone\'s settings.');
+                if (!opened) _say(context.tr('Couldn\'t open your phone\'s settings.'));
               },
             ),
             ListTile(

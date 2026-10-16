@@ -463,14 +463,14 @@ class _TaskCard extends StatelessWidget {
                   _StatusChip(label: task.status.label, color: _statusColor),
                 if (canManage)
                   PopupMenuButton<String>(
-                    tooltip: 'Task options',
+                    tooltip: context.tr('Task options'),
                     onSelected: (v) => v == 'edit' ? onEdit() : onDelete(),
-                    itemBuilder: (_) => const [
+                    itemBuilder: (_) => [
                       PopupMenuItem(
                         value: 'edit',
                         child: ListTile(
                           leading: Icon(Icons.edit_outlined),
-                          title: Text('Edit task'),
+                          title: Text(context.tr('Edit task')),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
@@ -478,7 +478,7 @@ class _TaskCard extends StatelessWidget {
                         value: 'delete',
                         child: ListTile(
                           leading: Icon(Icons.delete_outline, color: AppColors.severityRed),
-                          title: Text('Delete task'),
+                          title: Text(context.tr('Delete task')),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
