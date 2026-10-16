@@ -47,11 +47,14 @@ declare
   capped    boolean := false;
   cat_type    text;
   status_type text;
+  loc_type    text;
 begin
   select format_type(atttypid, atttypmod) into cat_type
   from pg_attribute where attrelid = 'public.incidents'::regclass and attname = 'category';
   select format_type(atttypid, atttypmod) into status_type
   from pg_attribute where attrelid = 'public.incidents'::regclass and attname = 'status';
+  select format_type(atttypid, atttypmod) into loc_type
+  from pg_attribute where attrelid = 'public.incidents'::regclass and attname = 'location';
 
   -- The reporter: an admin profile if there is one.
   select id into rep from profiles order by (role = 'admin') desc, created_at limit 1;
@@ -107,14 +110,15 @@ begin
     order by p.name, p.i
   loop
     -- category and status are enums in some databases and plain text in
-    -- others, so cast each value to whatever type the column really has.
+    -- others, and location is geometry in some and geography in others, so
+    -- cast each value to whatever type the column really has.
     execute format(
       'insert into incidents
          (reporter_id, category, description, location, status, is_sos,
           credibility_score, created_at, updated_at)
-       values ($1, $2::%s, $3, $4, $5::%s, $6, 0, $7, $7)
+       values ($1, $2::%s, $3, $4::%s, $5::%s, $6, 0, $7, $7)
        returning id',
-      cat_type, status_type)
+      cat_type, loc_type, status_type)
     into inc
     using
       rep,
@@ -125,7 +129,7 @@ begin
       end,
       '[heatmap-demo] ' || rec.name || ' report ' || rec.i || ' (' || rec.status ||
         case when rec.confirms > 0 then ', ' || rec.confirms || ' community confirmations' else '' end || ')',
-      ST_SetSRID(ST_MakePoint(rec.lng, rec.lat), 4326)::geography,
+      ST_SetSRID(ST_MakePoint(rec.lng, rec.lat), 4326),
       rec.status,
       rec.is_sos,
       now() - (rec.i || ' hours')::interval;
