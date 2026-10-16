@@ -10,7 +10,6 @@ import '../models/safety_circle_request.dart';
 import '../providers/safety_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
-import 'live_eta_sharing_screen.dart';
 
 /// Google-family-style circle: everyone joins through a single-use invite
 /// link and has to confirm (email + in-app) before anyone's location is
@@ -177,12 +176,12 @@ class _FamilyCircleScreenState extends State<FamilyCircleScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
+                  // One button, one place: it starts sharing right here and,
+                  // while a share is running, ends it. There is no separate
+                  // screen, because family locations are shown on the Home map.
                   SizedBox(
                     width: double.infinity,
                     height: 52,
-                    // While a share is running this is the way to end it:
-                    // the map already shows the location, so there is no need
-                    // to open the live screen just to find "Stop sharing".
                     child: safety.isSharing
                         ? ElevatedButton.icon(
                             key: const Key('stop_sharing_button'),
@@ -201,23 +200,37 @@ class _FamilyCircleScreenState extends State<FamilyCircleScreen> {
                             },
                           )
                         : ElevatedButton.icon(
+                            key: const Key('start_sharing_button'),
                             icon: const Icon(Icons.share_location),
-                            label: Text(
-                              confirmedCount == 0
-                                  ? 'Invite someone to start sharing'
-                                  : 'Share my location with family ($confirmedCount)',
-                            ),
+                            label: Text(appStringsOf(context).t('startSharing')),
                             onPressed: confirmedCount == 0
                                 ? null
-                                : () => Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => LiveEtaSharingScreen(
-                                        currentRiskZone: widget.currentRiskZone,
-                                      ),
-                                    ),
-                                  ),
+                                : () async {
+                                    final messenger = ScaffoldMessenger.of(context);
+                                    final provider = context.read<SafetyProvider>();
+                                    final text = appStringsOf(context, listen: false)
+                                        .t('sharingStarted');
+                                    await provider.startSharingEta(
+                                      currentRiskZone: widget.currentRiskZone,
+                                    );
+                                    // A failure shows its own message above.
+                                    if (provider.errorMessage == null) {
+                                      messenger.showSnackBar(
+                                        SnackBar(content: Text(text)),
+                                      );
+                                    }
+                                  },
                           ),
                   ),
+                  if (!safety.isSharing && confirmedCount == 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        appStringsOf(context).t('addFamilyFirst'),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
                 ],
               ),
             ),
