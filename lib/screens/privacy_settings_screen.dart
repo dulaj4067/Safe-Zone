@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 
@@ -47,7 +48,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
     super.dispose();
   }
 
-  /// Coming back from the email link: show the request as confirmed.
+  /// Coming back from the mail app: refresh in case the request changed.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed &&
@@ -90,7 +91,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'We will email you a link to confirm. Once you confirm, an '
+                'We will email you a 6-digit code to confirm. Once you enter it, an '
                 'administrator reviews the request and deletes your account and '
                 'the personal data linked to it. Until then you can cancel here.',
               ),
@@ -144,11 +145,112 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
   Future<void> _sendConfirmation() async {
     try {
       await _deletion.sendConfirmationEmail();
-      _showError('We emailed you a link. Open it to confirm; nothing is deleted yet.');
+      _showError('We emailed you a 6-digit code. Enter it here to confirm; nothing is deleted yet.');
     } on DeletionException catch (e) {
       _showError('${e.message} You can ask for the email again from here.');
     } catch (_) {
       _showError('Couldn\'t send the email. Check your connection and try again.');
+    }
+  }
+
+  /// Asks for the emailed code and checks it. Wrong codes are explained
+  /// inside the dialog so the person can retry without losing their place.
+  Future<void> _enterCode() async {
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    String? serverError;
+    var checking = false;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: const Text('Enter your code'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Type the 6-digit code we emailed you. It works for 30 minutes.'),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const Key('deletion_code_field'),
+                  controller: controller,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  maxLength: 6,
+                  decoration: InputDecoration(
+                    labelText: 'Confirmation code',
+                    border: const OutlineInputBorder(),
+                    errorText: serverError,
+                  ),
+                  validator: (v) =>
+                      isValidDeletionCode(v) ? null : 'Enter all 6 digits',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: checking ? null : () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              key: const Key('deletion_code_submit'),
+              onPressed: checking
+                  ? null
+                  : () async {
+                      setDialog(() => serverError = null);
+                      if (!(formKey.currentState?.validate() ?? false)) return;
+                      setDialog(() => checking = true);
+                      try {
+                        final result = await _deletion.confirmWithCode(controller.text);
+                        if (result == DeletionCodeResult.confirmed) {
+                          if (ctx.mounted) Navigator.pop(ctx, true);
+                          return;
+                        }
+                        setDialog(() {
+                          checking = false;
+                          serverError = switch (result) {
+                            DeletionCodeResult.wrong => 'That code is not right. Try again.',
+                            DeletionCodeResult.expired => 'That code has expired. Ask for a new email.',
+                            DeletionCodeResult.tooManyTries =>
+                              'Too many wrong codes. Ask for a new email.',
+                            DeletionCodeResult.noCode =>
+                              'No code has been emailed yet. Ask for a new email.',
+                            _ => 'There is no deletion request waiting for a code.',
+                          };
+                        });
+                      } on DeletionException catch (e) {
+                        setDialog(() {
+                          checking = false;
+                          serverError = e.message;
+                        });
+                      } catch (_) {
+                        setDialog(() {
+                          checking = false;
+                          serverError = 'Could not check the code. Check your connection.';
+                        });
+                      }
+                    },
+              child: checking
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Confirm'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (confirmed == true) {
+      await _loadRequest();
+      _showError('Confirmed. An administrator will review your request. Nothing is deleted yet.');
     }
   }
 
@@ -280,14 +382,20 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
       return ListTile(
         key: const Key('deletion_awaiting_email'),
         leading: const Icon(Icons.mark_email_unread_outlined, color: AppColors.severityOrange),
-        title: const Text('Confirm by email'),
+        title: const Text('Confirm with the emailed code'),
         subtitle: const Text(
-          'We sent a link to your email. Open it to confirm your request. '
+          'We emailed you a 6-digit code. Enter it to confirm your request. '
           'Until you do, nothing goes to an administrator and nothing is deleted.',
         ),
         isThreeLine: true,
+        onTap: _busy ? null : _enterCode,
         trailing: Wrap(
           children: [
+            TextButton(
+              key: const Key('deletion_enter_code'),
+              onPressed: _busy ? null : _enterCode,
+              child: const Text('Enter code'),
+            ),
             TextButton(onPressed: _busy ? null : _resendConfirmation, child: const Text('Resend')),
             TextButton(onPressed: _busy ? null : _cancelDeletion, child: const Text('Cancel')),
           ],
@@ -302,7 +410,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
         subtitle: Text(
           r.status == DeletionStatus.processing
               ? 'Being processed$when. Your data hasn\'t been fully deleted yet.'
-              : 'Email confirmed$when. Waiting for an administrator to delete your account. '
+              : 'Confirmed$when. Waiting for an administrator to delete your account. '
                   'Your data hasn\'t been deleted yet.',
         ),
         trailing: r.status == DeletionStatus.received

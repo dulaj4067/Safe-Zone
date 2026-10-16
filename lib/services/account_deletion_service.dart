@@ -8,6 +8,29 @@ import 'supabase_service.dart';
 /// confirmation email yet, so no administrator can see it.
 enum DeletionStatus { none, awaitingEmail, received, processing, completed, cancelled }
 
+/// What the server said about a typed confirmation code.
+enum DeletionCodeResult {
+  confirmed,
+  wrong,
+  expired,
+  tooManyTries,
+  noCode,
+  noRequest;
+
+  static DeletionCodeResult fromServer(Object? value) => switch (value) {
+        'confirmed' => DeletionCodeResult.confirmed,
+        'wrong' => DeletionCodeResult.wrong,
+        'expired' => DeletionCodeResult.expired,
+        'too_many' => DeletionCodeResult.tooManyTries,
+        'no_code' => DeletionCodeResult.noCode,
+        _ => DeletionCodeResult.noRequest,
+      };
+}
+
+/// A code is exactly six digits; anything else never needs a server call.
+bool isValidDeletionCode(String? value) =>
+    RegExp(r'^\d{6}$').hasMatch((value ?? '').trim());
+
 class DeletionRequest {
   final DeletionStatus status;
   final DateTime? requestedAt;
@@ -71,8 +94,20 @@ class AccountDeletionService {
     }
   }
 
-  /// Emails the signed-in citizen the link that confirms their request. Safe
-  /// to call again to resend (the server allows one email a minute).
+  /// Checks the 6-digit code from the confirmation email. On success the
+  /// request goes to the administrators.
+  Future<DeletionCodeResult> confirmWithCode(String code) async {
+    try {
+      final result = await SupabaseService.client
+          .rpc('confirm_account_deletion', params: {'code': code.trim()});
+      return DeletionCodeResult.fromServer(result);
+    } on PostgrestException catch (e) {
+      throw DeletionException(_friendly(e));
+    }
+  }
+
+  /// Emails the signed-in citizen the 6-digit code that confirms their
+  /// request. Safe to call again to resend (one email a minute).
   Future<void> sendConfirmationEmail() async {
     try {
       await SupabaseService.client.functions.invoke('send-deletion-confirmation');
