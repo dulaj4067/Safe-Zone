@@ -382,23 +382,53 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen>
     }
     final r = _request;
     if (r != null && r.status == DeletionStatus.awaitingEmail) {
-      return ListTile(
+      // A ListTile with three trailing buttons left the text a one-letter-wide
+      // column. Text on top, actions underneath.
+      return Padding(
         key: const Key('deletion_awaiting_email'),
-        leading: const Icon(Icons.mark_email_unread_outlined, color: AppColors.severityOrange),
-        title: Text(context.tr('Confirm with the emailed code')),
-        subtitle: Text(context.tr('We emailed you a 6-digit code. Enter it to confirm your request. Until you do, nothing goes to an administrator and nothing is deleted.'),
-        ),
-        isThreeLine: true,
-        onTap: _busy ? null : _enterCode,
-        trailing: Wrap(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextButton(
-              key: const Key('deletion_enter_code'),
-              onPressed: _busy ? null : _enterCode,
-              child: Text(context.tr('Enter code')),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.mark_email_unread_outlined, color: AppColors.severityOrange),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        context.tr('Confirm with the emailed code'),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        context.tr('We emailed you a 6-digit code. Enter it to confirm your request. Until you do, nothing goes to an administrator and nothing is deleted.'),
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            TextButton(onPressed: _busy ? null : _resendConfirmation, child: Text(context.tr('Resend'))),
-            TextButton(onPressed: _busy ? null : _cancelDeletion, child: Text(context.tr('Cancel'))),
+            const SizedBox(height: 4),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Wrap(
+                spacing: 4,
+                children: [
+                  TextButton(
+                    key: const Key('deletion_enter_code'),
+                    onPressed: _busy ? null : _enterCode,
+                    child: Text(context.tr('Enter code')),
+                  ),
+                  TextButton(onPressed: _busy ? null : _resendConfirmation, child: Text(context.tr('Resend'))),
+                  TextButton(onPressed: _busy ? null : _cancelDeletion, child: Text(context.tr('Cancel'))),
+                ],
+              ),
+            ),
           ],
         ),
       );
