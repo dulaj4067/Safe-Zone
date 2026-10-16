@@ -302,7 +302,17 @@ class AlertProvider extends ChangeNotifier {
     // With a GPS fix it is only shown to people near the alert; without one
     // we can't tell, so the zone rule above decides and it is still shown.
     final nearby = isNearby(alert);
-    if (nearby != false) {
+    // No GPS fix yet: only show the banner for an alert in the person's own
+    // saved zone. Showing every alert when the position is unknown put the
+    // Kelani river warning in front of people nowhere near it. (The bell list
+    // still shows every active alert.)
+    final showBanner = nearby == true ||
+        (nearby == null &&
+            _userZoneId != null &&
+            _userZoneId!.isNotEmpty &&
+            alert.affectedZoneId == _userZoneId);
+    if (nearby != false) channelsUsed.add(DeliveryChannel.inApp);
+    if (showBanner) {
       // One banner at a time: a new alert only replaces the one on screen if
       // it is at least as critical and near for this person.
       final shown = _bannerAlert;
@@ -311,7 +321,6 @@ class AlertProvider extends ChangeNotifier {
       if (shown == null || shownScore == null || newScore >= shownScore) {
         _bannerAlert = alert;
       }
-      channelsUsed.add(DeliveryChannel.inApp);
     }
     // Critical alerts also take over the screen, but only when we know the
     // person is near it, or (no fix) it is their saved zone: a full-screen

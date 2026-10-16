@@ -29,8 +29,6 @@ class IncidentsScreen extends StatefulWidget {
 }
 
 class _IncidentsScreenState extends State<IncidentsScreen> {
-  static const LatLng _initialCenter = LatLng(6.9615, 79.9010);
-
   final LocationService _locationService = LocationService();
   StreamSubscription<LatLng>? _positionSub;
 
@@ -103,7 +101,6 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
     final alertProvider = context.watch<AlertProvider>();
     final isOffline = provider.isOffline || alertProvider.isOffline;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final effectiveCenter = _liveLocation ?? _initialCenter;
 
     return Scaffold(
       appBar: AppBar(
@@ -124,12 +121,15 @@ class _IncidentsScreenState extends State<IncidentsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          LocationAlertBanner(
-            userLocation: effectiveCenter,
-            onTap: () {
-              // TODO: navigate to a full alert-detail screen.
-            },
-          ),
+          // Only with a real position. It used to fall back to a fixed point near
+          // Kelaniya, so everyone without a GPS fix saw the Kelani river warning.
+          if (_liveLocation != null)
+            LocationAlertBanner(
+              userLocation: _liveLocation!,
+              onTap: () {
+                // TODO: navigate to a full alert-detail screen.
+              },
+            ),
           if (_locationDenied) const _LocationDeniedBanner(),
           if (provider.isOffline)
             _OfflineBanner(lastUpdated: provider.lastUpdated),

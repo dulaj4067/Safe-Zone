@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:safezone/models/alert.dart';
@@ -177,6 +178,9 @@ void main() {
       await provider.setMultiChannelFallback(true);
 
       final alert = createAlert(id: 'alert-fail-on', title: 'Critical Flash Flood');
+      // The banner only shows for someone inside the alert's area (or in its
+      // saved zone when there is no GPS fix), so put the citizen inside it.
+      provider.updateUserLocation(LatLng(alert.centerLat, alert.centerLng));
       final result = await provider.deliverAlert(alert);
 
       // Citizen still receives warning via fallback channels!

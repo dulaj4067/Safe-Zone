@@ -274,12 +274,15 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
       ),
       body: Column(
         children: [
-          LocationAlertBanner(
-            userLocation: _liveLocation ?? _initialCenter,
-            onTap: () {
-              // TODO: navigate to a full alert-detail screen.
-            },
-          ),
+          // Only with a real position (the fixed fallback point sits inside a
+          // Colombo-area alert zone and showed its warning to everyone).
+          if (_liveLocation != null)
+            LocationAlertBanner(
+              userLocation: _liveLocation!,
+              onTap: () {
+                // TODO: navigate to a full alert-detail screen.
+              },
+            ),
           if (_locationDenied) const _LocationDeniedBanner(),
           _ModeAndStatusBar(provider: provider),
           Expanded(
