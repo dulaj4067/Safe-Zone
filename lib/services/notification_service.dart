@@ -5,6 +5,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../models/alert.dart';
+import 'alert_launch_bus.dart';
 import '../modules/preparedness_hub/models/preparedness_reminder.dart';
 
 class NotificationService {
@@ -16,7 +17,10 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
 
-  static const String criticalChannelId = 'sz_critical_alerts';
+  // Android freezes a channel's sound once it exists, so the channel that
+  // plays the siren needs a new id (v2); the old one is removed on start.
+  static const String legacyCriticalChannelId = 'sz_critical_alerts';
+  static const String criticalChannelId = 'sz_critical_alerts_v2';
   static const String criticalChannelName = 'Critical Life-Safety Alerts';
   static const String criticalChannelDescription =
       'Life-threatening emergency alerts that bypass Do Not Disturb and silent mode.';
@@ -47,7 +51,21 @@ class NotificationService {
       iOS: darwinSettings,
     );
 
-    await _plugin.initialize(settings: initSettings);
+    await _plugin.initialize(
+      settings: initSettings,
+      // Opening an alert's notification (or the full-screen intent firing)
+      // tells the provider which alert to show.
+      onDidReceiveNotificationResponse: (response) {
+        final payload = response.payload;
+        if (payload != null && payload.isNotEmpty) AlertLaunchBus.emit(payload);
+      },
+    );
+    // If the app was started by a notification (e.g. the full-screen intent
+    // over a locked phone), remember which alert for when alerts have loaded.
+    final launch = await _plugin.getNotificationAppLaunchDetails();
+    if (launch?.didNotificationLaunchApp ?? false) {
+      AlertLaunchBus.setLaunchPayload(launch!.notificationResponse?.payload);
+    }
 
     if (Platform.isAndroid) {
       await _setupAndroidChannels();
@@ -82,6 +100,8 @@ class NotificationService {
       description: criticalChannelDescription,
       importance: Importance.max,
       playSound: true,
+      // res/raw/siren.wav: the same wail as the in-app critical screen.
+      sound: const RawResourceAndroidNotificationSound('siren'),
       enableVibration: true,
       vibrationPattern: criticalVibration,
       audioAttributesUsage: AudioAttributesUsage.alarm,
@@ -98,6 +118,7 @@ class NotificationService {
       enableVibration: true,
     );
 
+    await android.deleteNotificationChannel(channelId: legacyCriticalChannelId);
     await android.createNotificationChannel(criticalChannel);
     await android.createNotificationChannel(generalChannel);
   }
@@ -133,6 +154,25 @@ class NotificationService {
     return false;
   }
 
+  /// Asks for the "full-screen notifications" permission. Android 14+ turns
+  /// it off for some apps by default, which would reduce a critical alert to
+  /// a small heads-up banner on a locked phone; this opens the system page
+  /// where the person turns it on. Older Android grants it automatically, and
+  /// it does nothing on iOS. Static so it is not part of the interface the
+  /// test doubles implement.
+  static Future<bool> requestFullScreenIntentPermission() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      final android = FlutterLocalNotificationsPlugin()
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      return await android?.requestFullScreenIntentPermission() ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Request access to bypass Do Not Disturb on Android (opens system settings if needed)
   Future<void> requestNotificationPolicyAccess() async {
     if (!Platform.isAndroid) return;
@@ -165,7 +205,12 @@ class NotificationService {
       channelDescription: criticalChannelDescription,
       importance: Importance.max,
       priority: Priority.max,
+      // Opens the app full-screen over the lock screen or whatever app is in
+      // front (needs USE_FULL_SCREEN_INTENT, which Android 14+ lets the
+      // person switch off; see requestFullScreenIntentPermission).
+      fullScreenIntent: true,
       playSound: true,
+      sound: const RawResourceAndroidNotificationSound('siren'),
       enableVibration: true,
       vibrationPattern: criticalVibration,
       audioAttributesUsage: AudioAttributesUsage.alarm,

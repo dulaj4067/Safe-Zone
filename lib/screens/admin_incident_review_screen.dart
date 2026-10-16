@@ -10,6 +10,7 @@ import '../theme/app_colors.dart';
 import '../widgets/a11y/a11y_widgets.dart';
 import '../widgets/incident_card.dart';
 import 'incident_detail_screen.dart';
+import '../l10n/ui_text.dart';
 
 class AdminIncidentReviewScreen extends StatefulWidget {
   final AppUser currentUser;
@@ -63,7 +64,7 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
     if (success) {
       showA11yUndoSnackBar(
         context,
-        message: 'Incident verified successfully.',
+        message: context.tr('Incident verified successfully.'),
         undoLabel: strings.t('undo'),
         onUndo: () {
           context.read<IncidentProvider>().restoreIncidentStatus(
@@ -80,7 +81,7 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
             children: [
               const Icon(Icons.error_outline, color: Colors.white),
               const SizedBox(width: 8),
-              const Expanded(child: Text('Could not verify this report. Try again.')),
+              Expanded(child: Text(context.tr('Could not verify this report. Try again.'))),
             ],
           ),
           backgroundColor: AppColors.severityRed,
@@ -113,7 +114,7 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
     if (success) {
       showA11yUndoSnackBar(
         context,
-        message: 'Incident rejected.',
+        message: context.tr('Incident rejected.'),
         undoLabel: strings.t('undo'),
         onUndo: () {
           context.read<IncidentProvider>().restoreIncidentStatus(
@@ -130,7 +131,7 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
             children: [
               const Icon(Icons.error_outline, color: Colors.white),
               const SizedBox(width: 8),
-              const Expanded(child: Text('Could not reject this report. Try again.')),
+              Expanded(child: Text(context.tr('Could not reject this report. Try again.'))),
             ],
           ),
           backgroundColor: AppColors.severityRed,
@@ -163,7 +164,7 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
     if (success) {
       showA11yUndoSnackBar(
         context,
-        message: 'Incident marked as resolved.',
+        message: context.tr('Incident marked as resolved.'),
         undoLabel: strings.t('undo'),
         onUndo: () {
           context.read<IncidentProvider>().restoreIncidentStatus(
@@ -180,7 +181,7 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
             children: [
               const Icon(Icons.error_outline, color: Colors.white),
               const SizedBox(width: 8),
-              const Expanded(child: Text('Could not resolve this report. Try again.')),
+              Expanded(child: Text(context.tr('Could not resolve this report. Try again.'))),
             ],
           ),
           backgroundColor: AppColors.severityRed,
@@ -203,24 +204,22 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
               Icon(Icons.gavel, color: AppColors.severityRed),
               SizedBox(width: 8),
-              Text('Delete / Purge Report'),
+              Text(context.tr('Delete / Purge Report')),
             ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Permanently remove this report from the map to eliminate spam, duplicates, or false submissions.',
+              Text(context.tr('Permanently remove this report from the map to eliminate spam, duplicates, or false submissions.'),
                 style: TextStyle(fontSize: 13),
               ),
               const SizedBox(height: 14),
-              const Text(
-                'Moderation reason:',
+              Text(context.tr('Moderation reason:'),
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
               const SizedBox(height: 6),
@@ -247,7 +246,7 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             FilledButton.icon(
               style: FilledButton.styleFrom(
@@ -255,7 +254,7 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
               ),
               icon: const Icon(Icons.delete_forever, size: 16),
               onPressed: () => Navigator.pop(ctx, true),
-              label: const Text('Delete Permanently'),
+              label: Text(context.tr('Delete Permanently')),
             ),
           ],
         ),
@@ -292,7 +291,6 @@ class _AdminIncidentReviewScreenState extends State<AdminIncidentReviewScreen>
     return Scaffold(
       appBar: AppBar(
         title: Text(strings.t('reviewTitle')),
-        actions: const [A11yInclusionButton()],
         bottom: TabBar(
           controller: _tabController,
           tabs: [

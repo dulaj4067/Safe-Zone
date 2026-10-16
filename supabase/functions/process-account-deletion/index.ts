@@ -70,6 +70,9 @@ Deno.serve(async (req: Request) => {
   if (!request) return json({ error: "Request not found." }, 404);
   if (request.status === "completed") return json({ status: "completed" });
   if (request.status === "cancelled") return json({ error: "That request was cancelled." }, 409);
+  if (request.status === "awaiting_email") {
+    return json({ error: "The account holder has not confirmed this request by email yet." }, 409);
+  }
   if (!request.user_id) return json({ error: "Request has no account attached." }, 409);
   if (request.user_id === callerId) {
     return json({ error: "Another authority must process your own deletion." }, 409);

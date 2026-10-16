@@ -5,6 +5,7 @@ import '../models/shelter.dart';
 import '../screens/shelter_detail_screen.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
+import '../l10n/ui_text.dart';
 
 /// Compact shelter summary shown over the map when a shelter pin is
 /// tapped. Tapping the card opens the full Shelter page; "Safe route"
@@ -72,7 +73,7 @@ class ShelterPreviewCard extends StatelessWidget {
                         ),
                         Text(
                           [
-                            shelter.typeLabel,
+                            context.tr(shelter.typeLabel),
                             if (metres != null) '${distanceLabel(metres)} away',
                           ].join(' · '),
                           style: textTheme.bodySmall,
@@ -83,7 +84,7 @@ class ShelterPreviewCard extends StatelessWidget {
                   if (shelter.status != null)
                     ShelterStatusPill(status: shelter.status!),
                   IconButton(
-                    tooltip: 'Close',
+                    tooltip: context.tr('Close'),
                     visualDensity: VisualDensity.compact,
                     icon: const Icon(Icons.close, size: 18),
                     onPressed: onClose,
@@ -128,12 +129,11 @@ class ShelterPreviewCard extends StatelessWidget {
                         minimumSize: const Size(0, 40),
                       ),
                       icon: const Icon(Icons.directions, size: 18),
-                      label: const Text('Safe route'),
+                      label: Text(context.tr('Safe route')),
                       onPressed: onRoute,
                     ),
                     const Spacer(),
-                    Text(
-                      'View shelter',
+                    Text(context.tr('View shelter'),
                       style: textTheme.labelLarge?.copyWith(
                         color: context.brandAccent,
                         fontWeight: FontWeight.w700,

@@ -21,6 +21,7 @@ import '../widgets/location_alert_banner.dart';
 import '../widgets/route_summary_card.dart';
 import '../widgets/safe_zone_base_map.dart';
 import '../widgets/cached_map_indicator.dart';
+import '../l10n/ui_text.dart';
 
 /// Hazard-aware directions to a shelter, opened from its Shelter page.
 /// Starts with [destination] preselected and the origin set to the
@@ -250,17 +251,17 @@ class _RouteScreenBodyState extends State<_RouteScreenBody> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Safe route to shelter'),
+        title: Text(context.tr('Safe route to shelter')),
         actions: [
           IconButton(
             icon: const Icon(Icons.my_location),
-            tooltip: 'Use my location as start',
+            tooltip: context.tr('Use my location as start'),
             onPressed: _useMyLocationAsOrigin,
           ),
           if (provider.origin != null || provider.destination != null)
             IconButton(
               icon: const Icon(Icons.clear),
-              tooltip: 'Reset',
+              tooltip: context.tr('Reset'),
               onPressed: () {
                 context.read<RouteProvider>().reset();
                 Provider.of<ActiveRouteProvider?>(
@@ -447,13 +448,12 @@ class _LocationDeniedBanner extends StatelessWidget {
       width: double.infinity,
       color: Colors.amber.shade100,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: const Row(
+      child: Row(
         children: [
           Icon(Icons.location_off, size: 16),
           SizedBox(width: 8),
           Expanded(
-            child: Text(
-              'Location access is off — enable it in Settings to see your position and route from it.',
+            child: Text(context.tr('Location access is off — enable it in Settings to see your position and route from it.'),
               style: TextStyle(fontSize: 13),
             ),
           ),
@@ -509,13 +509,12 @@ class _RouteHazardNotice extends StatelessWidget {
           color: const Color(0xFF2E7D32).withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: const Row(
+        child: Row(
           children: [
             Icon(Icons.verified_outlined, size: 16, color: Color(0xFF2E7D32)),
             SizedBox(width: 8),
             Expanded(
-              child: Text(
-                'This route avoids active alert zones',
+              child: Text(context.tr('This route avoids active alert zones'),
                 style: TextStyle(fontSize: 12, color: Color(0xFF2E7D32)),
               ),
             ),
@@ -616,16 +615,16 @@ class _ModeAndStatusBar extends StatelessWidget {
       child: Row(
         children: [
           SegmentedButton<TravelMode>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: TravelMode.walking,
                 icon: Icon(Icons.directions_walk),
-                label: Text('Walk'),
+                label: Text(context.tr('Walk')),
               ),
               ButtonSegment(
                 value: TravelMode.driving,
                 icon: Icon(Icons.directions_car),
-                label: Text('Drive'),
+                label: Text(context.tr('Drive')),
               ),
             ],
             selected: {provider.mode},

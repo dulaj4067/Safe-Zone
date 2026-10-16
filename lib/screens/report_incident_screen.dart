@@ -8,9 +8,12 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
+import '../models/alert.dart';
 import '../models/incident.dart';
+import '../utils/severity_haptics.dart';
 import '../providers/accessibility_provider.dart';
 import '../providers/incident_provider.dart';
+import '../services/location_service.dart';
 import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
@@ -21,6 +24,8 @@ import '../utils/sri_lanka_bounds.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/incident_card.dart';
 import 'incident_detail_screen.dart';
+import '../l10n/ui_text.dart';
+import '../utils/error_messages.dart';
 
 class ReportIncidentScreen extends StatefulWidget {
   final LatLng? initialLocation;
@@ -51,12 +56,55 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   Incident? _nearbyDuplicate;
   bool _dismissedInlineBanner = false;
 
+  /// True once the citizen taps the map themselves, so a slow GPS fix that
+  /// arrives afterwards never moves a pin they already placed.
+  bool _pinSetManually = false;
+  bool _locating = false;
+
   @override
   void initState() {
     super.initState();
     if (widget.initialLocation != null) {
       _selectedLocation = widget.initialLocation!;
+      _pinSetManually = true;
+    } else {
+      // Start on the citizen's real position; they can still adjust it.
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _useMyLocation(silent: true),
+      );
     }
+  }
+
+  /// Moves the pin to the device's GPS position. [silent] is used for the
+  /// automatic attempt on open, which shouldn't nag if permission is off.
+  Future<void> _useMyLocation({bool silent = false}) async {
+    setState(() => _locating = true);
+    // A failed lookup (no permission, no GPS, no plugin) must clear the
+    // spinner, so treat any error as "no location".
+    final LatLng? here = await LocationService()
+        .getCurrentLocation()
+        .catchError((_) => null);
+    if (!mounted) return;
+    setState(() => _locating = false);
+    if (here == null) {
+      if (!silent) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(appStringsOf(context).t('locationUnavailable')),
+          ),
+        );
+      }
+      return;
+    }
+    if (silent && _pinSetManually) return;
+    setState(() {
+      _selectedLocation = here;
+      _pinSetManually = !silent;
+      _dismissedInlineBanner = false;
+      _nearbyDuplicate = null;
+    });
+    _mapController.move(here, 15);
+    _checkDuplicateInline();
   }
 
   @override
@@ -100,7 +148,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick photo: $e')),
+          SnackBar(content: Text(context.tr('Failed to pick photo: {e}', {'e': context.tr(friendlyError(e))}))),
         );
       }
     }
@@ -113,6 +161,15 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
         maxDuration: const Duration(minutes: 2),
       );
       if (picked != null) {
+        // Large videos fail partway through the upload; stop them here.
+        if (await File(picked.path).length() > 100 * 1024 * 1024) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(context.tr('That video is too large. Choose one under 100 MB.'))),
+            );
+          }
+          return;
+        }
         setState(() {
           _videoFile = File(picked.path);
           _videoFileName = picked.name;
@@ -121,7 +178,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick video: $e')),
+          SnackBar(content: Text(context.tr('Failed to pick video: {e}', {'e': context.tr(friendlyError(e))}))),
         );
       }
     }
@@ -142,7 +199,10 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             children: [
               Text(
                 strings.t(isVideo ? 'attachVideo' : 'attachPhoto'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
               const SizedBox(height: 12),
               ListTile(
@@ -159,7 +219,9 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined),
-                title: Text(strings.t(isVideo ? 'chooseGallery' : 'choosePhotoGallery')),
+                title: Text(
+                  strings.t(isVideo ? 'chooseGallery' : 'choosePhotoGallery'),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   if (isVideo) {
@@ -237,9 +299,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             children: [
               const Icon(Icons.info_outline, color: Colors.white),
               const SizedBox(width: 10),
-              Expanded(
-                child: Text(strings.t('alreadyConfirmed')),
-              ),
+              Expanded(child: Text(strings.t('alreadyConfirmed'))),
             ],
           ),
           backgroundColor: AppColors.riverTeal,
@@ -257,10 +317,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
 
     // ── Normal path: add confirmation ────────────────────────────────────────
     try {
-      await provider.confirmIncident(
-        incidentId: existing.id,
-        memberId: uid,
-      );
+      await provider.confirmIncident(incidentId: existing.id, memberId: uid);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -268,9 +325,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             children: [
               const Icon(Icons.check_circle_outline, color: Colors.white),
               const SizedBox(width: 10),
-              Expanded(
-                child: Text(strings.t('confirmAdded')),
-              ),
+              Expanded(child: Text(strings.t('confirmAdded'))),
             ],
           ),
           backgroundColor: AppColors.severityGreen,
@@ -288,7 +343,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Could not confirm: $e'),
+          content: Text(context.tr('Could not confirm: {e}', {'e': context.tr(friendlyError(e))})),
           backgroundColor: AppColors.severityRed,
         ),
       );
@@ -312,8 +367,13 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
 
     if (mounted) {
       if (success) {
-        // Optional vibration as a non-visual, non-audible confirmation.
-        pulseHapticOf(context);
+        // Vibration as a non-visual, non-audible confirmation: an SOS report
+        // gets the strongest (red) pattern, an ordinary one a single pulse.
+        if (_isSos) {
+          severityHapticOf(context, AlertSeverity.red);
+        } else {
+          pulseHapticOf(context);
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -321,13 +381,13 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                 const Icon(Icons.check_circle_outline, color: Colors.white),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    strings.t(_isSos ? 'reportedSos' : 'reportedOk'),
-                  ),
+                  child: Text(strings.t(_isSos ? 'reportedSos' : 'reportedOk')),
                 ),
               ],
             ),
-            backgroundColor: _isSos ? AppColors.severityRed : AppColors.severityGreen,
+            backgroundColor: _isSos
+                ? AppColors.severityRed
+                : AppColors.severityGreen,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -336,7 +396,9 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              provider.errorMessage ?? strings.t('reportFailed'),
+              provider.errorMessage != null
+                  ? context.tr(provider.errorMessage!)
+                  : strings.t('reportFailed'),
             ),
             backgroundColor: AppColors.severityRed,
           ),
@@ -352,10 +414,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
     final strings = appStringsOf(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(strings.t('reportTitle')),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: Text(strings.t('reportTitle')), elevation: 0),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -366,12 +425,14 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               decoration: BoxDecoration(
                 color: _isSos
                     ? (isDark
-                        ? AppColors.severityRed.withValues(alpha: 0.2)
-                        : context.dangerTint)
+                          ? AppColors.severityRed.withValues(alpha: 0.2)
+                          : context.dangerTint)
                     : (isDark ? AppColors.harborSurface : AppColors.cloud),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: _isSos ? AppColors.severityRed : context.brandInk.withValues(alpha: 0.15),
+                  color: _isSos
+                      ? AppColors.severityRed
+                      : context.brandInk.withValues(alpha: 0.15),
                   width: _isSos ? 2 : 1,
                 ),
               ),
@@ -381,7 +442,9 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: _isSos ? AppColors.severityRed : Colors.grey.withValues(alpha: 0.2),
+                      color: _isSos
+                          ? AppColors.severityRed
+                          : Colors.grey.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -411,7 +474,9 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                   ),
                   Switch.adaptive(
                     value: _isSos,
-                    activeTrackColor: AppColors.severityRed.withValues(alpha: 0.5),
+                    activeTrackColor: AppColors.severityRed.withValues(
+                      alpha: 0.5,
+                    ),
                     activeThumbColor: AppColors.severityRed,
                     onChanged: (val) {
                       setState(() {
@@ -444,7 +509,11 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                   value: cat,
                   child: Row(
                     children: [
-                      Icon(categoryIcon(cat), color: categoryColor(cat), size: 18),
+                      Icon(
+                        categoryIcon(cat),
+                        color: categoryColor(cat),
+                        size: 18,
+                      ),
                       const SizedBox(width: 10),
                       Flexible(child: Text(strings.category(cat))),
                     ],
@@ -472,7 +541,9 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               decoration: InputDecoration(
                 // An SOS shouldn't be held up by typing — description is
                 // optional while the SOS switch is on.
-                labelText: strings.t(_isSos ? 'descriptionOptional' : 'description'),
+                labelText: strings.t(
+                  _isSos ? 'descriptionOptional' : 'description',
+                ),
                 hintText: strings.t('descriptionHint'),
                 alignLabelWithHint: true,
                 prefixIcon: const Padding(
@@ -481,6 +552,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                 ),
               ),
               maxLines: 3,
+              maxLength: 1000,
               validator: (val) {
                 if (!_isSos && (val == null || val.trim().isEmpty)) {
                   return strings.t('descriptionRequired');
@@ -498,7 +570,10 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                 Flexible(
                   child: Text(
                     strings.t('locationLabel'),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -513,7 +588,8 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             ),
             const SizedBox(height: 8),
             Container(
-              height: 220,
+              // Tall enough for four stacked 48dp map buttons.
+              height: 250,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: Colors.black.withValues(alpha: 0.12)),
@@ -530,10 +606,13 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                         minZoom: kSriLankaMinZoom,
                         cameraConstraint: kSriLankaCameraConstraint,
                         maxZoom: 18,
-                        interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
+                        interactionOptions: const InteractionOptions(
+                          flags: InteractiveFlag.all,
+                        ),
                         onTap: (tapPosition, point) {
                           setState(() {
                             _selectedLocation = point;
+                            _pinSetManually = true;
                             // Let the banner re-evaluate for the new pin.
                             _dismissedInlineBanner = false;
                             _nearbyDuplicate = null;
@@ -563,16 +642,42 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                       top: 10,
                       left: 10,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
-                          color: isDark ? AppColors.harborSurface : Colors.white,
+                          color: isDark
+                              ? AppColors.harborSurface
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(8),
-                          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black26, blurRadius: 4),
+                          ],
                         ),
-                        child: Text(
-                          '${_selectedLocation.latitude.toStringAsFixed(4)}, ${_selectedLocation.longitude.toStringAsFixed(4)}',
-                          style: AppTheme.dataText(context).copyWith(fontSize: 12),
-                        ),
+                        child: _locating
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.gps_not_fixed,
+                                    size: 16,
+                                  ), // static: no endless animation
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    strings.t('findingLocation'),
+                                    style: AppTheme.dataText(
+                                      context,
+                                    ).copyWith(fontSize: 12),
+                                  ),
+                                ],
+                              )
+                            : Text(
+                                '${_selectedLocation.latitude.toStringAsFixed(4)}, ${_selectedLocation.longitude.toStringAsFixed(4)}',
+                                style: AppTheme.dataText(
+                                  context,
+                                ).copyWith(fontSize: 12),
+                              ),
                       ),
                     ),
                     Positioned(
@@ -580,11 +685,14 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                       bottom: 8,
                       child: Column(
                         children: [
+                          MyLocationButton(onTap: () => _useMyLocation()),
+                          const SizedBox(height: 6),
                           MapLayerToggleButton(
                             style: _baseMapStyle,
                             onTap: () {
                               setState(() {
-                                _baseMapStyle = _baseMapStyle == BaseMapStyle.street
+                                _baseMapStyle =
+                                    _baseMapStyle == BaseMapStyle.street
                                     ? BaseMapStyle.topo
                                     : BaseMapStyle.street;
                               });
@@ -633,11 +741,14 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                       ? OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                           icon: const Icon(Icons.add_a_photo_outlined),
                           label: Text(strings.t('addPhoto')),
-                          onPressed: () => _showMediaSourceSheet(isVideo: false),
+                          onPressed: () =>
+                              _showMediaSourceSheet(isVideo: false),
                         )
                       : Stack(
                           children: [
@@ -661,7 +772,11 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                                     color: Colors.black54,
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.close, color: Colors.white, size: 16),
+                                  child: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                 ),
                               ),
                             ),
@@ -675,7 +790,9 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                       ? OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                           icon: const Icon(Icons.videocam_outlined),
                           label: Text(strings.t('addVideo')),
@@ -685,7 +802,9 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                           height: 100,
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: isDark ? AppColors.harborSurface : AppColors.seafoam.withValues(alpha: 0.3),
+                            color: isDark
+                                ? AppColors.harborSurface
+                                : AppColors.seafoam.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: context.brandAccent),
                           ),
@@ -695,10 +814,15 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.video_file, color: context.brandInk, size: 32),
+                                    Icon(
+                                      Icons.video_file,
+                                      color: context.brandInk,
+                                      size: 32,
+                                    ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      _videoFileName ?? strings.t('videoSelected'),
+                                      _videoFileName ??
+                                          strings.t('videoSelected'),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(fontSize: 11),
@@ -720,7 +844,11 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                                       color: Colors.black54,
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const Icon(Icons.close, color: Colors.white, size: 14),
+                                    child: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 14,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -745,14 +873,15 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                     ),
                   );
                 },
-                onDismiss: () =>
-                    setState(() => _dismissedInlineBanner = true),
+                onDismiss: () => setState(() => _dismissedInlineBanner = true),
               ),
 
             // ─── Submit Button ─────────────────────────────────────────────
             FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: _isSos ? AppColors.severityRed : context.brandFill,
+                backgroundColor: _isSos
+                    ? AppColors.severityRed
+                    : context.brandFill,
                 minimumSize: const Size.fromHeight(50),
               ),
               onPressed: isSubmitting ? null : _checkDuplicateThenSubmit,
@@ -760,11 +889,17 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                   ? const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : Text(
                       strings.t(_isSos ? 'submitSos' : 'submitReport'),
-                      style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
                     ),
             ),
             const SizedBox(height: 12),
@@ -811,11 +946,11 @@ class _DuplicateDialog extends StatelessWidget {
     const r = 6371000.0;
     final lat1 = reportLocation.latitude * math.pi / 180;
     final lat2 = duplicate.latitude * math.pi / 180;
-    final dLat =
-        (duplicate.latitude - reportLocation.latitude) * math.pi / 180;
+    final dLat = (duplicate.latitude - reportLocation.latitude) * math.pi / 180;
     final dLon =
         (duplicate.longitude - reportLocation.longitude) * math.pi / 180;
-    final a = math.pow(math.sin(dLat / 2), 2) +
+    final a =
+        math.pow(math.sin(dLat / 2), 2) +
         math.cos(lat1) * math.cos(lat2) * math.pow(math.sin(dLon / 2), 2);
     final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
     return r * c;
@@ -855,8 +990,8 @@ class _DuplicateDialog extends StatelessWidget {
                   child: Text(
                     strings.t('similarFound'),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -878,8 +1013,11 @@ class _DuplicateDialog extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(categoryIcon(duplicate.category),
-                          color: color, size: 18),
+                      Icon(
+                        categoryIcon(duplicate.category),
+                        color: color,
+                        size: 18,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -894,7 +1032,9 @@ class _DuplicateDialog extends StatelessWidget {
                       if (duplicate.credibilityScore > 0)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 3),
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: context.brandAccent.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(20),
@@ -905,8 +1045,11 @@ class _DuplicateDialog extends StatelessWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.people_alt_outlined,
-                                  size: 12, color: context.brandAccent),
+                              Icon(
+                                Icons.people_alt_outlined,
+                                size: 12,
+                                color: context.brandAccent,
+                              ),
                               const SizedBox(width: 3),
                               Text(
                                 '${duplicate.credibilityScore}',
@@ -928,33 +1071,34 @@ class _DuplicateDialog extends StatelessWidget {
                       duplicate.description!,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(height: 1.4),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(height: 1.4),
                     ),
                   ],
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Icon(Icons.schedule_outlined,
-                          size: 13,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
+                      Icon(
+                        Icons.schedule_outlined,
+                        size: 13,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         timeAgo(duplicate.createdAt),
-                        style:
-                            AppTheme.dataText(context).copyWith(fontSize: 11),
+                        style: AppTheme.dataText(
+                          context,
+                        ).copyWith(fontSize: 11),
                       ),
                       const SizedBox(width: 12),
-                      Icon(Icons.near_me_outlined,
-                          size: 13,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
+                      Icon(
+                        Icons.near_me_outlined,
+                        size: 13,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                       const SizedBox(width: 4),
-                      Text(
-                        '~${distanceLabel(_distanceMetres())} away',
+                      Text(context.tr('~{p0} away', {'p0': distanceLabel(_distanceMetres())}),
                         style:
                             AppTheme.dataText(context).copyWith(fontSize: 11),
                       ),
@@ -969,10 +1113,9 @@ class _DuplicateDialog extends StatelessWidget {
               strings.f('similarQuestion', {
                 'category': strings.category(duplicate.category).toLowerCase(),
               }),
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(height: 1.5),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(height: 1.5),
             ),
             const SizedBox(height: 20),
 
@@ -983,7 +1126,8 @@ class _DuplicateDialog extends StatelessWidget {
                 backgroundColor: context.brandFill,
                 minimumSize: const Size.fromHeight(44),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               icon: const Icon(Icons.thumb_up_alt_outlined, size: 18),
               label: Text(strings.t('confirmExisting')),
@@ -999,9 +1143,9 @@ class _DuplicateDialog extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(44),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                side:
-                    BorderSide(color: context.brandInk, width: 1.5),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                side: BorderSide(color: context.brandInk, width: 1.5),
               ),
               icon: const Icon(Icons.add_location_alt_outlined, size: 18),
               label: Text(strings.t('stillFile')),
@@ -1056,11 +1200,11 @@ class _ProximityBanner extends StatelessWidget {
     const r = 6371000.0;
     final lat1 = reportLocation.latitude * math.pi / 180;
     final lat2 = duplicate.latitude * math.pi / 180;
-    final dLat =
-        (duplicate.latitude - reportLocation.latitude) * math.pi / 180;
+    final dLat = (duplicate.latitude - reportLocation.latitude) * math.pi / 180;
     final dLon =
         (duplicate.longitude - reportLocation.longitude) * math.pi / 180;
-    final a = math.pow(math.sin(dLat / 2), 2) +
+    final a =
+        math.pow(math.sin(dLat / 2), 2) +
         math.cos(lat1) * math.cos(lat2) * math.pow(math.sin(dLon / 2), 2);
     final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
     return r * c;
@@ -1106,10 +1250,7 @@ class _ProximityBanner extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '${strings.category(duplicate.category)} • '
-                  '~${distanceLabel(_distanceMetres())} away • '
-                  '${timeAgo(duplicate.createdAt)}',
+                Text(context.tr('{p0} • ~{p1} away • {p2}', {'p0': strings.category(duplicate.category), 'p1': distanceLabel(_distanceMetres()), 'p2': timeAgo(duplicate.createdAt)}),
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall
@@ -1131,7 +1272,10 @@ class _ProximityBanner extends StatelessWidget {
                 child: InkWell(
                   onTap: onView,
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                    constraints: const BoxConstraints(
+                      minWidth: 44,
+                      minHeight: 44,
+                    ),
                     child: Center(
                       child: Text(
                         strings.t('view'),

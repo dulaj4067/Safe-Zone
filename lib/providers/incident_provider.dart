@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/incident.dart';
 import '../services/incident_service.dart';
+import '../utils/error_messages.dart';
 import '../services/supabase_service.dart';
 
 /// Owns incident state for the app: offline-first load (cache first,
@@ -145,7 +146,7 @@ class IncidentProvider extends ChangeNotifier {
       _isOffline = false;
     } catch (e) {
       _isOffline = true;
-      _errorMessage = e.toString();
+      _errorMessage = friendlyError(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -228,7 +229,7 @@ class IncidentProvider extends ChangeNotifier {
       await refresh();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = friendlyError(e);
       return false;
     } finally {
       _isSubmitting = false;
@@ -288,7 +289,7 @@ class IncidentProvider extends ChangeNotifier {
       await refresh();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = friendlyError(e);
       return false;
     } finally {
       _isSubmitting = false;
@@ -308,7 +309,7 @@ class IncidentProvider extends ChangeNotifier {
       await refresh();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = friendlyError(e);
       notifyListeners();
       return false;
     }
@@ -324,7 +325,7 @@ class IncidentProvider extends ChangeNotifier {
       await refresh();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = friendlyError(e);
       notifyListeners();
       return false;
     }
@@ -343,7 +344,7 @@ class IncidentProvider extends ChangeNotifier {
       await refresh();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = friendlyError(e);
       notifyListeners();
       return false;
     }
@@ -360,7 +361,7 @@ class IncidentProvider extends ChangeNotifier {
       await refresh();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = friendlyError(e);
       notifyListeners();
       return false;
     }
@@ -377,7 +378,7 @@ class IncidentProvider extends ChangeNotifier {
       await refresh();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = friendlyError(e);
       notifyListeners();
       return false;
     }
@@ -398,7 +399,7 @@ class IncidentProvider extends ChangeNotifier {
       await refresh();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = friendlyError(e);
       notifyListeners();
       return false;
     }
@@ -413,7 +414,7 @@ class IncidentProvider extends ChangeNotifier {
       await refresh();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = friendlyError(e);
       notifyListeners();
       return false;
     }

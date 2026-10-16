@@ -16,6 +16,7 @@ import 'broadcast_audit_log_screen.dart';
 import 'feedback_overview_screen.dart';
 import 'messages_screen.dart';
 import 'volunteer_tasks_screen.dart';
+import '../l10n/ui_text.dart';
 
 /// Story 4 & Authority Dashboard: authority-only live view of every active/escalated broadcast,
 /// with real-time zone resident seen and acknowledged percentage analytics, action threshold
@@ -53,10 +54,9 @@ class _BroadcastDashboardScreenState extends State<BroadcastDashboardScreen> {
       appBar: AppBar(
         title: Text(strings.t('dashboardTitle')),
         actions: [
-          const A11yInclusionButton(),
           IconButton(
-            icon: const Icon(Icons.receipt_long_outlined, semanticLabel: 'Audit log'),
-            tooltip: 'Audit Log',
+            icon: Icon(Icons.receipt_long_outlined, semanticLabel: context.tr('Audit log')),
+            tooltip: context.tr('Audit Log'),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -80,7 +80,7 @@ class _BroadcastDashboardScreenState extends State<BroadcastDashboardScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 child: Row(
                   children: [
-                    const Icon(Icons.wifi_off, size: 20, semanticLabel: 'Offline'),
+                    Icon(Icons.wifi_off, size: 20, semanticLabel: context.tr('Offline')),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -135,7 +135,7 @@ class _CoordinationShortcuts extends StatelessWidget {
           Expanded(
             child: _ShortcutButton(
               icon: Icons.volunteer_activism_outlined,
-              label: 'Volunteers',
+              label: context.tr('Volunteers'),
               onTap: () => open(VolunteerTasksScreen(zones: zones)),
             ),
           ),
@@ -143,7 +143,7 @@ class _CoordinationShortcuts extends StatelessWidget {
           Expanded(
             child: _ShortcutButton(
               icon: Icons.chat_bubble_outline,
-              label: 'Messages',
+              label: context.tr('Messages'),
               onTap: () => open(const MessagesScreen()),
             ),
           ),
@@ -151,7 +151,7 @@ class _CoordinationShortcuts extends StatelessWidget {
           Expanded(
             child: _ShortcutButton(
               icon: Icons.reviews_outlined,
-              label: 'Feedback',
+              label: context.tr('Feedback'),
               onTap: () => open(FeedbackOverviewScreen(zones: zones)),
             ),
           ),
@@ -204,7 +204,7 @@ class _SeverityFilterRow extends StatelessWidget {
         child: Row(
           children: [
             ChoiceChip(
-              label: const Text('All'),
+              label: Text(context.tr('All')),
               selected: selected == null,
               onSelected: (_) => onSelected(null),
             ),
@@ -213,7 +213,7 @@ class _SeverityFilterRow extends StatelessWidget {
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(
-                  label: Text(s.label),
+                  label: Text(context.tr(s.label)),
                   selected: selected == s,
                   onSelected: (_) => onSelected(selected == s ? null : s),
                 ),
@@ -289,7 +289,7 @@ class _AlertDashboardCard extends StatelessWidget {
                         Icons.closed_caption,
                         size: 18,
                         color: context.brandInk,
-                        semanticLabel: 'Siren broadcast transcript',
+                        semanticLabel: context.tr('Siren broadcast transcript'),
                       ),
                       const SizedBox(width: 6),
                       Expanded(
@@ -321,19 +321,19 @@ class _AlertDashboardCard extends StatelessWidget {
                   children: [
                     _buildChannelBadge(
                       icon: Icons.notifications_active,
-                      label: 'Push',
+                      label: context.tr('Push'),
                       color: context.brandAccent,
                     ),
                     const SizedBox(width: 4),
                     _buildChannelBadge(
                       icon: Icons.sms_outlined,
-                      label: 'SMS',
+                      label: context.tr('SMS'),
                       color: AppColors.severityOrange,
                     ),
                     const SizedBox(width: 4),
                     _buildChannelBadge(
                       icon: Icons.volume_up,
-                      label: 'Siren',
+                      label: context.tr('Siren'),
                       color: AppColors.severityRed,
                     ),
                   ],
@@ -384,8 +384,7 @@ class _AlertDashboardCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     ),
                     icon: const Icon(Icons.analytics_outlined, size: 16),
-                    label: const Text(
-                      'Resident Breakdown',
+                    label: Text(context.tr('Resident Breakdown'),
                       style: TextStyle(fontSize: 12),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -408,9 +407,8 @@ class _AlertDashboardCard extends StatelessWidget {
                         color: AppColors.severityOrange.withValues(alpha: 0.5),
                       ),
                     ),
-                    icon: const Icon(Icons.trending_up_rounded, size: 16, semanticLabel: 'Escalate or edit this broadcast'),
-                    label: const Text(
-                      'Escalate',
+                    icon: Icon(Icons.trending_up_rounded, size: 16, semanticLabel: context.tr('Escalate or edit this broadcast')),
+                    label: Text(context.tr('Escalate'),
                       style: TextStyle(fontSize: 12),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -425,23 +423,23 @@ class _AlertDashboardCard extends StatelessWidget {
                 TextButton(
                   onPressed: () => _confirmAndRun(
                     context,
-                    title: 'Resolve alert?',
-                    body: 'Citizens will see this as de-escalated.',
+                    title: context.tr('Resolve alert?'),
+                    body: context.tr('Citizens will see this as de-escalated.'),
                     action: () =>
                         context.read<AlertProvider>().resolveAlert(alert.id),
                   ),
-                  child: const Text('Resolve'),
+                  child: Text(context.tr('Resolve')),
                 ),
                 TextButton(
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
                   onPressed: () => _confirmAndRun(
                     context,
-                    title: 'Archive alert?',
-                    body: 'This removes it from the live dashboard entirely.',
+                    title: context.tr('Archive alert?'),
+                    body: context.tr('This removes it from the live dashboard entirely.'),
                     action: () =>
                         context.read<AlertProvider>().archiveAlert(alert.id),
                   ),
-                  child: const Text('Archive'),
+                  child: Text(context.tr('Archive')),
                 ),
               ],
             ),
@@ -570,8 +568,7 @@ class _AlertDashboardCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      const Text(
-                        'Acknowledged',
+                      Text(context.tr('Acknowledged'),
                         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
                       ),
                     ],
@@ -603,8 +600,7 @@ class _AlertDashboardCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      const Text(
-                        'Seen / Opened',
+                      Text(context.tr('Seen / Opened'),
                         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
                       ),
                     ],
@@ -657,11 +653,11 @@ class _AlertDashboardCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Confirm'),
+            child: Text(context.tr('Confirm')),
           ),
         ],
       ),
@@ -756,12 +752,11 @@ class _EscalateSheetState extends State<_EscalateSheet> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.trending_up_rounded,
-                  color: Colors.white, size: 18, semanticLabel: 'Escalated'),
+              Icon(Icons.trending_up_rounded,
+                  color: Colors.white, size: 18, semanticLabel: context.tr('Escalated')),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  'Broadcast escalated to ${_severity.label}.',
+                child: Text(context.tr('Broadcast escalated to {p0}.', {'p0': _severity.label}),
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
@@ -822,11 +817,11 @@ class _EscalateSheetState extends State<_EscalateSheet> {
                   color: AppColors.severityOrange.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.trending_up_rounded,
                   color: AppColors.severityOrange,
                   size: 22,
-                  semanticLabel: 'Escalate broadcast',
+                  semanticLabel: context.tr('Escalate broadcast'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -834,16 +829,14 @@ class _EscalateSheetState extends State<_EscalateSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Escalate / Edit Broadcast',
+                    Text(context.tr('Escalate / Edit Broadcast'),
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
                         color: context.inkStrong,
                       ),
                     ),
-                    Text(
-                      'Changes are broadcast-wide immediately.',
+                    Text(context.tr('Changes are broadcast-wide immediately.'),
                       style: TextStyle(
                         fontSize: 12,
                         color: context.inkMuted,
@@ -858,11 +851,11 @@ class _EscalateSheetState extends State<_EscalateSheet> {
 
           // Severity picker
           Semantics(
-            label: 'Severity level selector',
+            label: context.tr('Severity level selector'),
             child: DropdownButtonFormField<AlertSeverity>(
               key: const Key('escalate_severity_dropdown'),
-              decoration: const InputDecoration(
-                labelText: 'Severity *',
+              decoration: InputDecoration(
+                labelText: context.tr('Severity *'),
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.warning_amber_rounded),
               ),
@@ -881,7 +874,7 @@ class _EscalateSheetState extends State<_EscalateSheet> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(s.label),
+                      Text(context.tr(s.label)),
                     ],
                   ),
                 );
@@ -924,8 +917,8 @@ class _EscalateSheetState extends State<_EscalateSheet> {
             key: const Key('escalate_title_field'),
             controller: _titleCtrl,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              labelText: 'Alert title *',
+            decoration: InputDecoration(
+              labelText: context.tr('Alert title *'),
               border: OutlineInputBorder(),
             ),
             onChanged: (_) => setState(() {}),
@@ -937,9 +930,9 @@ class _EscalateSheetState extends State<_EscalateSheet> {
             key: const Key('escalate_instructions_field'),
             controller: _instructionsCtrl,
             maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Updated instructions',
-              hintText: 'Example: Evacuate immediately via Route B.',
+            decoration: InputDecoration(
+              labelText: context.tr('Updated instructions'),
+              hintText: context.tr('Example: Evacuate immediately via Route B.'),
               border: OutlineInputBorder(),
               alignLabelWithHint: true,
             ),
@@ -959,10 +952,10 @@ class _EscalateSheetState extends State<_EscalateSheet> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline,
+                  Icon(Icons.error_outline,
                       color: AppColors.severityRed,
                       size: 18,
-                      semanticLabel: 'Error'),
+                      semanticLabel: context.tr('Error')),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -986,7 +979,7 @@ class _EscalateSheetState extends State<_EscalateSheet> {
                 child: OutlinedButton(
                   key: const Key('escalate_cancel_btn'),
                   onPressed: _submitting ? null : () => Navigator.pop(context),
-                  child: const Text('Cancel'),
+                  child: Text(context.tr('Cancel')),
                 ),
               ),
               const SizedBox(width: 12),
@@ -1007,8 +1000,8 @@ class _EscalateSheetState extends State<_EscalateSheet> {
                             color: Colors.white,
                           ),
                         )
-                      : const Icon(Icons.trending_up_rounded,
-                          semanticLabel: 'Confirm escalation'),
+                      : Icon(Icons.trending_up_rounded,
+                          semanticLabel: context.tr('Confirm escalation')),
                   onPressed: (_submitting || !_hasChanges) ? null : _submit,
                   label: Text(
                     _submitting ? 'Saving…' : 'Confirm Escalation',

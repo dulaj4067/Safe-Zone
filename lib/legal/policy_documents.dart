@@ -31,7 +31,7 @@ class LegalConfig {
   static String get contactLabel =>
       privacyContact ??
       'Contact details will be published here once confirmed. Until then, '
-          'use Settings → Send Feedback.';
+          'use Settings → Give feedback.';
 }
 
 class PolicySection {

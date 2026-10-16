@@ -1,24 +1,61 @@
 import 'package:supabase_flutter/supabase_flutter.dart'
     show FunctionException, PostgrestException;
 
+import '../utils/error_messages.dart';
 import 'supabase_service.dart';
 
 /// Status of the signed-in user's account-deletion request.
-enum DeletionStatus { none, received, processing, completed, cancelled }
+/// [awaitingEmail]: asked for, but the citizen hasn't opened the link in the
+/// confirmation email yet, so no administrator can see it.
+enum DeletionStatus { none, awaitingEmail, received, processing, completed, cancelled }
+
+/// What the server said about a typed confirmation code.
+enum DeletionCodeResult {
+  confirmed,
+  wrong,
+  expired,
+  tooManyTries,
+  noCode,
+  noRequest;
+
+  static DeletionCodeResult fromServer(Object? value) => switch (value) {
+        'confirmed' => DeletionCodeResult.confirmed,
+        'wrong' => DeletionCodeResult.wrong,
+        'expired' => DeletionCodeResult.expired,
+        'too_many' => DeletionCodeResult.tooManyTries,
+        'no_code' => DeletionCodeResult.noCode,
+        _ => DeletionCodeResult.noRequest,
+      };
+}
+
+/// A code is exactly six digits; anything else never needs a server call.
+bool isValidDeletionCode(String? value) =>
+    RegExp(r'^\d{6}$').hasMatch((value ?? '').trim());
 
 class DeletionRequest {
   final DeletionStatus status;
   final DateTime? requestedAt;
   const DeletionRequest(this.status, this.requestedAt);
 
-  bool get isOpen => status == DeletionStatus.received || status == DeletionStatus.processing;
+  bool get isOpen =>
+      status == DeletionStatus.awaitingEmail ||
+      status == DeletionStatus.received ||
+      status == DeletionStatus.processing;
+
+  /// The database writes `awaiting_email`; the enum is camelCase.
+  static DeletionStatus _statusFromDb(Object? value) => switch (value) {
+        'awaiting_email' => DeletionStatus.awaitingEmail,
+        'received' => DeletionStatus.received,
+        'processing' => DeletionStatus.processing,
+        'completed' => DeletionStatus.completed,
+        'cancelled' => DeletionStatus.cancelled,
+        // Unknown means "still open", never "deleted".
+        _ => DeletionStatus.received,
+      };
 
   static DeletionRequest fromRow(Map<String, dynamic>? row) {
     if (row == null) return const DeletionRequest(DeletionStatus.none, null);
-    final status = DeletionStatus.values.firstWhere(
-      (s) => s.name == row['status'],
-      orElse: () => DeletionStatus.received,
-    );
+    final status = _statusFromDb(row['status']);
     return DeletionRequest(
       status,
       DateTime.tryParse(row['requested_at'] as String? ?? '')?.toLocal(),
@@ -58,6 +95,33 @@ class AccountDeletionService {
     }
   }
 
+  /// Checks the 6-digit code from the confirmation email. On success the
+  /// request goes to the administrators.
+  Future<DeletionCodeResult> confirmWithCode(String code) async {
+    try {
+      final result = await SupabaseService.client
+          .rpc('confirm_account_deletion', params: {'code': code.trim()});
+      return DeletionCodeResult.fromServer(result);
+    } on PostgrestException catch (e) {
+      throw DeletionException(_friendly(e));
+    }
+  }
+
+  /// Emails the signed-in citizen the 6-digit code that confirms their
+  /// request. Safe to call again to resend (one email a minute).
+  Future<void> sendConfirmationEmail() async {
+    try {
+      await SupabaseService.client.functions.invoke('send-deletion-confirmation');
+    } on FunctionException catch (e) {
+      final details = e.details;
+      throw DeletionException(
+        details is Map && details['error'] is String
+            ? details['error'] as String
+            : 'Could not send the confirmation email. Please try again.',
+      );
+    }
+  }
+
   Future<void> cancel() async {
     try {
       await SupabaseService.client.rpc('cancel_account_deletion');
@@ -89,14 +153,14 @@ class AccountDeletionService {
       );
       final data = res.data;
       if (data is! Map || data['status'] != 'completed') {
-        throw DeletionException('The server didn’t confirm the deletion.');
+        throw DeletionException("The server didn't confirm the deletion.");
       }
     } on FunctionException catch (e) {
       final details = e.details;
       throw DeletionException(
         details is Map && details['error'] is String
             ? details['error'] as String
-            : 'Deletion failed (${e.status}). It can be retried safely.',
+            : 'Deletion failed. It can be retried safely.',
       );
     }
   }
@@ -105,9 +169,9 @@ class AccountDeletionService {
     // Missing function = the migration hasn't been applied on this backend.
     if (e.code == 'PGRST202' || e.code == '42883') {
       return 'Account deletion isn\'t available on this server yet. '
-          'Please contact the operator through Send Feedback.';
+          'Please contact the operator through Give feedback in Settings.';
     }
-    return e.message;
+    return friendlyError(e);
   }
 }
 
@@ -140,7 +204,8 @@ class OpenDeletionRequest {
   );
 }
 
-class DeletionException implements Exception {
+class DeletionException implements Exception, UserMessage {
+  @override
   final String message;
   DeletionException(this.message);
   @override

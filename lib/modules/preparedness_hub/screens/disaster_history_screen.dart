@@ -5,6 +5,7 @@ import '../../../models/app_user.dart';
 import '../../../models/zone.dart';
 import '../models/disaster_history_record.dart';
 import '../providers/preparedness_provider.dart';
+import '../../../l10n/ui_text.dart';
 
 class DisasterHistoryScreen extends StatefulWidget {
   const DisasterHistoryScreen({

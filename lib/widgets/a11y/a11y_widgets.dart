@@ -371,23 +371,6 @@ class SubmitBroadcastIntent extends Intent {
   const SubmitBroadcastIntent();
 }
 
-class A11yInclusionButton extends StatelessWidget {
-  const A11yInclusionButton({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final strings = adminStringsOf(context);
-    return IconButton(
-      icon: const Icon(
-        Icons.accessibility_new_rounded,
-        semanticLabel: 'Inclusion and accessibility settings',
-      ),
-      tooltip: strings.t('inclusion'),
-      onPressed: () => showA11yInclusionSheet(context),
-    );
-  }
-}
-
 Future<void> showA11yInclusionSheet(BuildContext context) async {
   await showModalBottomSheet<void>(
     context: context,
@@ -418,13 +401,6 @@ class _InclusionSheetContent extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(
-                    Icons.accessibility_new_rounded,
-                    color: context.brandAccent,
-                    size: 24,
-                    semanticLabel: 'Inclusion and accessibility',
-                  ),
-                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       strings.t('inclusion'),

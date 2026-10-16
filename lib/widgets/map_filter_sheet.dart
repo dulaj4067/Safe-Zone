@@ -6,6 +6,7 @@ import '../models/shelter.dart';
 import '../theme/app_colors.dart';
 import '../utils/map_tile_config.dart';
 import 'incident_card.dart';
+import '../l10n/ui_text.dart';
 
 /// What the home map shows. Filters only ever hide routine data — the
 /// life-safety layer (critical alerts, active SOS / trapped-person reports)
@@ -107,7 +108,7 @@ class MapFilterButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final active = changedCount > 0;
     return Tooltip(
-      message: 'Map layers & filters',
+      message: context.tr('Map layers & filters'),
       child: Badge(
         isLabelVisible: active,
         label: Text('$changedCount'),
@@ -170,24 +171,23 @@ Future<void> showMapFilterSheet(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Map layers',
+                Text(context.tr('Map layers'),
                   style: textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 12),
                 SegmentedButton<BaseMapStyle>(
-                  segments: const [
+                  segments: [
                     ButtonSegment(
                       value: BaseMapStyle.street,
                       icon: Icon(Icons.map_outlined),
-                      label: Text('Street'),
+                      label: Text(context.tr('Street')),
                     ),
                     ButtonSegment(
                       value: BaseMapStyle.topo,
                       icon: Icon(Icons.terrain),
-                      label: Text('Terrain'),
+                      label: Text(context.tr('Terrain')),
                     ),
                   ],
                   selected: {currentStyle},
@@ -199,8 +199,8 @@ Future<void> showMapFilterSheet(
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   secondary: const Icon(Icons.blur_on_rounded),
-                  title: const Text('Incident heatmap'),
-                  subtitle: const Text('Where reports are concentrated'),
+                  title: Text(context.tr('Incident heatmap')),
+                  subtitle: Text(context.tr('Where reports are concentrated')),
                   value: heatmapOn,
                   onChanged: (v) {
                     setSheetState(() => heatmapOn = v);
@@ -211,8 +211,7 @@ Future<void> showMapFilterSheet(
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        'Filters',
+                      child: Text(context.tr('Filters'),
                         style: textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
@@ -222,7 +221,7 @@ Future<void> showMapFilterSheet(
                       onPressed: filters.changedCount == 0
                           ? null
                           : () => update(const MapFilters()),
-                      child: const Text('Reset'),
+                      child: Text(context.tr('Reset')),
                     ),
                   ],
                 ),
@@ -233,7 +232,7 @@ Future<void> showMapFilterSheet(
                     color: AppColors.severityRed.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
                       Icon(
                         Icons.priority_high_rounded,
@@ -242,9 +241,7 @@ Future<void> showMapFilterSheet(
                       ),
                       SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          'Always shown: critical (red) alerts, active SOS and '
-                          'trapped-person reports, and your own location.',
+                        child: Text(context.tr('Always shown: critical (red) alerts, active SOS and trapped-person reports, and your own location.'),
                           style: TextStyle(fontSize: 13),
                         ),
                       ),
@@ -255,23 +252,23 @@ Future<void> showMapFilterSheet(
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   secondary: const Icon(Icons.warning_amber_rounded),
-                  title: const Text('Other alert zones'),
-                  subtitle: const Text('Advisory, watch and warning levels'),
+                  title: Text(context.tr('Other alert zones')),
+                  subtitle: Text(context.tr('Advisory, watch and warning levels')),
                   value: filters.alerts,
                   onChanged: (v) => update(filters.copyWith(alerts: v)),
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   secondary: const Icon(Icons.report_outlined),
-                  title: const Text('Incident reports'),
+                  title: Text(context.tr('Incident reports')),
                   value: filters.incidents,
                   onChanged: (v) => update(filters.copyWith(incidents: v)),
                 ),
                 if (filters.incidents) ...[
                   SwitchListTile(
                     contentPadding: const EdgeInsets.only(left: 40),
-                    title: const Text('Active reports only'),
-                    subtitle: const Text('Hide resolved and rejected'),
+                    title: Text(context.tr('Active reports only')),
+                    subtitle: Text(context.tr('Hide resolved and rejected')),
                     value: filters.activeIncidentsOnly,
                     onChanged: (v) =>
                         update(filters.copyWith(activeIncidentsOnly: v)),
@@ -289,7 +286,7 @@ Future<void> showMapFilterSheet(
                               size: 16,
                               color: categoryColor(c),
                             ),
-                            label: Text(c.label),
+                            label: Text(context.tr(c.label)),
                             selected: !filters.hiddenCategories.contains(c),
                             onSelected: (show) {
                               final hidden = {...filters.hiddenCategories};
@@ -306,15 +303,15 @@ Future<void> showMapFilterSheet(
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   secondary: const Icon(Icons.night_shelter_outlined),
-                  title: const Text('Shelters'),
+                  title: Text(context.tr('Shelters')),
                   value: filters.shelters,
                   onChanged: (v) => update(filters.copyWith(shelters: v)),
                 ),
                 if (filters.shelters)
                   SwitchListTile(
                     contentPadding: const EdgeInsets.only(left: 40),
-                    title: const Text('Open shelters only'),
-                    subtitle: const Text('Hide full and closed shelters'),
+                    title: Text(context.tr('Open shelters only')),
+                    subtitle: Text(context.tr('Hide full and closed shelters')),
                     value: filters.openSheltersOnly,
                     onChanged: (v) =>
                         update(filters.copyWith(openSheltersOnly: v)),
@@ -322,8 +319,8 @@ Future<void> showMapFilterSheet(
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   secondary: const Icon(Icons.family_restroom),
-                  title: const Text('Safety circle'),
-                  subtitle: const Text('Family and friends sharing with you'),
+                  title: Text(context.tr('Safety circle')),
+                  subtitle: Text(context.tr('Family and friends sharing with you')),
                   value: filters.family,
                   onChanged: (v) => update(filters.copyWith(family: v)),
                 ),

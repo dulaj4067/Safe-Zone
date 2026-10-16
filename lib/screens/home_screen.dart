@@ -22,7 +22,7 @@ import '../providers/safety_provider.dart';
 import '../theme/app_colors.dart';
 import '../services/activity_history_service.dart';
 import '../l10n/app_strings.dart';
-import '../providers/accessibility_provider.dart';
+import '../utils/severity_haptics.dart';
 import '../services/location_service.dart';
 import '../widgets/offline_strip.dart';
 import '../services/place_name_service.dart';
@@ -48,6 +48,7 @@ import '../screens/shelter_detail_screen.dart';
 import '../screens/shelter_directions_screen.dart';
 import '../screens/family_circle_screen.dart';
 import '../services/supabase_service.dart';
+import '../l10n/ui_text.dart';
 
 /// SafeZone home tab — district map with live alert-radius overlays
 /// (from AlertProvider.activeAlerts), incident markers (from
@@ -213,12 +214,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _locationService.getCurrentLocation().then((fix) {
       if (mounted && fix != null && _liveLocation == null) {
         setState(() => _liveLocation = fix);
+        context.read<AlertProvider>().updateUserLocation(fix);
         _updatePlaceName(fix);
       }
     });
     _positionSub = _locationService.watchPosition().listen(
       (position) {
-        if (mounted) setState(() => _liveLocation = position);
+        if (mounted) {
+          setState(() => _liveLocation = position);
+          context.read<AlertProvider>().updateUserLocation(position);
+        }
         _updatePlaceName(position);
       },
       onError: (_) {
@@ -259,31 +264,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return nearest?.name;
   }
 
-  /// `sampleRiskZones` is hardcoded sample data with no real backend source
-  /// (see its doc comment) — assigning a real user a "current risk zone"
-  /// from it would mean showing them a fabricated flood-risk warning, which
-  /// is actively misleading for a disaster app. Gated to debug builds only,
-  /// same as `_debugSampleZones` below, until a real zone-risk data source
-  /// exists. In release builds this always returns null, so "Share my ETA"
-  /// simply has no zone context rather than a made-up one.
-  RiskZone? _nearestRiskZone(LatLng center) {
-    if (!kDebugMode) return null;
-    RiskZone? nearest;
-    double? bestDistance;
-    for (final zone in sampleRiskZones) {
-      final centroid = zone.boundary.reduce(
-        (a, b) => LatLng(
-          (a.latitude + b.latitude) / 2,
-          (a.longitude + b.longitude) / 2,
-        ),
-      );
-      final d = _distance(center, centroid);
-      if (bestDistance == null || d < bestDistance) {
-        bestDistance = d;
-        nearest = zone;
+  /// The risk zone the person is standing in, built from a real active
+  /// alert: the most severe alert whose circle contains [live]. Null without
+  /// a GPS fix or outside every alert, so "Share my ETA" shows no zone
+  /// rather than a made-up one (it used to read hardcoded sample data in
+  /// debug builds, which put every tester "in Kelaniya").
+  RiskZone? _currentRiskZone(LatLng? live, List<DisasterAlert> alerts) {
+    if (live == null) return null;
+    DisasterAlert? worst;
+    for (final alert in alerts) {
+      final inside = _distance(live, LatLng(alert.centerLat, alert.centerLng)) <=
+          alert.radiusMeters;
+      if (inside && (worst == null || alert.severity.index > worst.severity.index)) {
+        worst = alert;
       }
     }
-    return nearest;
+    if (worst == null) return null;
+    final centre = LatLng(worst.centerLat, worst.centerLng);
+    return RiskZone(
+      id: worst.id,
+      name: worst.title,
+      level: switch (worst.severity) {
+        AlertSeverity.red => RiskLevel.severe,
+        AlertSeverity.orange => RiskLevel.high,
+        AlertSeverity.yellow => RiskLevel.moderate,
+        AlertSeverity.green => RiskLevel.low,
+      },
+      // A 36-point ring approximating the alert's circle.
+      boundary: [
+        for (var deg = 0; deg < 360; deg += 10)
+          _distance.offset(centre, worst.radiusMeters.toDouble(), deg.toDouble()),
+      ],
+    );
   }
 
   @override
@@ -298,7 +310,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final effectiveCenter = _liveLocation ?? _initialCenter;
     final districtLabel = (_liveLocation != null ? _placeName : null) ??
         _nearestZoneName(effectiveCenter);
-    final nearestRiskZone = _nearestRiskZone(effectiveCenter);
+    final nearestRiskZone = _currentRiskZone(_liveLocation, activeAlerts);
 
     // Consume the resume-centre once so the map animates to it this frame
     // and subsequent rebuilds don't re-trigger the move.
@@ -333,8 +345,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 );
               },
             ),
-            if (activeAlerts.isNotEmpty)
-              LocationAlertBanner(userLocation: effectiveCenter),
+            // Only with a real GPS fix: the default map centre is not where
+            // the person is, so it must not decide who sees a warning.
+            if (activeAlerts.isNotEmpty && _liveLocation != null)
+              LocationAlertBanner(userLocation: _liveLocation!),
             if (_locationDenied) const _LocationDeniedBanner(),
             if (isAlertsOffline) const OfflineStrip(),
             Padding(
@@ -407,13 +421,12 @@ class _LocationDeniedBanner extends StatelessWidget {
       width: double.infinity,
       color: Colors.amber.shade100,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: const Row(
+      child: Row(
         children: [
           Icon(Icons.location_off, size: 16),
           SizedBox(width: 8),
           Expanded(
-            child: Text(
-              'Location access is off — enable it in Settings to see your position on the map.',
+            child: Text(context.tr('Location access is off — enable it in Settings to see your position on the map.'),
               style: TextStyle(fontSize: 13),
             ),
           ),
@@ -439,7 +452,7 @@ class _HeaderRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('SafeZone', style: textTheme.headlineMedium),
+                Text(context.tr('SafeZone'), style: textTheme.headlineMedium),
                 const SizedBox(height: 2),
                 Text(
                   strings.t('tagline'),
@@ -534,6 +547,65 @@ class _SafeZoneMap extends StatefulWidget {
 class _SafeZoneMapState extends State<_SafeZoneMap> {
   bool _showHeatmap = false;
   BaseMapStyle _baseMapStyle = BaseMapStyle.street;
+
+  /// Share of the alert zone's fill kept at [zoom]: all of it zoomed out, a
+  /// fifth when zoomed right in.
+  static double _zoneFillFade(double zoom) =>
+      (1 - (zoom - 12) / 3 * 0.8).clamp(0.2, 1.0);
+
+  bool _isOpen(Incident i) =>
+      i.status == IncidentStatus.pending || i.status == IncidentStatus.verified;
+
+  bool _canCommunityConfirm(Incident i) =>
+      _isOpen(i) && i.reporterId != SupabaseService.currentUserId;
+
+  bool _canVerify(Incident i) =>
+      (widget.currentUser?.role.isAuthority ?? false) &&
+      i.status == IncidentStatus.pending;
+
+  void _say(String text, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(text),
+        backgroundColor: error ? AppColors.severityRed : null,
+      ),
+    );
+  }
+
+  /// Community confirmation from the map sheet. It used to fire and forget,
+  /// so a refusal (own report, already confirmed, no permission) vanished
+  /// silently and the button looked broken; now every outcome is shown.
+  Future<void> _confirmIncident(Incident incident) async {
+    final userId = SupabaseService.currentUserId;
+    if (userId == null) {
+      _say('Sign in to confirm a report.', error: true);
+      return;
+    }
+    final provider = context.read<IncidentProvider>();
+    try {
+      if (await provider.hasUserConfirmed(incidentId: incident.id, userId: userId)) {
+        _say('You already confirmed this report.');
+        return;
+      }
+      await provider.confirmIncident(incidentId: incident.id, memberId: userId);
+      _say('Thanks, you confirmed this report.');
+    } catch (e) {
+      _say('Could not confirm the report. Please try again.', error: true);
+    }
+  }
+
+  /// Authority verification from the map sheet.
+  Future<void> _verifyIncident(Incident incident) async {
+    final adminId = SupabaseService.currentUserId;
+    if (adminId == null) return;
+    final provider = context.read<IncidentProvider>();
+    final ok = await provider.verifyIncident(incident.id, adminId);
+    _say(
+      ok ? 'Report verified.' : 'Could not verify the report. ${provider.errorMessage ?? ''}'.trim(),
+      error: !ok,
+    );
+  }
   MapFilters _filters = const MapFilters();
 
   /// Shelter whose preview card is showing over the map, if any.
@@ -681,14 +753,17 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
     );
     if (!mounted) return;
     setState(() => _sendingSos = false);
-    // Optional vibration confirms the send without relying on sound or sight.
-    if (success) pulseHapticOf(context);
+    // An SOS gets the strongest pattern (same as a red alert), so it is
+    // felt as something serious without relying on sound or sight.
+    if (success) severityHapticOf(context, AlertSeverity.red);
     messenger.showSnackBar(
       SnackBar(
         content: Text(
           success
               ? strings.t('sosSent')
-              : provider.errorMessage ?? strings.t('sosFailed'),
+              : provider.errorMessage != null
+                  ? context.tr(provider.errorMessage!)
+                  : strings.t('sosFailed'),
         ),
         backgroundColor: success
             ? AppColors.severityRed
@@ -928,14 +1003,20 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
               // Heatmap layer — sits between the base tiles and the alert
               // circles so it never obscures interactive elements.
               if (_showHeatmap) HeatmapLayer(incidents: incidents),
-              CircleLayer(
+              // Alert zones are sized in metres, so zoomed in a 3 km zone would
+              // wash the whole screen; fade the fill with zoom and keep the
+              // outline, so the area stays readable without hiding the map.
+              Builder(
+                builder: (zoneContext) {
+                  final fade = _zoneFillFade(MapCamera.of(zoneContext).zoom);
+                  return CircleLayer(
                 circles: [
                   for (final alert in alerts)
                     CircleMarker(
                       point: LatLng(alert.centerLat, alert.centerLng),
                       radius: alert.radiusMeters.toDouble(),
                       useRadiusInMeter: true,
-                      color: severityFillColor(alert.severity),
+                      color: severityFillColor(alert.severity).withValues(alpha: 0.33 * fade),
                       borderColor: severityColor(alert.severity),
                       borderStrokeWidth: 1.5,
                     ),
@@ -945,11 +1026,13 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                         point: zone.center,
                         radius: zone.radiusMeters,
                         useRadiusInMeter: true,
-                        color: severityFillColor(zone.severity),
+                        color: severityFillColor(zone.severity).withValues(alpha: 0.33 * fade),
                         borderColor: severityColor(zone.severity),
                         borderStrokeWidth: 1.5,
                       ),
                 ],
+              );
+                },
               ),
               if (activeRoute != null)
                 PolylineLayer(
@@ -1038,19 +1121,21 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                                       ),
                                     );
                                   },
-                                  onConfirm: () {
-                                    final userId =
-                                        SupabaseService.currentUserId;
-                                    if (userId != null) {
-                                      context
-                                          .read<IncidentProvider>()
-                                          .confirmIncident(
-                                            incidentId: incident.id,
-                                            memberId: userId,
-                                          );
-                                    }
-                                    Navigator.pop(context);
-                                  },
+                                  // Not offered on your own report (the
+                                  // database refuses it) or one that is
+                                  // already closed.
+                                  onConfirm: _canCommunityConfirm(incident)
+                                      ? () {
+                                          Navigator.pop(context);
+                                          _confirmIncident(incident);
+                                        }
+                                      : null,
+                                  onVerify: _canVerify(incident)
+                                      ? () {
+                                          Navigator.pop(context);
+                                          _verifyIncident(incident);
+                                        }
+                                      : null,
                                 ),
                               );
                             },
@@ -1213,8 +1298,7 @@ class _ResumeSessionModal extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        'Want to pick up where you left off?',
+                      child: Text(context.tr('Want to pick up where you left off?'),
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           height: 1.3,
@@ -1226,8 +1310,7 @@ class _ResumeSessionModal extends StatelessWidget {
                 const SizedBox(height: 8),
                 Padding(
                   padding: const EdgeInsets.only(left: 44),
-                  child: Text(
-                    "Looks like you've moved. Your previous map view is still saved.",
+                  child: Text(context.tr('Looks like you\'ve moved. Your previous map view is still saved.'),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
@@ -1245,7 +1328,7 @@ class _ResumeSessionModal extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text('Not now'),
+                        child: Text(context.tr('Not now')),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1254,7 +1337,7 @@ class _ResumeSessionModal extends StatelessWidget {
                       child: FilledButton.icon(
                         onPressed: onResume,
                         icon: const Icon(Icons.redo_rounded, size: 18),
-                        label: const Text('Go back'),
+                        label: Text(context.tr('Go back')),
                         style: FilledButton.styleFrom(
                           backgroundColor: const Color(0xFF1C7C89),
                           padding: const EdgeInsets.symmetric(vertical: 13),

@@ -6,6 +6,7 @@ import '../../../models/app_user.dart';
 import '../../../models/zone.dart';
 import '../models/preparedness_guide.dart';
 import '../providers/preparedness_provider.dart';
+import '../../../l10n/ui_text.dart';
 
 class ManageGuidesScreen extends StatelessWidget {
   const ManageGuidesScreen({
@@ -24,11 +25,11 @@ class ManageGuidesScreen extends StatelessWidget {
 
     final provider = context.watch<PreparednessProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage guides')),
+      appBar: AppBar(title: Text(context.tr('Manage guides'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _editGuide(context),
         icon: const Icon(Icons.add),
-        label: const Text('New guide'),
+        label: Text(context.tr('New guide')),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -54,11 +55,11 @@ class ManageGuidesScreen extends StatelessWidget {
                       }
                     },
                     itemBuilder: (_) => [
-                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(value: 'edit', child: Text(context.tr('Edit'))),
                       if (!guide.isArchived)
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'archive',
-                          child: Text('Archive'),
+                          child: Text(context.tr('Archive')),
                         ),
                     ],
                   ),
@@ -90,9 +91,9 @@ class _AccessDeniedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Access denied')),
-    body: const Center(
-      child: Text('Only authority accounts can manage guides.'),
+    appBar: AppBar(title: Text(context.tr('Access denied'))),
+    body: Center(
+      child: Text(context.tr('Only authority accounts can manage guides.')),
     ),
   );
 }
@@ -154,12 +155,12 @@ class _GuideEditorState extends State<_GuideEditor> {
           TextField(
             controller: _title,
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(labelText: 'Title'),
+            decoration: InputDecoration(labelText: context.tr('Title')),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<GuideCategory>(
             initialValue: _category,
-            decoration: const InputDecoration(labelText: 'Category'),
+            decoration: InputDecoration(labelText: context.tr('Category')),
             items: GuideCategory.values
                 .map(
                   (value) =>
@@ -173,9 +174,9 @@ class _GuideEditorState extends State<_GuideEditor> {
           TextField(
             controller: _image,
             decoration: InputDecoration(
-              labelText: 'Cover image URL or local path',
+              labelText: context.tr('Cover image URL or local path'),
               suffixIcon: IconButton(
-                tooltip: 'Choose image',
+                tooltip: context.tr('Choose image'),
                 icon: const Icon(Icons.photo_library_outlined),
                 onPressed: () async {
                   final image = await ImagePicker().pickImage(
@@ -201,8 +202,8 @@ class _GuideEditorState extends State<_GuideEditor> {
             controller: _body,
             minLines: 8,
             maxLines: 14,
-            decoration: const InputDecoration(
-              labelText: 'Guide content (Markdown)',
+            decoration: InputDecoration(
+              labelText: context.tr('Guide content (Markdown)'),
               alignLabelWithHint: true,
               border: OutlineInputBorder(),
             ),
@@ -226,7 +227,7 @@ class _GuideEditorState extends State<_GuideEditor> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Show guide in zones'),
+          title: Text(context.tr('Show guide in zones')),
           content: SizedBox(
             width: 360,
             child: ListView(
@@ -234,7 +235,7 @@ class _GuideEditorState extends State<_GuideEditor> {
               children: [
                 CheckboxListTile(
                   value: selected.isEmpty,
-                  title: const Text('All zones'),
+                  title: Text(context.tr('All zones')),
                   onChanged: (_) => setDialogState(() => selected.clear()),
                 ),
                 ...widget.zones.map(
@@ -256,11 +257,11 @@ class _GuideEditorState extends State<_GuideEditor> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, selected),
-              child: const Text('Done'),
+              child: Text(context.tr('Done')),
             ),
           ],
         ),

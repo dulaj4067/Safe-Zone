@@ -12,8 +12,8 @@ class ZoomButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Icon-only control: name it for screen readers. 12dp padding around a
-    // 20dp icon gives the 44dp minimum touch target.
+    // Icon-only control: name it for screen readers. 14dp padding around a
+    // 20dp icon gives a 48dp touch target.
     final strings = appStringsOf(context);
     return Semantics(
       button: true,
@@ -26,7 +26,7 @@ class ZoomButton extends StatelessWidget {
           customBorder: const CircleBorder(),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             child: Icon(icon, size: 20, color: const Color(0xFF2A2A2A)),
           ),
         ),
@@ -53,7 +53,7 @@ class MyLocationButton extends StatelessWidget {
           customBorder: const CircleBorder(),
           onTap: onTap,
           child: const Padding(
-            padding: EdgeInsets.all(12),
+            padding: EdgeInsets.all(14),
             child: Icon(Icons.my_location, size: 20, color: Color(0xFF1A73E8)),
           ),
         ),
@@ -175,7 +175,7 @@ class MapLayerToggleButton extends StatelessWidget {
             customBorder: const CircleBorder(),
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               child: Icon(
                 isTopo ? Icons.map_outlined : Icons.terrain,
                 size: 20,

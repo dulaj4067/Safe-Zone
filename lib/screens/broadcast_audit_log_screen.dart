@@ -7,6 +7,7 @@ import '../services/broadcast_audit_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/a11y/a11y_widgets.dart';
 import '../widgets/severity_badge.dart';
+import '../l10n/ui_text.dart';
 
 class BroadcastAuditLogScreen extends StatefulWidget {
   final BroadcastAuditService? auditService;
@@ -48,8 +49,8 @@ class _BroadcastAuditLogScreenState extends State<BroadcastAuditLogScreen> {
   Future<void> _clearLogs() async {
     final confirmed = await confirmDestructive(
       context,
-      title: 'Clear Audit Logs?',
-      body: 'Are you sure you want to clear all authority broadcast audit history? This action cannot be undone unless restored.',
+      title: context.tr('Clear Audit Logs?'),
+      body: context.tr('Are you sure you want to clear all authority broadcast audit history? This action cannot be undone unless restored.'),
       confirmLabel: 'Clear All',
     );
 
@@ -60,7 +61,7 @@ class _BroadcastAuditLogScreenState extends State<BroadcastAuditLogScreen> {
       if (mounted) {
         showA11yUndoSnackBar(
           context,
-          message: 'Audit logs cleared.',
+          message: context.tr('Audit logs cleared.'),
           undoLabel: adminStringsOf(context).t('undo'),
           onUndo: () async {
             for (final log in backup) {
@@ -90,15 +91,14 @@ class _BroadcastAuditLogScreenState extends State<BroadcastAuditLogScreen> {
       appBar: AppBar(
         title: Text(strings.t('auditTitle')),
         actions: [
-          const A11yInclusionButton(),
           IconButton(
-            icon: const Icon(Icons.delete_outline, semanticLabel: 'Clear audit logs'),
-            tooltip: 'Clear Audit Logs',
+            icon: Icon(Icons.delete_outline, semanticLabel: context.tr('Clear audit logs')),
+            tooltip: context.tr('Clear Audit Logs'),
             onPressed: _allLogs.isEmpty ? null : _clearLogs,
           ),
           IconButton(
-            icon: const Icon(Icons.refresh, semanticLabel: 'Refresh audit logs'),
-            tooltip: 'Refresh',
+            icon: Icon(Icons.refresh, semanticLabel: context.tr('Refresh audit logs')),
+            tooltip: context.tr('Refresh'),
             onPressed: _loadLogs,
           ),
         ],
@@ -115,8 +115,7 @@ class _BroadcastAuditLogScreenState extends State<BroadcastAuditLogScreen> {
                 const Icon(Icons.verified_user_outlined, size: 20, color: Colors.blue),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    'Immutable audit trail for authority broadcast actions and accountability.',
+                  child: Text(context.tr('Immutable audit trail for authority broadcast actions and accountability.'),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
@@ -131,7 +130,7 @@ class _BroadcastAuditLogScreenState extends State<BroadcastAuditLogScreen> {
             child: Row(
               children: [
                 ChoiceChip(
-                  label: const Text('All'),
+                  label: Text(context.tr('All')),
                   selected: _selectedAction == null,
                   onSelected: (_) => setState(() => _selectedAction = null),
                 ),
@@ -147,7 +146,7 @@ class _BroadcastAuditLogScreenState extends State<BroadcastAuditLogScreen> {
                             ? Colors.white
                             : action.color,
                       ),
-                      label: Text(action.label),
+                      label: Text(context.tr(action.label)),
                       selected: _selectedAction == action,
                       onSelected: (_) => setState(() =>
                           _selectedAction = _selectedAction == action ? null : action),
@@ -167,7 +166,7 @@ class _BroadcastAuditLogScreenState extends State<BroadcastAuditLogScreen> {
                         message: _selectedAction == null
                             ? 'No broadcast audit logs recorded.'
                             : 'No ${entryActionName(_selectedAction)} audit entries found.',
-                        hint: 'Actions such as alert creation, multi-channel dispatch, resolution, and archival will be logged here automatically.',
+                        hint: context.tr('Actions such as alert creation, multi-channel dispatch, resolution, and archival will be logged here automatically.'),
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.all(12),
@@ -282,8 +281,7 @@ class _AuditLogCard extends StatelessWidget {
                         color: context.inkMuted,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        'By ${entry.performedBy}',
+                      Text(context.tr('By {p0}', {'p0': entry.performedBy}),
                         style: TextStyle(
                           fontSize: 11,
                           color: context.inkMuted,

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../models/app_user.dart';
 import '../models/zone.dart';
+import '../providers/accessibility_provider.dart';
 import '../providers/alert_provider.dart';
 import '../providers/map_focus_provider.dart';
 import '../providers/safety_provider.dart';
@@ -14,6 +15,7 @@ import '../services/activity_history_service.dart';
 import '../services/onboarding_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/alert_banner.dart';
+import '../widgets/critical_alert_takeover.dart';
 import '../widgets/safety_circle_request_banner.dart';
 import '../widgets/splash_screen.dart';
 import 'admin_broadcast_screen.dart';
@@ -25,6 +27,7 @@ import 'shelters_screen.dart';
 import 'home_screen.dart';
 import '../modules/preparedness_hub/screens/preparedness_hub_screen.dart';
 import '../widgets/bottom_nav_bar.dart';
+import '../l10n/ui_text.dart';
 
 /// Top-level shell: fetches the signed-in user's profile (for role gating),
 /// initializes the realtime alert subscription (Story 2), and overlays the
@@ -94,6 +97,13 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       final declined = uid != null &&
           await OnboardingService().notificationsDeclined(uid);
       if (!mounted) return;
+      // Green and yellow alert haptics follow the person's haptics setting.
+      AccessibilityProvider? a11y;
+      try {
+        a11y = context.read<AccessibilityProvider>();
+      } catch (_) {}
+      context.read<AlertProvider>().hapticsEnabledResolver =
+          () => a11y?.hapticsEnabled ?? true;
       await context.read<AlertProvider>().init(
         requestNotificationPermission: !declined,
       );
@@ -195,6 +205,20 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
               right: 0,
               child: SafetyCircleRequestBanner(),
             ),
+          // Last, so it covers everything, including the nav bar's area.
+          if (alertProvider.criticalTakeover != null)
+            Positioned.fill(
+              child: CriticalAlertTakeover(
+                key: ValueKey(alertProvider.criticalTakeover!.id),
+                alert: alertProvider.criticalTakeover!,
+                sirenEnabled: alertProvider.sirenOverride,
+                onDismiss: () => context.read<AlertProvider>().dismissTakeover(),
+                onFindShelter: () {
+                  context.read<AlertProvider>().dismissTakeover();
+                  setState(() => _tabIndex = 2); // Shelters
+                },
+              ),
+            ),
         ],
       ),
       // Home tab only — on the other tabs it covers list content.
@@ -202,7 +226,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           ? FloatingActionButton.extended(
               heroTag: 'new-alert-fab',
               icon: const Icon(Icons.campaign),
-              label: const Text('New Alert'),
+              label: Text(context.tr('New Alert')),
               onPressed: () {
                 Navigator.push(
                   context,
@@ -220,7 +244,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       // Hidden until the profile has loaded: the splash shouldn't look like
       // a usable app, and the tab set depends on the user's role.
-      bottomNavigationBar: _loadingProfile ? null : BottomNavBar(
+      // Also hidden while the critical alert owns the screen.
+      bottomNavigationBar: (_loadingProfile || alertProvider.criticalTakeover != null) ? null : BottomNavBar(
         currentIndex: _tabIndex >= tabs.length ? 0 : _tabIndex,
         isAuthority: isAuthority,
         onDestinationSelected: (i) {

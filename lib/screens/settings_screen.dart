@@ -30,6 +30,9 @@ import 'shelter_submissions_screen.dart';
 import 'privacy_settings_screen.dart';
 import 'volunteer_tasks_screen.dart';
 import '../widgets/a11y/a11y_widgets.dart';
+import '../widgets/about_footer.dart';
+import '../l10n/ui_text.dart';
+import '../utils/error_messages.dart';
 
 /// Settings screen tailored for both [UserRole.member] (Citizens) and
 /// [UserRole.authority] / [UserRole.admin] / [UserRole.volunteerOrg].
@@ -80,7 +83,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings & Profile'),
+        title: Text(context.tr('Settings & Profile')),
         elevation: 0,
       ),
       body: SafeArea(
@@ -119,21 +122,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       minimumSize: WidgetStatePropertyAll(Size(0, 48)),
                       padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 6)),
                     ),
-                    segments: const [
+                    segments: [
                       ButtonSegment(
                         value: ThemeMode.light,
                         icon: Icon(Icons.light_mode_outlined, size: 18),
-                        label: FittedBox(fit: BoxFit.scaleDown, child: Text('Light')),
+                        label: FittedBox(fit: BoxFit.scaleDown, child: Text(context.tr('Light'))),
                       ),
                       ButtonSegment(
                         value: ThemeMode.system,
                         icon: Icon(Icons.brightness_auto_outlined, size: 18),
-                        label: FittedBox(fit: BoxFit.scaleDown, child: Text('System')),
+                        label: FittedBox(fit: BoxFit.scaleDown, child: Text(context.tr('System'))),
                       ),
                       ButtonSegment(
                         value: ThemeMode.dark,
                         icon: Icon(Icons.dark_mode_outlined, size: 18),
-                        label: FittedBox(fit: BoxFit.scaleDown, child: Text('Dark')),
+                        label: FittedBox(fit: BoxFit.scaleDown, child: Text(context.tr('Dark'))),
                       ),
                     ],
                     selected: {context.watch<AccessibilityProvider>().themeMode},
@@ -149,7 +152,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Card(
               child: ListTile(
                 key: const Key('inclusion_settings_tile'),
-                leading: Icon(Icons.accessibility_new_rounded, color: context.brandInk),
+                leading: Icon(Icons.visibility_outlined, color: context.brandInk),
                 title: Text(appStringsOf(context).t('inclusionTitle')),
                 subtitle: Text(appStringsOf(context).t('inclusionSubtitle')),
                 trailing: const Icon(Icons.chevron_right),
@@ -182,12 +185,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildHotlinesCard(context),
             const SizedBox(height: 20),
 
-            // ─── System & About ────────────────────────────────────────────
-            _buildSectionHeader('Network & System Status', Icons.info_outline),
-            const SizedBox(height: 8),
-            _buildSystemStatusCard(context),
-            const SizedBox(height: 28),
-
             // ─── Privacy & Data ────────────────────────────────────────────
             _buildSectionHeader('Privacy & Data', Icons.privacy_tip_outlined),
             const SizedBox(height: 8),
@@ -195,8 +192,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: ListTile(
                 key: const Key('privacy_settings_tile'),
                 leading: Icon(Icons.privacy_tip_outlined, color: context.brandInk),
-                title: const Text('Privacy & data'),
-                subtitle: const Text('Policies, what you share, app tour, delete account'),
+                title: Text(context.tr('Privacy & data')),
+                subtitle: Text(context.tr('Policies, what you share, app tour, delete account')),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.push(
                   context,
@@ -208,7 +205,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             // ─── Logout Button ─────────────────────────────────────────────
             _buildLogoutButton(context),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+            const AboutFooter(),
           ],
         ),
       ),
@@ -312,8 +310,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     else if (user != null)
                       GestureDetector(
                         onTap: () => _showEditProfileDialog(context, user),
-                        child: Text(
-                          'Add a phone number',
+                        child: Text(context.tr('Add a phone number'),
                           style: AppTheme.dataText(context).copyWith(
                             fontSize: 12,
                             fontStyle: FontStyle.italic,
@@ -326,7 +323,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.edit_outlined, size: 20),
-                tooltip: 'Edit Profile',
+                tooltip: context.tr('Edit Profile'),
                 onPressed: () => _showEditProfileDialog(context, user),
               ),
             ],
@@ -376,13 +373,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       color: AppColors.severityOrange.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.campaign, size: 13, color: AppColors.severityOrange),
                         SizedBox(width: 4),
-                        Text(
-                          'Broadcast Ready',
+                        Text(context.tr('Broadcast Ready'),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -418,8 +414,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Icon(Icons.broadcast_on_personal,
                     color: context.brandAccent, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  'Emergency Broadcast Controls',
+                Text(context.tr('Emergency Broadcast Controls'),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -433,12 +428,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Default Broadcast Radius',
+                Text(context.tr('Default Broadcast Radius'),
                   style: TextStyle(fontWeight: FontWeight.w500),
                 ),
-                Text(
-                  '${draftRadiusKm.toStringAsFixed(1)} km',
+                Text(context.tr('{p0} km', {'p0': draftRadiusKm.toStringAsFixed(1)}),
                   style: AppTheme.dataText(context).copyWith(
                     fontWeight: FontWeight.bold,
                     color: context.brandAccent,
@@ -466,7 +459,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 minimumSize: const Size.fromHeight(48),
               ),
               icon: const Icon(Icons.campaign, size: 18),
-              label: const Text('Create New Broadcast Alert'),
+              label: Text(context.tr('Create New Broadcast Alert')),
               onPressed: () {
                 Navigator.push(
                   context,
@@ -487,7 +480,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 minimumSize: const Size.fromHeight(48),
               ),
               icon: const Icon(Icons.fact_check_outlined, size: 18),
-              label: const Text('Review Citizen Incident Reports'),
+              label: Text(context.tr('Review Citizen Incident Reports')),
               onPressed: () {
                 Navigator.push(
                   context,
@@ -519,7 +512,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 minimumSize: const Size.fromHeight(48),
               ),
               icon: const Icon(Icons.person_remove_outlined, size: 18),
-              label: const Text('Account Deletion Requests'),
+              label: Text(context.tr('Account Deletion Requests')),
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const DeletionRequestsScreen()),
@@ -562,7 +555,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           SwitchListTile.adaptive(
             key: const Key('my_zone_alerts_only_switch'),
-            title: const Text('My Zone Alerts Only'),
+            title: Text(context.tr('My Zone Alerts Only')),
             subtitle: Text(
               myZoneOnly
                   ? (zoneName != null
@@ -597,7 +590,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ? effectiveZoneId
                     : widget.zones.first.id,
                 decoration: InputDecoration(
-                  labelText: 'Designated Safety Zone',
+                  labelText: context.tr('Designated Safety Zone'),
                   prefixIcon: Icon(Icons.location_on, color: context.brandAccent),
                   filled: true,
                   fillColor: isDark ? AppColors.harborSurface : AppColors.cloud,
@@ -628,7 +621,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
           const Divider(height: 1),
           SwitchListTile.adaptive(
-            title: const Text('Critical Flood Siren Override'),
+            title: Text(context.tr('Critical Flood Siren Override')),
             subtitle: Text(
               alertProvider.sirenOverride
                   ? 'Emergency-level alerts play an alarm siren and bypass Do Not Disturb'
@@ -639,7 +632,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(height: 1),
           SwitchListTile.adaptive(
-            title: const Text('Early-Warning Push Alerts'),
+            title: Text(context.tr('Early-Warning Push Alerts')),
             subtitle: Text(
               alertProvider.pushAlertsEnabled
                   ? 'Receiving real-time push notifications for alerts in your district'
@@ -651,7 +644,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(height: 1),
           SwitchListTile.adaptive(
             key: const Key('multi_channel_fallback_switch'),
-            title: const Text('Multi-Channel Alert Fallback'),
+            title: Text(context.tr('Multi-Channel Alert Fallback')),
             subtitle: Text(
               multiChannelFallback
                   ? 'Active: Alerts will automatically fall back to SMS backup and in-app alerts if push notifications fail'
@@ -681,8 +674,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           size: 20, color: AppColors.severityRed),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          'Red critical alerts are configured to bypass Do Not Disturb via dedicated high-priority alarm channels.',
+                        child: Text(context.tr('Red critical alerts are configured to bypass Do Not Disturb via dedicated high-priority alarm channels.'),
                           style: TextStyle(
                             fontSize: 12,
                             color: Theme.of(context).textTheme.bodySmall?.color,
@@ -717,9 +709,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               .requestNotificationPolicyAccess();
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Checking system notification and Do Not Disturb settings...',
+                              SnackBar(
+                                content: Text(context.tr('Checking system notification and Do Not Disturb settings...'),
                                 ),
                               ),
                             );
@@ -760,14 +751,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             updatedAt: DateTime.now(),
                           );
 
-                          await NotificationService()
-                              .showCriticalAlert(testAlert);
+                          // Open the full-screen critical alert (siren,
+                          // vibration, shelter and 119 buttons) so the whole
+                          // experience can be tried without publishing, then
+                          // post the notification; a notification failure
+                          // must not hide the screen.
+                          context
+                              .read<AlertProvider>()
+                              .previewCriticalTakeover(testAlert);
+                          // Needed on Android 14+ for the lock-screen version.
+                          await NotificationService.requestFullScreenIntentPermission();
+                          try {
+                            await NotificationService()
+                                .showCriticalAlert(testAlert);
+                          } catch (_) {}
 
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Triggered Test Critical Siren notification (bypass DND)',
+                              SnackBar(
+                                content: Text(context.tr('Triggered Test Critical Siren notification (bypass DND)'),
                                 ),
                                 backgroundColor: AppColors.severityRed,
                               ),
@@ -806,8 +808,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           ListTile(
             leading: Icon(Icons.person_pin_circle_outlined, color: context.brandInk),
-            title: const Text('My Reported Incidents'),
-            subtitle: const Text('View, edit details, or resolve your incident reports'),
+            title: Text(context.tr('My Reported Incidents')),
+            subtitle: Text(context.tr('View, edit details, or resolve your incident reports')),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -843,8 +845,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(height: 1),
           ListTile(
             leading: Icon(Icons.cached_outlined, color: context.brandInk),
-            title: const Text('Offline Safe-Zone Maps Cache'),
-            subtitle: const Text('Stores district flood zones and evacuation shelters offline'),
+            title: Text(context.tr('Offline Safe-Zone Maps Cache')),
+            subtitle: Text(context.tr('Stores district flood zones and evacuation shelters offline')),
             trailing: TextButton(
               onPressed: _syncingCache
                   ? null
@@ -855,7 +857,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Sync Cache'),
+                  : Text(context.tr('Sync Cache')),
             ),
           ),
         ],
@@ -906,7 +908,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to sync offline cache: $e'),
+            content: Text(context.tr('Failed to sync offline cache: {e}', {'e': context.tr(friendlyError(e))})),
             backgroundColor: AppColors.severityRed,
           ),
         );
@@ -927,8 +929,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             key: const Key('manage_shelter_tile'),
             leading: Icon(Icons.night_shelter_outlined, color: context.brandInk),
-            title: const Text('Manage your shelter'),
-            subtitle: const Text('Submit a shelter for approval or manage one you run'),
+            title: Text(context.tr('Manage your shelter')),
+            subtitle: Text(context.tr('Submit a shelter for approval or manage one you run')),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () => Navigator.push(
               context,
@@ -940,8 +942,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(height: 1),
           ListTile(
             leading: Icon(Icons.chat_bubble_outline, color: context.brandInk),
-            title: const Text('Messages'),
-            subtitle: const Text('Conversations with shelter managers'),
+            title: Text(context.tr('Messages')),
+            subtitle: Text(context.tr('Conversations with shelter managers')),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -965,8 +967,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(height: 1),
           ListTile(
             leading: Icon(Icons.volunteer_activism_outlined, color: context.brandInk),
-            title: const Text('Volunteer'),
-            subtitle: const Text('Sign up to help at shelters near you'),
+            title: Text(context.tr('Volunteer')),
+            subtitle: Text(context.tr('Sign up to help at shelters near you')),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () => Navigator.push(
               context,
@@ -978,8 +980,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(height: 1),
           ListTile(
             leading: Icon(Icons.rate_review_outlined, color: context.brandInk),
-            title: const Text('Send Feedback'),
-            subtitle: const Text('Rate the support you\'re getting and tell us what you need'),
+            title: Text(context.tr('Give feedback')),
+            subtitle: Text(context.tr('Rate the support you\'re getting and tell us what you need')),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () => showFeedbackSheet(context, zoneId: zoneId),
           ),
@@ -996,23 +998,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           _buildHotlineRow(
             context,
-            title: 'Disaster Management Centre (DMC)',
+            title: context.tr('Disaster Management Centre (DMC)'),
             number: '117',
-            description: '24/7 Flood & Emergency Hotline',
+            description: context.tr('24/7 Flood & Emergency Hotline'),
           ),
           const Divider(height: 1),
           _buildHotlineRow(
             context,
-            title: 'Police Emergency Hotline',
+            title: context.tr('Police Emergency Hotline'),
             number: '119',
-            description: 'Immediate Rescue Assistance',
+            description: context.tr('Immediate Rescue Assistance'),
           ),
           const Divider(height: 1),
           _buildHotlineRow(
             context,
-            title: 'Ambulance & Medical Emergency',
+            title: context.tr('Ambulance & Medical Emergency'),
             number: '1990',
-            description: 'Suwa Seriya Pre-Hospital Care',
+            description: context.tr('Suwa Seriya Pre-Hospital Care'),
           ),
         ],
       ),
@@ -1054,56 +1056,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ─── System Status ─────────────────────────────────────────────────────────
-
-  Widget _buildSystemStatusCard(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: const BoxDecoration(
-                    color: AppColors.severityGreen,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Early-Warning Network Active',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const Spacer(),
-                Text(
-                  'v1.0.0',
-                  style: AppTheme.dataText(context).copyWith(fontSize: 12),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Connected Node',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                Text(
-                  'Supabase Realtime Gateway',
-                  style: AppTheme.dataText(context).copyWith(fontSize: 11),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ─── Logout Button ─────────────────────────────────────────────────────────
 
   Widget _buildLogoutButton(BuildContext context) {
@@ -1117,8 +1069,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
       icon: const Icon(Icons.logout, size: 20),
-      label: const Text(
-        'Sign Out',
+      label: Text(context.tr('Sign Out'),
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w600,
@@ -1132,14 +1083,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Sign out?'),
-        content: const Text(
-          'Are you sure you want to sign out of your SafeZone account?',
+        title: Text(context.tr('Sign out?')),
+        content: Text(context.tr('Are you sure you want to sign out of your SafeZone account?'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -1147,7 +1097,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Sign out'),
+            child: Text(context.tr('Sign out')),
           ),
         ],
       ),
@@ -1196,8 +1146,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Edit Profile',
+                Text(context.tr('Edit Profile'),
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -1206,23 +1155,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 TextFormField(
                   controller: nameCtrl,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name',
+                  decoration: InputDecoration(
+                    labelText: context.tr('Full Name'),
                     prefixIcon: Icon(Icons.person_outline),
                   ),
-                  validator: validateFullName,
+                  validator: (v) => validateFullName(v, tr: context.tr),
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: phoneCtrl,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone Number',
+                  decoration: InputDecoration(
+                    labelText: context.tr('Phone Number'),
                     hintText: '+94 77 123 4567',
                     prefixIcon: Icon(Icons.phone_outlined),
                   ),
-                  validator: validatePhone,
+                  validator: (v) => validatePhone(v, tr: context.tr),
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                 ),
                 if (submitError != null) ...[
@@ -1258,8 +1207,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               Navigator.pop(ctx);
                               widget.onProfileUpdated?.call();
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Profile updated successfully.'),
+                                SnackBar(
+                                  content: Text(context.tr('Profile updated successfully.')),
                                 ),
                               );
                             }
@@ -1286,7 +1235,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Save Changes'),
+                      : Text(context.tr('Save Changes')),
                 ),
               ],
             ),

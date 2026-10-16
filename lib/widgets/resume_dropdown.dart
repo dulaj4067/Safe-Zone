@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/activity_history_service.dart';
+import '../l10n/ui_text.dart';
 
 class ResumeDropdown extends StatefulWidget {
   final List<ResumeItem> items;
@@ -64,8 +65,7 @@ class _ResumeDropdownState extends State<ResumeDropdown> with SingleTickerProvid
                         Icon(Icons.history, size: 18, color: colorScheme.primary),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: Text(
-                            'Resume where you left off',
+                          child: Text(context.tr('Resume where you left off'),
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                               fontSize: 13.5,

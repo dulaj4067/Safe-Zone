@@ -9,6 +9,7 @@ import '../services/shelter_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
 import 'shelter_detail_screen.dart';
+import '../l10n/ui_text.dart';
 
 /// Shelters tab: every shelter, nearest first, filterable by kind and
 /// availability. Tapping one opens its Shelter page; directions live
@@ -109,7 +110,7 @@ class _SheltersScreenState extends State<SheltersScreen> {
     final all = _shelters;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Shelters')),
+      appBar: AppBar(title: Text(context.tr('Shelters'))),
       body: Column(
         children: [
           Padding(
@@ -117,7 +118,7 @@ class _SheltersScreenState extends State<SheltersScreen> {
             child: TextField(
               controller: _search,
               decoration: InputDecoration(
-                hintText: 'Search shelters',
+                hintText: context.tr('Search shelters'),
                 prefixIcon: const Icon(Icons.search),
                 isDense: true,
                 suffixIcon: _search.text.isEmpty
@@ -137,7 +138,7 @@ class _SheltersScreenState extends State<SheltersScreen> {
               children: [
                 FilterChip(
                   avatar: const Icon(Icons.check_circle_outline, size: 16),
-                  label: const Text('Open now'),
+                  label: Text(context.tr('Open now')),
                   selected: _openOnly,
                   onSelected: (v) => setState(() => _openOnly = v),
                 ),
@@ -254,7 +255,7 @@ class _ShelterCard extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           [
-                            shelter.typeLabel,
+                            context.tr(shelter.typeLabel),
                             if (m != null) distanceLabel(m),
                           ].join(' · '),
                           style: textTheme.bodySmall,

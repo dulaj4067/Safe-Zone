@@ -17,6 +17,7 @@ import '../widgets/a11y/a11y_widgets.dart';
 import '../widgets/incident_card.dart';
 import '../widgets/status_badge.dart';
 import 'edit_incident_screen.dart';
+import '../l10n/ui_text.dart';
 
 class IncidentDetailScreen extends StatefulWidget {
   final Incident incident;
@@ -107,21 +108,20 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Mark Incident as Resolved?'),
-        content: const Text(
-          'Have conditions on the ground cleared (e.g. flood water receded, road cleared)? Marking this report as resolved will inform the community that the hazard is no longer active.',
+        title: Text(context.tr('Mark Incident as Resolved?')),
+        content: Text(context.tr('Have conditions on the ground cleared (e.g. flood water receded, road cleared)? Marking this report as resolved will inform the community that the hazard is no longer active.'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF546E7A),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Mark as Resolved'),
+            child: Text(context.tr('Mark as Resolved')),
           ),
         ],
       ),
@@ -143,7 +143,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            success ? 'Incident marked as Resolved.' : (provider.errorMessage ?? 'Failed to resolve incident.'),
+            success ? context.tr('Incident marked as Resolved.') : context.tr(provider.errorMessage ?? 'Failed to resolve incident.'),
           ),
           backgroundColor: success ? const Color(0xFF546E7A) : AppColors.severityRed,
         ),
@@ -166,7 +166,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            success ? 'Incident re-opened as active.' : (provider.errorMessage ?? 'Failed to update incident.'),
+            success ? context.tr('Incident re-opened as active.') : context.tr(provider.errorMessage ?? 'Failed to update incident.'),
           ),
           backgroundColor: success ? AppColors.severityGreen : AppColors.severityRed,
         ),
@@ -196,8 +196,8 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
           );
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Report confirmed! Credibility score updated.'),
+          SnackBar(
+            content: Text(context.tr('Report confirmed! Credibility score updated.')),
           ),
         );
       }
@@ -230,21 +230,20 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('${targetStatus.label} Incident?'),
-        content: Text(
-          'Are you sure you want to change the incident status to "${targetStatus.label}"?',
+        title: Text(context.tr('{p0} Incident?', {'p0': targetStatus.label})),
+        content: Text(context.tr('Are you sure you want to change the incident status to "{p0}"?', {'p0': targetStatus.label}),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: StatusBadge.backgroundColor(targetStatus),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(targetStatus.label),
+            child: Text(context.tr(targetStatus.label)),
           ),
         ],
       ),
@@ -269,7 +268,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Incident status updated to ${targetStatus.label}.'),
+            content: Text(context.tr('Incident status updated to {p0}.', {'p0': targetStatus.label})),
             backgroundColor: StatusBadge.backgroundColor(targetStatus),
           ),
         );
@@ -277,7 +276,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(provider.errorMessage ?? 'Failed to update status.'),
+            content: Text(context.tr(provider.errorMessage ?? 'Failed to update status.')),
             backgroundColor: AppColors.severityRed,
           ),
         );
@@ -289,20 +288,19 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.delete_outline, color: AppColors.severityRed),
             SizedBox(width: 8),
-            Expanded(child: Text('Delete Incident Report?')),
+            Expanded(child: Text(context.tr('Delete Incident Report?'))),
           ],
         ),
-        content: const Text(
-          'Are you sure you want to permanently delete your incident report? This action cannot be undone and will remove the report from the live incident map and community feeds.',
+        content: Text(context.tr('Are you sure you want to permanently delete your incident report? This action cannot be undone and will remove the report from the live incident map and community feeds.'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('Cancel')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -310,7 +308,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
               minimumSize: const Size(0, 40),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete Report'),
+            child: Text(context.tr('Delete Report')),
           ),
         ],
       ),
@@ -326,8 +324,8 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
       setState(() => _actionLoading = false);
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Your incident report has been deleted.'),
+          SnackBar(
+            content: Text(context.tr('Your incident report has been deleted.')),
             backgroundColor: AppColors.severityGreen,
           ),
         );
@@ -335,7 +333,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(provider.errorMessage ?? 'Failed to delete incident.'),
+            content: Text(context.tr(provider.errorMessage ?? 'Failed to delete incident.')),
             backgroundColor: AppColors.severityRed,
           ),
         );
@@ -357,24 +355,22 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
               Icon(Icons.gavel, color: AppColors.severityRed),
               SizedBox(width: 8),
-              Expanded(child: Text('Moderate / Delete Report')),
+              Expanded(child: Text(context.tr('Moderate / Delete Report'))),
             ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'As an administrator/moderator, deleting this incident permanently purges it from the map to keep community data trustworthy.',
+              Text(context.tr('As an administrator/moderator, deleting this incident permanently purges it from the map to keep community data trustworthy.'),
                 style: TextStyle(fontSize: 13),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Reason for deletion:',
+              Text(context.tr('Reason for deletion:'),
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
               const SizedBox(height: 6),
@@ -401,7 +397,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text(context.tr('Cancel')),
             ),
             FilledButton.icon(
               style: FilledButton.styleFrom(
@@ -410,7 +406,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
               ),
               icon: const Icon(Icons.delete_forever, size: 16),
               onPressed: () => Navigator.pop(ctx, true),
-              label: const Text('Delete Permanently'),
+              label: Text(context.tr('Delete Permanently')),
             ),
           ],
         ),
@@ -428,7 +424,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Incident removed as "$selectedReason".'),
+            content: Text(context.tr('Incident removed as "{selectedReason}".', {'selectedReason': selectedReason})),
             backgroundColor: AppColors.severityRed,
           ),
         );
@@ -436,7 +432,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(provider.errorMessage ?? 'Failed to delete incident.'),
+            content: Text(context.tr(provider.errorMessage ?? 'Failed to delete incident.')),
             backgroundColor: AppColors.severityRed,
           ),
         );
@@ -453,24 +449,24 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Incident Details'),
+        title: Text(context.tr('Incident Details')),
         elevation: 0,
         actions: [
           if (isReporter) ...[
             IconButton(
               icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Edit Incident',
+              tooltip: context.tr('Edit Incident'),
               onPressed: _openEditScreen,
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline, color: AppColors.severityRed),
-              tooltip: 'Delete Incident',
+              tooltip: context.tr('Delete Incident'),
               onPressed: _actionLoading ? null : _deleteCitizenReport,
             ),
           ] else if (isAuthority) ...[
             IconButton(
               icon: const Icon(Icons.delete_forever_outlined, color: AppColors.severityRed),
-              tooltip: 'Delete as Spam / False',
+              tooltip: context.tr('Delete as Spam / False'),
               onPressed: _actionLoading ? null : _deleteAdminReport,
             ),
           ],
@@ -496,13 +492,12 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.severityRed),
               ),
-              child: const Row(
+              child: Row(
                 children: [
                   Icon(Icons.warning_amber_rounded, color: AppColors.severityRed, size: 24),
                   SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      'HIGH PRIORITY: Trapped / Emergency SOS Report',
+                    child: Text(context.tr('HIGH PRIORITY: Trapped / Emergency SOS Report'),
                       style: TextStyle(
                         color: AppColors.severityRed,
                         fontWeight: FontWeight.bold,
@@ -540,14 +535,13 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _incident.category.label,
+                        context.tr(_incident.category.label),
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        'Reported ${_timeAgo(_incident.createdAt)} (${_formatDate(_incident.createdAt)})',
+                      Text(context.tr('Reported {p0} ({p1})', {'p0': _timeAgo(_incident.createdAt), 'p1': _formatDate(_incident.createdAt)}),
                         style: AppTheme.dataText(context).copyWith(fontSize: 12),
                       ),
                     ],
@@ -569,8 +563,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Description',
+                Text(context.tr('Description'),
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                 ),
                 const SizedBox(height: 8),
@@ -597,8 +590,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Evidence & Media',
+                  Text(context.tr('Evidence & Media'),
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   const SizedBox(height: 12),
@@ -636,9 +628,8 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                         children: [
                           Icon(Icons.videocam, color: context.brandInk),
                           const SizedBox(width: 10),
-                          const Expanded(
-                            child: Text(
-                              'Video Evidence Attached',
+                          Expanded(
+                            child: Text(context.tr('Video Evidence Attached'),
                               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                             ),
                           ),
@@ -667,8 +658,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Location',
+                    Text(context.tr('Location'),
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                     Text(
@@ -738,9 +728,8 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                     const SizedBox(width: 8),
                     // Expanded so the title wraps instead of pushing the
                     // confirmations chip off the edge on narrow phones.
-                    const Expanded(
-                      child: Text(
-                        'Community Credibility',
+                    Expanded(
+                      child: Text(context.tr('Community Credibility'),
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                     ),
@@ -751,8 +740,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                         color: context.brandInk.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
-                        '${_incident.credibilityScore} Confirmations',
+                      child: Text(context.tr('{p0} Confirmations', {'p0': _incident.credibilityScore}),
                         style: AppTheme.dataText(context).copyWith(
                           fontWeight: FontWeight.bold,
                           color: context.brandInk,
@@ -762,8 +750,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                Text(
-                  'Community members confirm if this incident is accurate and active.',
+                Text(context.tr('Community members confirm if this incident is accurate and active.'),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 12),
@@ -778,13 +765,12 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                         color: AppColors.severityGreen.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.check_circle, color: AppColors.severityGreen, size: 18),
                           SizedBox(width: 8),
-                          Text(
-                            'You confirmed this report',
+                          Text(context.tr('You confirmed this report'),
                             style: TextStyle(
                               color: AppColors.severityGreen,
                               fontWeight: FontWeight.w600,
@@ -799,7 +785,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.thumb_up_outlined, size: 18),
-                        label: const Text('Confirm this Incident Report'),
+                        label: Text(context.tr('Confirm this Incident Report')),
                         onPressed: _actionLoading ? null : _confirmReport,
                       ),
                     ),
@@ -828,8 +814,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                     children: [
                       Icon(Icons.person_pin_circle_outlined, color: context.brandInk, size: 20),
                       const SizedBox(width: 8),
-                      const Text(
-                        'Your Incident Report Controls',
+                      Text(context.tr('Your Incident Report Controls'),
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                       const Spacer(),
@@ -839,8 +824,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                           color: context.brandInk.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(
-                          'Reporter',
+                        child: Text(context.tr('Reporter'),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -863,7 +847,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                       Expanded(
                         child: OutlinedButton.icon(
                           icon: const Icon(Icons.edit_outlined, size: 18),
-                          label: const Text('Edit Details'),
+                          label: Text(context.tr('Edit Details')),
                           onPressed: _actionLoading ? null : _openEditScreen,
                         ),
                       ),
@@ -875,7 +859,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                                   backgroundColor: AppColors.severityGreen,
                                 ),
                                 icon: const Icon(Icons.replay, size: 18),
-                                label: const Text('Reopen Incident'),
+                                label: Text(context.tr('Reopen Incident')),
                                 onPressed: _actionLoading ? null : _reopenMyIncident,
                               )
                             : FilledButton.icon(
@@ -883,7 +867,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                                   backgroundColor: const Color(0xFF546E7A),
                                 ),
                                 icon: const Icon(Icons.task_alt, size: 18),
-                                label: const Text('Mark Resolved'),
+                                label: Text(context.tr('Mark Resolved')),
                                 onPressed: _actionLoading ? null : _resolveMyIncident,
                               ),
                       ),
@@ -898,7 +882,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                         side: BorderSide(color: AppColors.severityRed.withValues(alpha: 0.5)),
                       ),
                       icon: const Icon(Icons.delete_outline, size: 18),
-                      label: const Text('Delete This Incident Report'),
+                      label: Text(context.tr('Delete This Incident Report')),
                       onPressed: _actionLoading ? null : _deleteCitizenReport,
                     ),
                   ),
@@ -927,9 +911,8 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                     children: [
                       Icon(Icons.admin_panel_settings_outlined, color: context.brandAccent, size: 20),
                       const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text(
-                          'Authority Verification & Moderation',
+                      Expanded(
+                        child: Text(context.tr('Authority Verification & Moderation'),
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                       ),
@@ -945,7 +928,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                               backgroundColor: AppColors.severityGreen,
                             ),
                             icon: const Icon(Icons.check, size: 18),
-                            label: const Text('Verify Report'),
+                            label: Text(context.tr('Verify Report')),
                             onPressed: _actionLoading
                                 ? null
                                 : () => _handleAdminAction(IncidentStatus.verified),
@@ -958,7 +941,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                               backgroundColor: AppColors.severityRed,
                             ),
                             icon: const Icon(Icons.close, size: 18),
-                            label: const Text('Reject Report'),
+                            label: Text(context.tr('Reject Report')),
                             onPressed: _actionLoading
                                 ? null
                                 : () => _handleAdminAction(IncidentStatus.rejected),
@@ -974,15 +957,14 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                           backgroundColor: const Color(0xFF546E7A),
                         ),
                         icon: const Icon(Icons.task_alt, size: 18),
-                        label: const Text('Mark Incident as Resolved'),
+                        label: Text(context.tr('Mark Incident as Resolved')),
                         onPressed: _actionLoading
                             ? null
                             : () => _handleAdminAction(IncidentStatus.resolved),
                       ),
                     ),
                   ] else ...[
-                    Text(
-                      'This incident is currently ${_incident.status.label.toLowerCase()}.',
+                    Text(context.tr('This incident is currently {p0}.', {'p0': context.tr(_incident.status.label).toLowerCase()}),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -997,7 +979,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                         side: BorderSide(color: AppColors.severityRed.withValues(alpha: 0.6)),
                       ),
                       icon: const Icon(Icons.delete_forever, size: 18),
-                      label: const Text('Delete as Spam, Duplicate or False'),
+                      label: Text(context.tr('Delete as Spam, Duplicate or False')),
                       onPressed: _actionLoading ? null : _deleteAdminReport,
                     ),
                   ),

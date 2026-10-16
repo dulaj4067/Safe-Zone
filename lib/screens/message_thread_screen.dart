@@ -6,6 +6,9 @@ import '../services/profile_service.dart';
 import '../services/supabase_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
+import '../l10n/ui_text.dart';
+import 'package:flutter/services.dart' show LengthLimitingTextInputFormatter;
+import '../utils/error_messages.dart';
 
 /// One conversation with one person about one shelter, updated live.
 class MessageThreadScreen extends StatefulWidget {
@@ -119,7 +122,7 @@ class _MessageThreadScreenState extends State<MessageThreadScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Message not sent: $e')),
+          SnackBar(content: Text(context.tr('Message not sent: {e}', {'e': context.tr(friendlyError(e))}))),
         );
       }
     } finally {
@@ -152,12 +155,10 @@ class _MessageThreadScreenState extends State<MessageThreadScreen> {
                   : messages == null
                       ? const Center(child: CircularProgressIndicator())
                       : messages.isEmpty
-                          ? const Center(
+                          ? Center(
                               child: Padding(
                                 padding: EdgeInsets.all(32),
-                                child: Text(
-                                  'No messages yet. Ask about space, supplies, '
-                                  'or how you can help.',
+                                child: Text(context.tr('No messages yet. Ask about space, supplies, or how you can help.'),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
@@ -181,10 +182,11 @@ class _MessageThreadScreenState extends State<MessageThreadScreen> {
                       controller: _composer,
                       minLines: 1,
                       maxLines: 4,
+                      inputFormatters: [LengthLimitingTextInputFormatter(1000)],
                       textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(
-                        labelText: 'Message',
-                        hintText: 'Write a message',
+                      decoration: InputDecoration(
+                        labelText: context.tr('Message'),
+                        hintText: context.tr('Write a message'),
                       ),
                       onSubmitted: (_) => _send(),
                     ),

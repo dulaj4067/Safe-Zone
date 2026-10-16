@@ -10,6 +10,7 @@ import '../../../utils/map_tile_sources.dart';
 import '../../../utils/sri_lanka_bounds.dart';
 import '../models/evacuation_route.dart';
 import '../providers/preparedness_provider.dart';
+import '../../../l10n/ui_text.dart';
 
 class ManageRoutesScreen extends StatelessWidget {
   const ManageRoutesScreen({
@@ -28,11 +29,11 @@ class ManageRoutesScreen extends StatelessWidget {
 
     final provider = context.watch<PreparednessProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage evacuation routes')),
+      appBar: AppBar(title: Text(context.tr('Manage evacuation routes'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _edit(context),
         icon: const Icon(Icons.add_location_alt_outlined),
-        label: const Text('New route'),
+        label: Text(context.tr('New route')),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -48,8 +49,7 @@ class ManageRoutesScreen extends StatelessWidget {
                             ?.name ??
                         route.zoneId,
                   ),
-                  subtitle: Text(
-                    'Updated ${MaterialLocalizations.of(context).formatShortDate(route.lastUpdated)}',
+                  subtitle: Text(context.tr('Updated {p0}', {'p0': MaterialLocalizations.of(context).formatShortDate(route.lastUpdated)}),
                   ),
                   onTap: () => _edit(context, route),
                   trailing: const Icon(Icons.edit_outlined),
@@ -79,9 +79,9 @@ class _AccessDeniedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Access denied')),
-    body: const Center(
-      child: Text('Only authority accounts can manage routes.'),
+    appBar: AppBar(title: Text(context.tr('Access denied'))),
+    body: Center(
+      child: Text(context.tr('Only authority accounts can manage routes.')),
     ),
   );
 }
@@ -140,7 +140,7 @@ class _RouteEditorState extends State<_RouteEditor> {
           child: DropdownButtonFormField<String>(
             initialValue: _zoneId,
             decoration: InputDecoration(
-              labelText: 'Zone',
+              labelText: context.tr('Zone'),
               helperText: widget.zones.isEmpty
                   ? 'Add a zone before creating an evacuation route.'
                   : null,
@@ -157,9 +157,8 @@ class _RouteEditorState extends State<_RouteEditor> {
         Expanded(
           flex: 3,
           child: _mapCenter == null
-              ? const Center(
-                  child: Text(
-                    'Select a zone with a map center to plot a route.',
+              ? Center(
+                  child: Text(context.tr('Select a zone with a map center to plot a route.'),
                   ),
                 )
               : Stack(
@@ -212,7 +211,7 @@ class _RouteEditorState extends State<_RouteEditor> {
                       right: 10,
                       top: 10,
                       child: IconButton.filledTonal(
-                        tooltip: 'Undo last point',
+                        tooltip: context.tr('Undo last point'),
                         onPressed: _points.isEmpty
                             ? null
                             : () => setState(() => _points.removeLast()),
@@ -228,8 +227,8 @@ class _RouteEditorState extends State<_RouteEditor> {
             controller: _instructions,
             minLines: 3,
             maxLines: 5,
-            decoration: const InputDecoration(
-              labelText: 'Turn-by-turn instructions (one per line)',
+            decoration: InputDecoration(
+              labelText: context.tr('Turn-by-turn instructions (one per line)'),
               border: OutlineInputBorder(),
             ),
           ),
@@ -240,7 +239,7 @@ class _RouteEditorState extends State<_RouteEditor> {
             width: double.infinity,
             child: FilledButton(
               onPressed: _points.length < 2 || _zoneId == null ? null : _save,
-              child: const Text('Save route'),
+              child: Text(context.tr('Save route')),
             ),
           ),
         ),

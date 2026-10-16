@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../services/account_deletion_service.dart';
 import '../theme/app_colors.dart';
+import '../l10n/ui_text.dart';
 
 /// Authority view of open account-deletion requests. "Delete account" runs
 /// the process-account-deletion Edge Function; the row only disappears once
@@ -26,19 +27,15 @@ class _DeletionRequestsScreenState extends State<DeletionRequestsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Delete ${r.name}\'s account?'),
-        content: const Text(
-          'This permanently deletes their account, profile, incident reports '
-          'and uploaded media, messages they sent, feedback, family links and '
-          'location history. Records other people rely on (alerts, verified '
-          'incidents, shelters) are kept without their name. This can\'t be undone.',
+        title: Text(context.tr('Delete {p0}\'s account?', {'p0': r.name})),
+        content: Text(context.tr('This permanently deletes their account, profile, incident reports and uploaded media, messages they sent, feedback, family links and location history. Records other people rely on (alerts, verified incidents, shelters) are kept without their name. This can\'t be undone.'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('Cancel'))),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.severityRed),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete account'),
+            child: Text(context.tr('Delete account')),
           ),
         ],
       ),
@@ -50,17 +47,17 @@ class _DeletionRequestsScreenState extends State<DeletionRequestsScreen> {
       await _service.process(r.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${r.name}\'s account was deleted.')),
+        SnackBar(content: Text(context.tr('{p0}\'s account was deleted.', {'p0': r.name}))),
       );
       _reload();
     } on DeletionException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr(e.message))));
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Couldn\'t reach the server. Nothing was deleted; try again.')),
+          SnackBar(content: Text(context.tr('Couldn\'t reach the server. Nothing was deleted; try again.'))),
         );
       }
     } finally {
@@ -72,8 +69,8 @@ class _DeletionRequestsScreenState extends State<DeletionRequestsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Deletion requests'),
-        actions: [IconButton(tooltip: 'Refresh', onPressed: _reload, icon: const Icon(Icons.refresh))],
+        title: Text(context.tr('Deletion requests')),
+        actions: [IconButton(tooltip: context.tr('Refresh'), onPressed: _reload, icon: const Icon(Icons.refresh))],
       ),
       body: FutureBuilder<List<OpenDeletionRequest>>(
         future: _requests,
@@ -88,8 +85,8 @@ class _DeletionRequestsScreenState extends State<DeletionRequestsScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('Couldn\'t load deletion requests.'),
-                    TextButton(onPressed: _reload, child: const Text('Try again')),
+                    Text(context.tr('Couldn\'t load deletion requests.')),
+                    TextButton(onPressed: _reload, child: Text(context.tr('Try again'))),
                   ],
                 ),
               ),
@@ -97,7 +94,7 @@ class _DeletionRequestsScreenState extends State<DeletionRequestsScreen> {
           }
           final requests = snap.data ?? const [];
           if (requests.isEmpty) {
-            return const Center(child: Text('No open deletion requests.'));
+            return Center(child: Text(context.tr('No open deletion requests.')));
           }
           return ListView.separated(
             itemCount: requests.length,
@@ -119,7 +116,7 @@ class _DeletionRequestsScreenState extends State<DeletionRequestsScreen> {
                     : TextButton(
                         onPressed: () => _process(r),
                         style: TextButton.styleFrom(foregroundColor: AppColors.severityRed),
-                        child: const Text('Delete'),
+                        child: Text(context.tr('Delete')),
                       ),
               );
             },

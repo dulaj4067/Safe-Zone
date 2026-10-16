@@ -5,6 +5,7 @@ import '../../../models/app_user.dart';
 import '../../../models/zone.dart';
 import '../models/preparedness_reminder.dart';
 import '../providers/preparedness_provider.dart';
+import '../../../l10n/ui_text.dart';
 
 class ManageRemindersScreen extends StatelessWidget {
   const ManageRemindersScreen({
@@ -24,14 +25,14 @@ class ManageRemindersScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage reminders')),
+      appBar: AppBar(title: Text(context.tr('Manage reminders'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _edit(context),
         icon: const Icon(Icons.notifications_active_outlined),
-        label: const Text('New reminder'),
+        label: Text(context.tr('New reminder')),
       ),
       body: provider.reminders.isEmpty
-          ? const Center(child: Text('No reminders created yet.'))
+          ? Center(child: Text(context.tr('No reminders created yet.')))
           : ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: provider.reminders.length,
@@ -50,9 +51,9 @@ class ManageRemindersScreen extends StatelessWidget {
                         if (value == 'delete')
                           await provider.deleteReminder(reminder.id);
                       },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(value: 'edit', child: Text('Edit')),
-                        PopupMenuItem(value: 'delete', child: Text('Delete')),
+                      itemBuilder: (_) => [
+                        PopupMenuItem(value: 'edit', child: Text(context.tr('Edit'))),
+                        PopupMenuItem(value: 'delete', child: Text(context.tr('Delete'))),
                       ],
                     ),
                     onTap: () => _edit(context, reminder),
@@ -135,15 +136,15 @@ class _ReminderEditorState extends State<_ReminderEditor> {
             const SizedBox(height: 16),
             TextField(
               controller: _title,
-              decoration: const InputDecoration(labelText: 'Title'),
+              decoration: InputDecoration(labelText: context.tr('Title')),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _message,
               minLines: 3,
               maxLines: 5,
-              decoration: const InputDecoration(
-                labelText: 'Message',
+              decoration: InputDecoration(
+                labelText: context.tr('Message'),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -159,7 +160,7 @@ class _ReminderEditorState extends State<_ReminderEditor> {
                 if (picked != null) setState(() => _scheduledDate = picked);
               },
               child: InputDecorator(
-                decoration: const InputDecoration(labelText: 'Scheduled date'),
+                decoration: InputDecoration(labelText: context.tr('Scheduled date')),
                 child: Text(
                   MaterialLocalizations.of(
                     context,
@@ -170,7 +171,7 @@ class _ReminderEditorState extends State<_ReminderEditor> {
             const SizedBox(height: 12),
             DropdownButtonFormField<ReminderRecurrence>(
               value: _recurrence,
-              decoration: const InputDecoration(labelText: 'Recurrence'),
+              decoration: InputDecoration(labelText: context.tr('Recurrence')),
               items: ReminderRecurrence.values
                   .map(
                     (value) => DropdownMenuItem(
@@ -184,14 +185,14 @@ class _ReminderEditorState extends State<_ReminderEditor> {
               ),
             ),
             const SizedBox(height: 12),
-            const Text('Zone tags'),
+            Text(context.tr('Zone tags')),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 FilterChip(
-                  label: const Text('All zones'),
+                  label: Text(context.tr('All zones')),
                   selected: _zoneTags.isEmpty,
                   onSelected: (_) => setState(() => _zoneTags.clear()),
                 ),
@@ -233,7 +234,7 @@ class _ReminderEditorState extends State<_ReminderEditor> {
                           ),
                         );
                       },
-                child: const Text('Save reminder'),
+                child: Text(context.tr('Save reminder')),
               ),
             ),
           ],
@@ -248,9 +249,9 @@ class _AccessDeniedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Access denied')),
-    body: const Center(
-      child: Text('Only authority accounts can manage reminders.'),
+    appBar: AppBar(title: Text(context.tr('Access denied'))),
+    body: Center(
+      child: Text(context.tr('Only authority accounts can manage reminders.')),
     ),
   );
 }

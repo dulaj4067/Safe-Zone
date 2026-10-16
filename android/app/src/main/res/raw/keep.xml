@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The siren is only referenced by name at runtime (the critical
+     notification channel), so release builds would strip it as unused. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/siren" />

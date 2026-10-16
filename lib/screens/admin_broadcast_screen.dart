@@ -9,12 +9,16 @@ import '../models/app_user.dart';
 import '../models/zone.dart';
 import '../providers/accessibility_provider.dart';
 import '../providers/alert_form_provider.dart';
+import '../services/location_service.dart';
+import '../l10n/app_strings.dart';
+import '../widgets/map_controls.dart';
 import '../providers/alert_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/map_tile_config.dart';
 import '../utils/map_tile_sources.dart';
 import '../utils/sri_lanka_bounds.dart';
 import '../widgets/a11y/a11y_widgets.dart';
+import '../l10n/ui_text.dart';
 
 /// Story 3: authority-only screen for creating a geo-targeted broadcast.
 /// Guard access to this route at the navigation layer too (e.g. only show
@@ -54,7 +58,8 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
 
     return ChangeNotifierProvider(
       create: (context) => AlertFormProvider(
-        initialRadiusMeters: alertProvider?.defaultBroadcastRadiusMeters ?? 2000,
+        initialRadiusMeters:
+            alertProvider?.defaultBroadcastRadiusMeters ?? 2000,
       ),
       child: _BroadcastForm(zones: widget.zones),
     );
@@ -71,6 +76,9 @@ class _BroadcastForm extends StatefulWidget {
 
 class _BroadcastFormState extends State<_BroadcastForm> {
   int _step = 0;
+  final MapController _mapController = MapController();
+  bool _usingGps = false;
+  bool _locating = false;
   late final TextEditingController _title;
   late final TextEditingController _instructions;
   late final TextEditingController _transcript;
@@ -84,10 +92,11 @@ class _BroadcastFormState extends State<_BroadcastForm> {
     cameraConstraint: kSriLankaCameraConstraint,
     interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
     onTap: (_, latLng) {
+      _usingGps = false;
       context.read<AlertFormProvider>().setCustomCenter(
-            latLng.latitude,
-            latLng.longitude,
-          );
+        latLng.latitude,
+        latLng.longitude,
+      );
     },
   );
 
@@ -97,6 +106,39 @@ class _BroadcastFormState extends State<_BroadcastForm> {
     _title = TextEditingController();
     _instructions = TextEditingController();
     _transcript = TextEditingController();
+    // Pre-fill the target with the sender's GPS position when nothing has
+    // been chosen yet; they can still pick a zone or tap another spot.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _useMyLocation(silent: true),
+    );
+  }
+
+  Future<void> _useMyLocation({bool silent = false}) async {
+    final form = context.read<AlertFormProvider>();
+    if (silent && (form.selectedZone != null || form.customLat != null)) return;
+    setState(() => _locating = true);
+    // A failed lookup (no permission, no GPS, no plugin) must clear the
+    // spinner, so treat any error as "no location".
+    final LatLng? here = await LocationService()
+        .getCurrentLocation()
+        .catchError((_) => null);
+    if (!mounted) return;
+    setState(() => _locating = false);
+    if (here == null) {
+      if (!silent) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(appStringsOf(context).t('locationUnavailable')),
+          ),
+        );
+      }
+      return;
+    }
+    // A zone or pin chosen while the fix was pending wins over the GPS guess.
+    if (silent && (form.selectedZone != null || form.customLat != null)) return;
+    form.setCustomCenter(here.latitude, here.longitude);
+    _mapController.move(here, 13);
+    setState(() => _usingGps = true);
   }
 
   @override
@@ -134,9 +176,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
     final strings = adminStringsOf(context);
 
     return Shortcuts(
-      shortcuts: const {
-        submitBroadcastShortcut: SubmitBroadcastIntent(),
-      },
+      shortcuts: const {submitBroadcastShortcut: SubmitBroadcastIntent()},
       child: Actions(
         actions: {
           SubmitBroadcastIntent: CallbackAction<SubmitBroadcastIntent>(
@@ -153,7 +193,6 @@ class _BroadcastFormState extends State<_BroadcastForm> {
         child: Scaffold(
           appBar: AppBar(
             title: Text(strings.t('broadcastTitle')),
-            actions: const [A11yInclusionButton()],
           ),
           body: ListView(
             padding: const EdgeInsets.all(16),
@@ -173,7 +212,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: A11yErrorBanner(
-                    message: form.submitError!,
+                    message: context.tr(form.submitError!),
                     hint: strings.t('howToFix'),
                   ),
                 ),
@@ -205,7 +244,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.campaign, semanticLabel: 'Broadcast'),
+                        : Icon(Icons.campaign, semanticLabel: context.tr('Broadcast')),
                     onPressed: (!form.isValid || form.isSubmitting)
                         ? null
                         : () => _submit(form),
@@ -213,8 +252,8 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                       form.isSubmitting
                           ? 'Dispatching broadcast...'
                           : (form.selectedChannelsCount == 3
-                              ? 'Dispatch Broadcast (All 3 Channels)'
-                              : 'Dispatch Broadcast (${form.selectedChannelsCount} Channel${form.selectedChannelsCount == 1 ? '' : 's'})'),
+                                ? 'Dispatch Broadcast (All 3 Channels)'
+                                : 'Dispatch Broadcast (${form.selectedChannelsCount} Channel${form.selectedChannelsCount == 1 ? '' : 's'})'),
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
@@ -243,6 +282,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
     return [
       TextField(
         controller: _title,
+        maxLength: 100,
         textCapitalization: TextCapitalization.sentences,
         decoration: InputDecoration(
           labelText: '${strings.t('titleLabel')} *',
@@ -259,11 +299,11 @@ class _BroadcastFormState extends State<_BroadcastForm> {
           border: const OutlineInputBorder(),
         ),
         initialValue: form.alertType,
-        items: const [
-          DropdownMenuItem(value: 'flood', child: Text('Flood')),
-          DropdownMenuItem(value: 'landslide', child: Text('Landslide')),
-          DropdownMenuItem(value: 'cyclone', child: Text('Cyclone')),
-          DropdownMenuItem(value: 'other', child: Text('Other')),
+        items: [
+          DropdownMenuItem(value: 'flood', child: Text(context.tr('Flood'))),
+          DropdownMenuItem(value: 'landslide', child: Text(context.tr('Landslide'))),
+          DropdownMenuItem(value: 'cyclone', child: Text(context.tr('Cyclone'))),
+          DropdownMenuItem(value: 'other', child: Text(context.tr('Other'))),
         ],
         onChanged: (v) {
           if (v != null) context.read<AlertFormProvider>().updateAlertType(v);
@@ -277,7 +317,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
         ),
         initialValue: form.severity,
         items: AlertSeverity.values.map((s) {
-          return DropdownMenuItem(value: s, child: Text(s.label));
+          return DropdownMenuItem(value: s, child: Text(context.tr(s.label)));
         }).toList(),
         onChanged: (v) {
           if (v != null) context.read<AlertFormProvider>().updateSeverity(v);
@@ -296,10 +336,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
         onChanged: (z) => context.read<AlertFormProvider>().selectZone(z),
       ),
       const SizedBox(height: 12),
-      Text(
-        strings.t('zoneHint'),
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
+      Text(strings.t('zoneHint'), style: Theme.of(context).textTheme.bodySmall),
       const SizedBox(height: 8),
       Semantics(
         label: strings.t('mapAlt'),
@@ -309,37 +346,71 @@ class _BroadcastFormState extends State<_BroadcastForm> {
             borderRadius: BorderRadius.circular(8),
             // flutter_map + the app's Carto tiles, like every other map in
             // the app — GoogleMap here needed its own Android API key.
-            child: FlutterMap(
-              options: _mapOptions,
+            child: Stack(
               children: [
-                buildBaseTileLayer(BaseMapStyle.street),
-                if (form.customLat != null)
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: LatLng(form.customLat!, form.customLng!),
-                        width: 40,
-                        height: 40,
-                        alignment: Alignment.topCenter,
-                        child: const Icon(
-                          Icons.location_on,
-                          color: AppColors.severityRed,
-                          size: 40,
-                        ),
+                FlutterMap(
+                  mapController: _mapController,
+                  options: _mapOptions,
+                  children: [
+                    buildBaseTileLayer(BaseMapStyle.street),
+                    if (form.customLat != null)
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: LatLng(form.customLat!, form.customLng!),
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.topCenter,
+                            child: const Icon(
+                              Icons.location_on,
+                              color: AppColors.severityRed,
+                              size: 40,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                RichAttributionWidget(
-                  alignment: AttributionAlignment.bottomLeft,
-                  attributions: [
-                    TextSourceAttribution(attributionFor(BaseMapStyle.street)),
+                    RichAttributionWidget(
+                      alignment: AttributionAlignment.bottomLeft,
+                      attributions: [
+                        TextSourceAttribution(
+                          attributionFor(BaseMapStyle.street),
+                        ),
+                      ],
+                    ),
                   ],
+                ),
+                Positioned(
+                  right: 8,
+                  bottom: 8,
+                  child: MyLocationButton(onTap: () => _useMyLocation()),
                 ),
               ],
             ),
           ),
         ),
       ),
+      if (_locating) ...[
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            const Icon(
+              Icons.gps_not_fixed,
+              size: 16,
+            ), // static: no endless animation
+            const SizedBox(width: 8),
+            Text(
+              appStringsOf(context).t('findingLocation'),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ] else if (_usingGps && form.customLat != null) ...[
+        const SizedBox(height: 6),
+        Text(
+          appStringsOf(context).t('usingMyLocation'),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
     ];
   }
 
@@ -367,6 +438,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
       const SizedBox(height: 12),
       TextField(
         controller: _instructions,
+        maxLength: 1000,
         decoration: InputDecoration(
           labelText: strings.t('instructions'),
           hintText: strings.t('instructionsHint'),
@@ -380,6 +452,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
         const SizedBox(height: 12),
         TextField(
           controller: _transcript,
+          maxLength: 1000,
           decoration: InputDecoration(
             labelText: strings.t('transcript'),
             hintText: strings.t('transcriptHint'),
@@ -396,7 +469,10 @@ class _BroadcastFormState extends State<_BroadcastForm> {
     ];
   }
 
-  Widget _buildDeliveryChannelsCard(BuildContext context, AlertFormProvider form) {
+  Widget _buildDeliveryChannelsCard(
+    BuildContext context,
+    AlertFormProvider form,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: context.surfaceSoft,
@@ -416,11 +492,10 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                     Icons.cell_tower,
                     size: 20,
                     color: context.brandInk,
-                    semanticLabel: 'Delivery channels',
+                    semanticLabel: context.tr('Delivery channels'),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Delivery Channels',
+                  Text(context.tr('Delivery Channels'),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
@@ -432,7 +507,10 @@ class _BroadcastFormState extends State<_BroadcastForm> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: form.selectedChannelsCount == 3
                           ? AppColors.severityGreen.withValues(alpha: 0.15)
@@ -461,7 +539,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                         padding: const EdgeInsets.symmetric(horizontal: 6),
                       ),
                       onPressed: () => context.read<AlertFormProvider>().selectAllChannels(),
-                      child: const Text('Select All', style: TextStyle(fontSize: 12)),
+                      child: Text(context.tr('Select All'), style: TextStyle(fontSize: 12)),
                     ),
                   ],
                 ],
@@ -469,8 +547,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            'Simultaneously dispatch across online, cellular, and acoustic channels to guarantee reach regardless of citizen connectivity:',
+          Text(context.tr('Simultaneously dispatch across online, cellular, and acoustic channels to guarantee reach regardless of citizen connectivity:'),
             style: TextStyle(fontSize: 12, color: context.inkMuted),
           ),
           const SizedBox(height: 12),
@@ -479,12 +556,13 @@ class _BroadcastFormState extends State<_BroadcastForm> {
           _buildChannelTile(
             context,
             key: const Key('channel_push_tile'),
-            title: 'Push Notification',
-            subtitle: 'Instant in-app alerts and OS-level lock screen notifications',
+            title: context.tr('Push Notification'),
+            subtitle: context.tr('Instant in-app alerts and OS-level lock screen notifications'),
             icon: Icons.notifications_active_outlined,
             iconColor: context.brandAccent,
             value: form.dispatchPush,
-            onChanged: (v) => context.read<AlertFormProvider>().togglePush(v ?? false),
+            onChanged: (v) =>
+                context.read<AlertFormProvider>().togglePush(v ?? false),
           ),
           const SizedBox(height: 8),
 
@@ -492,12 +570,13 @@ class _BroadcastFormState extends State<_BroadcastForm> {
           _buildChannelTile(
             context,
             key: const Key('channel_sms_tile'),
-            title: 'SMS Cellular Broadcast',
-            subtitle: 'Offline fallback message sent to residents without mobile data',
+            title: context.tr('SMS Cellular Broadcast'),
+            subtitle: context.tr('Offline fallback message sent to residents without mobile data'),
             icon: Icons.sms_outlined,
             iconColor: AppColors.severityOrange,
             value: form.dispatchSms,
-            onChanged: (v) => context.read<AlertFormProvider>().toggleSms(v ?? false),
+            onChanged: (v) =>
+                context.read<AlertFormProvider>().toggleSms(v ?? false),
           ),
           const SizedBox(height: 8),
 
@@ -505,12 +584,13 @@ class _BroadcastFormState extends State<_BroadcastForm> {
           _buildChannelTile(
             context,
             key: const Key('channel_siren_tile'),
-            title: 'Siren-Trigger Channel',
-            subtitle: 'Acoustic sirens and high-priority DND override audio alarm',
+            title: context.tr('Siren-Trigger Channel'),
+            subtitle: context.tr('Acoustic sirens and high-priority DND override audio alarm'),
             icon: Icons.volume_up_outlined,
             iconColor: AppColors.severityRed,
             value: form.dispatchSiren,
-            onChanged: (v) => context.read<AlertFormProvider>().toggleSiren(v ?? false),
+            onChanged: (v) =>
+                context.read<AlertFormProvider>().toggleSiren(v ?? false),
           ),
 
           if (!form.hasSelectedChannel)
@@ -577,4 +657,3 @@ class _BroadcastFormState extends State<_BroadcastForm> {
     );
   }
 }
-
