@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../models/app_user.dart';
 import '../models/zone.dart';
+import '../providers/accessibility_provider.dart';
 import '../providers/alert_provider.dart';
 import '../providers/map_focus_provider.dart';
 import '../providers/safety_provider.dart';
@@ -92,6 +93,13 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       final declined = uid != null &&
           await OnboardingService().notificationsDeclined(uid);
       if (!mounted) return;
+      // Green and yellow alert haptics follow the person's haptics setting.
+      AccessibilityProvider? a11y;
+      try {
+        a11y = context.read<AccessibilityProvider>();
+      } catch (_) {}
+      context.read<AlertProvider>().hapticsEnabledResolver =
+          () => a11y?.hapticsEnabled ?? true;
       await context.read<AlertProvider>().init(
         requestNotificationPermission: !declined,
       );

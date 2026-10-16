@@ -12,6 +12,7 @@ import '../services/alert_launch_bus.dart';
 import '../services/alert_service.dart';
 import '../services/notification_service.dart';
 import '../services/supabase_service.dart';
+import '../utils/severity_haptics.dart';
 
 class AlertProvider extends ChangeNotifier {
   final AlertService _service;
@@ -32,6 +33,10 @@ class AlertProvider extends ChangeNotifier {
   /// A critical alert that applies to this person, shown full-screen with a
   /// siren until dismissed.
   DisasterAlert? _criticalTakeover;
+
+  /// Reads the person's haptics setting (green and yellow alerts only vibrate
+  /// when it is on). Wired by AppShell; null means "on".
+  bool Function()? hapticsEnabledResolver;
 
   /// The person's last known position, pushed in by the Home screen. Null
   /// until there is a GPS fix.
@@ -307,6 +312,14 @@ class AlertProvider extends ChangeNotifier {
                 _userZoneId!.isNotEmpty &&
                 alert.affectedZoneId == _userZoneId))) {
       _criticalTakeover = alert;
+    }
+    // Feel the severity as the alert lands. A takeover already buzzes on its
+    // own, so skip the duplicate when it is up.
+    if (nearby != false && _criticalTakeover?.id != alert.id) {
+      unawaited(playSeverityHaptic(
+        alert.severity,
+        enabled: hapticsEnabledResolver?.call() ?? true,
+      ));
     }
 
     // 1. Primary Channel: Operating System push notification — skipped

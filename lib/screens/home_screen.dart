@@ -22,7 +22,7 @@ import '../providers/safety_provider.dart';
 import '../theme/app_colors.dart';
 import '../services/activity_history_service.dart';
 import '../l10n/app_strings.dart';
-import '../providers/accessibility_provider.dart';
+import '../utils/severity_haptics.dart';
 import '../services/location_service.dart';
 import '../widgets/offline_strip.dart';
 import '../services/place_name_service.dart';
@@ -341,23 +341,42 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
               child: SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => FamilyCircleScreen(
-                          currentRiskZone: nearestRiskZone,
-                        ),
+                child: Builder(
+                  builder: (context) {
+                    // While sharing, the same button ends it: the map shows
+                    // the location, so there is no second screen to visit.
+                    final sharing = context.watch<SafetyProvider>().isSharing;
+                    return ElevatedButton.icon(
+                      onPressed: () {
+                        if (sharing) {
+                          final messenger = ScaffoldMessenger.of(context);
+                          context.read<SafetyProvider>().stopSharing().then((_) {
+                            messenger.showSnackBar(
+                              SnackBar(content: Text(strings.t('stoppedSharing'))),
+                            );
+                          });
+                          return;
+                        }
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => FamilyCircleScreen(
+                              currentRiskZone: nearestRiskZone,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: Icon(
+                        sharing ? Icons.stop_circle_outlined : Icons.share_location_rounded,
+                      ),
+                      label: Text(strings.t(sharing ? 'stopSharing' : 'shareEta')),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            sharing ? AppColors.severityRed : const Color(0xFF1F6F8B),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                     );
                   },
-                  icon: const Icon(Icons.share_location_rounded),
-                  label: Text(strings.t('shareEta')),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1F6F8B),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
                 ),
               ),
             ),
@@ -681,8 +700,9 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
     );
     if (!mounted) return;
     setState(() => _sendingSos = false);
-    // Optional vibration confirms the send without relying on sound or sight.
-    if (success) pulseHapticOf(context);
+    // An SOS gets the strongest pattern (same as a red alert), so it is
+    // felt as something serious without relying on sound or sight.
+    if (success) severityHapticOf(context, AlertSeverity.red);
     messenger.showSnackBar(
       SnackBar(
         content: Text(
