@@ -7,6 +7,7 @@ Incident _at(
   double lng, {
   bool sos = false,
   IncidentStatus status = IncidentStatus.verified,
+  int confirmations = 0,
 }) => Incident(
   id: '$lat,$lng',
   reporterId: 'r',
@@ -14,7 +15,7 @@ Incident _at(
   latitude: lat,
   longitude: lng,
   status: status,
-  credibilityScore: 0,
+  credibilityScore: confirmations,
   isSos: sos,
   createdAt: DateTime(2026),
   updatedAt: DateTime(2026),
@@ -57,14 +58,52 @@ void main() {
     expect(paired, greaterThan(alone));
   });
 
-  test('SOS weighs more than a routine report; pending a bit less', () {
+  test('SOS weighs more than a routine report', () {
     expect(
       HeatmapLayer.weightOf(_at(7, 80, sos: true)),
       greaterThan(HeatmapLayer.weightOf(_at(7, 80))),
     );
-    expect(
-      HeatmapLayer.weightOf(_at(7, 80, status: IncidentStatus.pending)),
-      lessThan(HeatmapLayer.weightOf(_at(7, 80))),
-    );
+  });
+
+  group('only confirmed reports heat the map', () {
+    double w(IncidentStatus status, [int confirmations = 0]) =>
+        HeatmapLayer.weightOf(_at(7, 80, status: status, confirmations: confirmations));
+
+    test('an unconfirmed pending report is barely there', () {
+      expect(w(IncidentStatus.pending), lessThanOrEqualTo(0.25));
+      expect(w(IncidentStatus.pending), lessThan(w(IncidentStatus.verified)));
+    });
+
+    test('community confirmations lift a pending report up to a verified one', () {
+      expect(w(IncidentStatus.pending, 2), greaterThan(w(IncidentStatus.pending, 0)));
+      expect(w(IncidentStatus.pending, 4), w(IncidentStatus.verified));
+      // ...and cap there, however many pile on.
+      expect(w(IncidentStatus.pending, 9), w(IncidentStatus.verified));
+    });
+
+    test('community confirmations also strengthen a verified report, to a cap', () {
+      expect(w(IncidentStatus.verified, 3), greaterThan(w(IncidentStatus.verified)));
+      expect(w(IncidentStatus.verified, 50), w(IncidentStatus.verified, 5));
+    });
+
+    test('rejected and resolved reports add no heat', () {
+      expect(w(IncidentStatus.rejected, 4), 0);
+      expect(w(IncidentStatus.resolved, 4), 0);
+    });
+
+    test('a pile of unconfirmed reports stays cooler than a few confirmed ones', () {
+      double peak(List<Incident> list) =>
+          HeatmapLayer.densities(list).reduce((a, b) => a > b ? a : b);
+      final unconfirmed = [
+        for (var i = 0; i < 6; i++)
+          _at(6.9556 + i * 0.0004, 79.9222, status: IncidentStatus.pending),
+      ];
+      final confirmed = [
+        for (var i = 0; i < 6; i++)
+          _at(6.9556 + i * 0.0004, 79.9222, status: IncidentStatus.pending, confirmations: 3),
+      ];
+      expect(peak(unconfirmed), lessThan(2.5));
+      expect(peak(confirmed), greaterThan(peak(unconfirmed) * 2));
+    });
   });
 }
