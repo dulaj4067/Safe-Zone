@@ -105,7 +105,7 @@ class AccountDeletionService {
     // Missing function = the migration hasn't been applied on this backend.
     if (e.code == 'PGRST202' || e.code == '42883') {
       return 'Account deletion isn\'t available on this server yet. '
-          'Please contact the operator through Send Feedback.';
+          'Please contact the operator through Give feedback in Settings.';
     }
     return e.message;
   }

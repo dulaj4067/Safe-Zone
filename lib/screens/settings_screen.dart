@@ -975,7 +975,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(height: 1),
           ListTile(
             leading: Icon(Icons.rate_review_outlined, color: context.brandInk),
-            title: const Text('Send Feedback'),
+            title: const Text('Give feedback'),
             subtitle: const Text('Rate the support you\'re getting and tell us what you need'),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () => showFeedbackSheet(context, zoneId: zoneId),
