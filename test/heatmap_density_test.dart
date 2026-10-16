@@ -1,3 +1,5 @@
+import 'dart:ui' show Offset, Size;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:safezone/models/incident.dart';
 import 'package:safezone/widgets/heatmap_layer.dart';
@@ -104,6 +106,58 @@ void main() {
       ];
       expect(peak(unconfirmed), lessThan(2.5));
       expect(peak(confirmed), greaterThan(peak(unconfirmed) * 2));
+    });
+  });
+
+  group('drawing keeps the glow local', () {
+    const view = Size(360, 600);
+    const centre = Offset(180, 300);
+    double coverage(List<HeatCell> cells) =>
+        cells.length * HeatmapLayer.cellPx * HeatmapLayer.cellPx / (view.width * view.height);
+
+    test('a big cluster is red in the middle and covers only a small part of the map', () {
+      // 16 confirmed reports stacked at nearly the same spot (zoomed far in).
+      final points = [for (var i = 0; i < 16; i++) HeatPoint(centre + Offset(i * 0.5, 0), 1)];
+      final cells = HeatmapLayer.cells(points: points, size: view, sigma: HeatmapLayer.maxSigmaPx);
+
+      final hottest = cells.map((c) => c.intensity).reduce((a, b) => a > b ? a : b);
+      expect(hottest, greaterThan(0.9));
+      expect(coverage(cells), lessThan(0.15), reason: 'must not blanket the map');
+      for (final c in cells) {
+        expect((c.center - centre).distance, lessThan(4 * HeatmapLayer.maxSigmaPx));
+      }
+    });
+
+    test('a lone report is a small green glow', () {
+      final cells = HeatmapLayer.cells(
+        points: const [HeatPoint(centre, 1)],
+        size: view,
+        sigma: HeatmapLayer.maxSigmaPx,
+      );
+      expect(cells, isNotEmpty);
+      expect(cells.every((c) => c.intensity < 0.2), isTrue);
+      expect(coverage(cells), lessThan(0.05));
+    });
+
+    test('far-apart reports do not join up', () {
+      final cells = HeatmapLayer.cells(
+        points: const [HeatPoint(Offset(40, 60), 1), HeatPoint(Offset(320, 540), 1)],
+        size: view,
+        sigma: HeatmapLayer.maxSigmaPx,
+      );
+      // Nothing is painted in the empty middle of the screen.
+      expect(cells.where((c) => (c.center - centre).distance < 100), isEmpty);
+    });
+
+    test('no reports, nothing drawn', () {
+      expect(HeatmapLayer.cells(points: const [], size: view, sigma: 30), isEmpty);
+    });
+
+    test('the glow width follows the zoom but stays between its limits', () {
+      expect(HeatmapLayer.sigmaPx(6, 7), HeatmapLayer.minSigmaPx);
+      expect(HeatmapLayer.sigmaPx(19, 7), HeatmapLayer.maxSigmaPx);
+      final mid = HeatmapLayer.sigmaPx(12, 7);
+      expect(mid, inInclusiveRange(HeatmapLayer.minSigmaPx, HeatmapLayer.maxSigmaPx));
     });
   });
 }

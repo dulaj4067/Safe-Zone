@@ -521,6 +521,60 @@ class _SafeZoneMap extends StatefulWidget {
 class _SafeZoneMapState extends State<_SafeZoneMap> {
   bool _showHeatmap = false;
   BaseMapStyle _baseMapStyle = BaseMapStyle.street;
+
+  bool _isOpen(Incident i) =>
+      i.status == IncidentStatus.pending || i.status == IncidentStatus.verified;
+
+  bool _canCommunityConfirm(Incident i) =>
+      _isOpen(i) && i.reporterId != SupabaseService.currentUserId;
+
+  bool _canVerify(Incident i) =>
+      (widget.currentUser?.role.isAuthority ?? false) &&
+      i.status == IncidentStatus.pending;
+
+  void _say(String text, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(text),
+        backgroundColor: error ? AppColors.severityRed : null,
+      ),
+    );
+  }
+
+  /// Community confirmation from the map sheet. It used to fire and forget,
+  /// so a refusal (own report, already confirmed, no permission) vanished
+  /// silently and the button looked broken; now every outcome is shown.
+  Future<void> _confirmIncident(Incident incident) async {
+    final userId = SupabaseService.currentUserId;
+    if (userId == null) {
+      _say('Sign in to confirm a report.', error: true);
+      return;
+    }
+    final provider = context.read<IncidentProvider>();
+    try {
+      if (await provider.hasUserConfirmed(incidentId: incident.id, userId: userId)) {
+        _say('You already confirmed this report.');
+        return;
+      }
+      await provider.confirmIncident(incidentId: incident.id, memberId: userId);
+      _say('Thanks, you confirmed this report.');
+    } catch (e) {
+      _say('Could not confirm the report. Please try again.', error: true);
+    }
+  }
+
+  /// Authority verification from the map sheet.
+  Future<void> _verifyIncident(Incident incident) async {
+    final adminId = SupabaseService.currentUserId;
+    if (adminId == null) return;
+    final provider = context.read<IncidentProvider>();
+    final ok = await provider.verifyIncident(incident.id, adminId);
+    _say(
+      ok ? 'Report verified.' : 'Could not verify the report. ${provider.errorMessage ?? ''}'.trim(),
+      error: !ok,
+    );
+  }
   MapFilters _filters = const MapFilters();
 
   /// Shelter whose preview card is showing over the map, if any.
@@ -1025,19 +1079,21 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
                                       ),
                                     );
                                   },
-                                  onConfirm: () {
-                                    final userId =
-                                        SupabaseService.currentUserId;
-                                    if (userId != null) {
-                                      context
-                                          .read<IncidentProvider>()
-                                          .confirmIncident(
-                                            incidentId: incident.id,
-                                            memberId: userId,
-                                          );
-                                    }
-                                    Navigator.pop(context);
-                                  },
+                                  // Not offered on your own report (the
+                                  // database refuses it) or one that is
+                                  // already closed.
+                                  onConfirm: _canCommunityConfirm(incident)
+                                      ? () {
+                                          Navigator.pop(context);
+                                          _confirmIncident(incident);
+                                        }
+                                      : null,
+                                  onVerify: _canVerify(incident)
+                                      ? () {
+                                          Navigator.pop(context);
+                                          _verifyIncident(incident);
+                                        }
+                                      : null,
                                 ),
                               );
                             },

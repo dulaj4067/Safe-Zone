@@ -77,7 +77,7 @@ class _FeedbackSheetState extends State<_FeedbackSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Send feedback', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+          Text('Give feedback', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Text('How well are you being supported during this emergency?', style: textTheme.bodyMedium),
           const SizedBox(height: 16),
@@ -131,7 +131,7 @@ class _FeedbackSheetState extends State<_FeedbackSheet> {
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
-                : const Text('Send feedback'),
+                : const Text('Submit feedback'),
           ),
         ],
       ),
