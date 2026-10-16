@@ -92,10 +92,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   width: double.infinity,
                   child: SegmentedButton<ThemeMode>(
                     key: const Key('theme_mode_selector'),
+                    // The tick icon on the selected segment pushed "System"
+                    // out of its box; the filled segment already shows the
+                    // selection, so drop it and tighten the padding.
+                    showSelectedIcon: false,
+                    style: const ButtonStyle(
+                      // 48dp tall, like every other tap target; the default
+                      // density is kept (compact dropped it below 48).
+                      minimumSize: WidgetStatePropertyAll(Size(0, 48)),
+                      padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 6)),
+                    ),
                     segments: const [
-                      ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_outlined), label: Text('Light')),
-                      ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto_outlined), label: Text('System')),
-                      ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_outlined), label: Text('Dark')),
+                      ButtonSegment(
+                        value: ThemeMode.light,
+                        icon: Icon(Icons.light_mode_outlined, size: 18),
+                        label: FittedBox(fit: BoxFit.scaleDown, child: Text('Light')),
+                      ),
+                      ButtonSegment(
+                        value: ThemeMode.system,
+                        icon: Icon(Icons.brightness_auto_outlined, size: 18),
+                        label: FittedBox(fit: BoxFit.scaleDown, child: Text('System')),
+                      ),
+                      ButtonSegment(
+                        value: ThemeMode.dark,
+                        icon: Icon(Icons.dark_mode_outlined, size: 18),
+                        label: FittedBox(fit: BoxFit.scaleDown, child: Text('Dark')),
+                      ),
                     ],
                     selected: {context.watch<AccessibilityProvider>().themeMode},
                     onSelectionChanged: (s) =>
@@ -424,7 +446,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: context.brandAccent,
                 side: BorderSide(color: context.brandAccent),
-                minimumSize: const Size.fromHeight(42),
+                minimumSize: const Size.fromHeight(48),
               ),
               icon: const Icon(Icons.campaign, size: 18),
               label: const Text('Create New Broadcast Alert'),
@@ -445,7 +467,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.riverTeal,
                 foregroundColor: Colors.white,
-                minimumSize: const Size.fromHeight(42),
+                minimumSize: const Size.fromHeight(48),
               ),
               icon: const Icon(Icons.fact_check_outlined, size: 18),
               label: const Text('Review Citizen Incident Reports'),
@@ -465,7 +487,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: context.brandInk,
                 side: BorderSide(color: context.brandInk),
-                minimumSize: const Size.fromHeight(42),
+                minimumSize: const Size.fromHeight(48),
               ),
               icon: const Icon(Icons.accessibility_new_rounded, size: 18),
               label: const Text('Inclusion & Accessibility Settings'),
@@ -477,7 +499,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: context.brandInk,
                 side: BorderSide(color: context.brandInk),
-                minimumSize: const Size.fromHeight(42),
+                minimumSize: const Size.fromHeight(48),
               ),
               icon: const Icon(Icons.person_remove_outlined, size: 18),
               label: const Text('Account Deletion Requests'),
@@ -639,20 +661,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                Row(
+                // Stacked, not side by side: two labelled buttons in one row
+                // wrapped unevenly on narrow phones and looked misaligned.
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
+                    SizedBox(
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          minimumSize: const Size.fromHeight(48),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        icon: const Icon(Icons.security, size: 16),
+                        icon: const Icon(Icons.security, size: 18),
                         label: const Text(
                           'DND Access Settings',
-                          style: TextStyle(fontSize: 12),
+                          style: TextStyle(fontSize: 13),
                         ),
                         onPressed: () async {
                           await NotificationService()
@@ -669,20 +695,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
+                    const SizedBox(height: 8),
+                    SizedBox(
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.severityRed,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          minimumSize: const Size.fromHeight(48),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        icon: const Icon(Icons.volume_up, size: 16),
+                        icon: const Icon(Icons.volume_up, size: 18),
                         label: const Text(
                           'Test Critical Siren',
-                          style: TextStyle(fontSize: 12),
+                          style: TextStyle(fontSize: 13),
                         ),
                         onPressed: () async {
                           final testAlert = DisasterAlert(
