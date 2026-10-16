@@ -8,6 +8,10 @@ class CoordinationMessage {
   final String message;
   final DateTime createdAt;
 
+  /// When the recipient opened it; null while unread (or on a database
+  /// without sql/messaging_privacy_and_unread_migration.sql).
+  final DateTime? readAt;
+
   CoordinationMessage({
     required this.id,
     this.shelterId,
@@ -15,6 +19,7 @@ class CoordinationMessage {
     this.recipientId,
     required this.message,
     required this.createdAt,
+    this.readAt,
   });
 
   factory CoordinationMessage.fromMap(Map<String, dynamic> map) {
@@ -25,8 +30,14 @@ class CoordinationMessage {
       recipientId: map['recipient_id'] as String?,
       message: map['message'] as String,
       createdAt: DateTime.parse(map['created_at'] as String).toLocal(),
+      readAt: map['read_at'] != null
+          ? DateTime.tryParse(map['read_at'] as String)?.toLocal()
+          : null,
     );
   }
+
+  /// True when this message was sent to [myId] and not opened yet.
+  bool isUnreadFor(String myId) => recipientId == myId && readAt == null;
 
   /// Whoever isn't [myId] in this message.
   String? otherParty(String myId) => senderId == myId ? recipientId : senderId;
@@ -42,9 +53,13 @@ class ConversationSummary {
   final String otherUserId;
   final CoordinationMessage lastMessage;
 
+  /// Messages in this thread sent to the signed-in user and not yet opened.
+  final int unreadCount;
+
   ConversationSummary({
     required this.shelterId,
     required this.otherUserId,
     required this.lastMessage,
+    this.unreadCount = 0,
   });
 }

@@ -68,6 +68,7 @@ class _MessageThreadScreenState extends State<MessageThreadScreen> {
         _messages = messages;
         _error = null;
       });
+      _markRead();
       _scrollToEnd();
     } catch (e) {
       if (mounted) setState(() => _error = 'Couldn\'t load messages.');
@@ -81,8 +82,15 @@ class _MessageThreadScreenState extends State<MessageThreadScreen> {
     if (current.any((m) => m.id == message.id)) return;
     if (!mounted) return;
     setState(() => _messages = [...current, message]);
+    // A message arriving while the thread is open is read as it lands.
+    if (message.senderId == widget.otherUserId) _markRead();
     _scrollToEnd();
   }
+
+  void _markRead() => _service.markThreadRead(
+        shelterId: widget.shelterId,
+        otherUserId: widget.otherUserId,
+      );
 
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -174,12 +182,17 @@ class _MessageThreadScreenState extends State<MessageThreadScreen> {
                       minLines: 1,
                       maxLines: 4,
                       textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(hintText: 'Write a message'),
+                      decoration: const InputDecoration(
+                        labelText: 'Message',
+                        hintText: 'Write a message',
+                      ),
                       onSubmitted: (_) => _send(),
                     ),
                   ),
                   const SizedBox(width: 6),
                   IconButton.filled(
+                    tooltip: 'Send message',
+                    style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
                     onPressed: _sending ? null : _send,
                     icon: _sending
                         ? const SizedBox(
