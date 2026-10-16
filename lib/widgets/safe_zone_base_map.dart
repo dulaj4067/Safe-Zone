@@ -66,6 +66,10 @@ class SafeZoneBaseMap extends StatefulWidget {
   /// own layers menu) and the built-in style toggle button is hidden.
   final BaseMapStyle? baseMapStyle;
 
+  /// Called when the My Location button had to fetch a position itself (the
+  /// screen had none yet), so the screen can show its location dot.
+  final void Function(LatLng fix)? onLocationFound;
+
   const SafeZoneBaseMap({
     super.key,
     required this.initialCenter,
@@ -73,6 +77,7 @@ class SafeZoneBaseMap extends StatefulWidget {
     this.minZoom = kSriLankaMinZoom,
     this.maxZoom = 18,
     this.liveLocation,
+    this.onLocationFound,
     this.resumeCenter,
     this.controller,
     this.onTap,
@@ -137,7 +142,8 @@ class _SafeZoneBaseMapState extends State<SafeZoneBaseMap> {
   }
 
   void _goToMyLocation() =>
-      recenterOnUser(context, _mapController, widget.liveLocation);
+      recenterOnUser(context, _mapController, widget.liveLocation,
+          onFix: widget.onLocationFound);
 
   void _zoomBy(double delta) {
     final camera = _mapController.camera;

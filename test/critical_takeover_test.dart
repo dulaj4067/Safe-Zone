@@ -130,7 +130,7 @@ void main() {
       p.updateUserLocation(const LatLng(6.9615, 79.9010)); // inside
       expect(p.isNearby(alert), isTrue);
       p.updateUserLocation(const LatLng(6.9344, 79.8428)); // Colombo Fort, ~11 km
-      expect(p.isNearby(alert), isTrue);
+      expect(p.isNearby(alert), isFalse); // well outside the alert's own circle
       p.updateUserLocation(const LatLng(7.2906, 80.6337)); // Kandy
       expect(p.isNearby(alert), isFalse);
     });
