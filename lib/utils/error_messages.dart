@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:http/http.dart' show ClientException;
 import 'package:supabase_flutter/supabase_flutter.dart'
     show AuthException, FunctionException, PostgrestException;
@@ -25,6 +26,8 @@ const String kPermissionError = "You don't have permission to do that.";
 const String kAlreadyExistsError = 'That already exists.';
 const String kMissingItemError = 'That item no longer exists.';
 const String kSessionExpiredError = 'Your session expired. Please sign in again.';
+const String kPlatformError =
+    "Couldn't use that feature. Check the app's permissions in your phone settings.";
 
 /// Messages our own SQL functions raise on purpose (errcode P0001), matched
 /// by a distinctive fragment and shown in clean wording. Anything not listed
@@ -49,6 +52,7 @@ const List<String> kFriendlyErrorMessages = [
   kAlreadyExistsError,
   kMissingItemError,
   kSessionExpiredError,
+  kPlatformError,
   'Email or password is incorrect.',
   'An account with this email already exists. Try signing in.',
   'Choose a stronger password.',
@@ -148,7 +152,8 @@ String friendlyError(Object error) {
       error is HandshakeException) {
     return kNetworkError;
   }
-  if (error is UserMessage) return (error as UserMessage).message;
+  if (error is UserMessage) return error.message;
+  if (error is PlatformException) return kPlatformError;
   if (error is FunctionException) return kGenericError;
   // Our own StateErrors (e.g. "You don't have permission to edit this
   // shelter.") are already written for people.

@@ -22,6 +22,7 @@ import '../widgets/map_controls.dart';
 import '../widgets/incident_card.dart';
 import 'incident_detail_screen.dart';
 import '../l10n/ui_text.dart';
+import '../utils/error_messages.dart';
 
 class ReportIncidentScreen extends StatefulWidget {
   final LatLng? initialLocation;
@@ -101,7 +102,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.tr('Failed to pick photo: {e}', {'e': e}))),
+          SnackBar(content: Text(context.tr('Failed to pick photo: {e}', {'e': context.tr(friendlyError(e))}))),
         );
       }
     }
@@ -114,6 +115,15 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
         maxDuration: const Duration(minutes: 2),
       );
       if (picked != null) {
+        // Large videos fail partway through the upload; stop them here.
+        if (await File(picked.path).length() > 100 * 1024 * 1024) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(context.tr('That video is too large. Choose one under 100 MB.'))),
+            );
+          }
+          return;
+        }
         setState(() {
           _videoFile = File(picked.path);
           _videoFileName = picked.name;
@@ -122,7 +132,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.tr('Failed to pick video: {e}', {'e': e}))),
+          SnackBar(content: Text(context.tr('Failed to pick video: {e}', {'e': context.tr(friendlyError(e))}))),
         );
       }
     }
@@ -289,7 +299,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(context.tr('Could not confirm: {e}', {'e': e})),
+          content: Text(context.tr('Could not confirm: {e}', {'e': context.tr(friendlyError(e))})),
           backgroundColor: AppColors.severityRed,
         ),
       );
@@ -484,6 +494,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                 ),
               ),
               maxLines: 3,
+              maxLength: 1000,
               validator: (val) {
                 if (!_isSos && (val == null || val.trim().isEmpty)) {
                   return strings.t('descriptionRequired');

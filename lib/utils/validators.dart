@@ -101,6 +101,14 @@ String _asciiDigits(String input) {
   return out.toString();
 }
 
+/// Family invite codes are 12 letters/digits (e.g. 3F9A1C7B20DE). People paste
+/// them with spaces or dashes, so those are stripped first. Returns the
+/// cleaned, upper-case code, or null when it can't be one.
+String? normalizeInviteCode(String? value) {
+  final cleaned = (value ?? '').replaceAll(RegExp(r'[\s\-]'), '').toUpperCase();
+  return RegExp(r'^[A-Z0-9]{12}$').hasMatch(cleaned) ? cleaned : null;
+}
+
 String? validatePassword(String? value, {Translate? tr}) {
   final t = tr ?? _english;
   final v = value ?? '';

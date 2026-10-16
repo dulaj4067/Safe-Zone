@@ -4,6 +4,7 @@ import '../models/alert.dart';
 import '../models/zone.dart';
 import '../services/alert_service.dart';
 import '../services/supabase_service.dart';
+import '../utils/error_messages.dart';
 
 class AlertFormProvider extends ChangeNotifier {
   final AlertService _service;
@@ -170,7 +171,7 @@ class AlertFormProvider extends ChangeNotifier {
       // "Authority can insert alerts" policy rejecting a non-authority
       // user — client-side role gating should normally prevent reaching
       // this screen at all, but RLS is the real enforcement.
-      _submitError = 'Failed to create alert: $e';
+      _submitError = friendlyError(e);
       _isSubmitting = false;
       notifyListeners();
       return false;

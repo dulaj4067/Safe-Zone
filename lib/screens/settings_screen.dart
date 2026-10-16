@@ -28,6 +28,7 @@ import 'privacy_settings_screen.dart';
 import 'volunteer_tasks_screen.dart';
 import '../widgets/a11y/a11y_widgets.dart';
 import '../l10n/ui_text.dart';
+import '../utils/error_messages.dart';
 
 /// Settings screen tailored for both [UserRole.member] (Citizens) and
 /// [UserRole.authority] / [UserRole.admin] / [UserRole.volunteerOrg].
@@ -838,7 +839,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(context.tr('Failed to sync offline cache: {e}', {'e': e})),
+            content: Text(context.tr('Failed to sync offline cache: {e}', {'e': context.tr(friendlyError(e))})),
             backgroundColor: AppColors.severityRed,
           ),
         );

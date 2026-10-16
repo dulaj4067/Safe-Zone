@@ -174,7 +174,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: A11yErrorBanner(
-                    message: form.submitError!,
+                    message: context.tr(form.submitError!),
                     hint: strings.t('howToFix'),
                   ),
                 ),
@@ -244,6 +244,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
     return [
       TextField(
         controller: _title,
+        maxLength: 100,
         textCapitalization: TextCapitalization.sentences,
         decoration: InputDecoration(
           labelText: '${strings.t('titleLabel')} *',
@@ -368,6 +369,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
       const SizedBox(height: 12),
       TextField(
         controller: _instructions,
+        maxLength: 1000,
         decoration: InputDecoration(
           labelText: strings.t('instructions'),
           hintText: strings.t('instructionsHint'),
@@ -381,6 +383,7 @@ class _BroadcastFormState extends State<_BroadcastForm> {
         const SizedBox(height: 12),
         TextField(
           controller: _transcript,
+          maxLength: 1000,
           decoration: InputDecoration(
             labelText: strings.t('transcript'),
             hintText: strings.t('transcriptHint'),

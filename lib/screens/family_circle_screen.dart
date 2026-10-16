@@ -12,6 +12,7 @@ import '../utils/format_utils.dart';
 import 'live_eta_sharing_screen.dart';
 import '../l10n/ui_text.dart';
 import '../utils/error_messages.dart';
+import '../utils/validators.dart';
 
 /// Google-family-style circle: everyone joins through a single-use invite
 /// link and has to confirm (email + in-app) before anyone's location is
@@ -465,6 +466,17 @@ class _JoinWithCodeDialog extends StatefulWidget {
 
 class _JoinWithCodeDialogState extends State<_JoinWithCodeDialog> {
   final _controller = TextEditingController();
+  String? _error;
+
+  /// Closes with the cleaned code, or explains what is wrong and stays open.
+  void _submit() {
+    final code = normalizeInviteCode(_controller.text);
+    if (code == null) {
+      setState(() => _error = context.tr('Enter the 12-character invite code'));
+      return;
+    }
+    Navigator.pop(context, code);
+  }
 
   @override
   void dispose() {
@@ -483,8 +495,12 @@ class _JoinWithCodeDialogState extends State<_JoinWithCodeDialog> {
         decoration: InputDecoration(
           labelText: context.tr('Invite code'),
           hintText: context.tr('e.g. 3F9A1C7B20DE'),
+          errorText: _error,
         ),
-        onSubmitted: (v) => Navigator.pop(context, v),
+        onChanged: (_) {
+          if (_error != null) setState(() => _error = null);
+        },
+        onSubmitted: (_) => _submit(),
       ),
       actions: [
         TextButton(
@@ -493,7 +509,7 @@ class _JoinWithCodeDialogState extends State<_JoinWithCodeDialog> {
         ),
         FilledButton(
           style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
-          onPressed: () => Navigator.pop(context, _controller.text),
+          onPressed: _submit,
           child: Text(context.tr('Join')),
         ),
       ],

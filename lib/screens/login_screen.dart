@@ -6,6 +6,7 @@ import '../widgets/a11y/a11y_widgets.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 import '../l10n/ui_text.dart';
+import '../utils/validators.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,6 +19,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscure = true;
+  String? _emailError;
+  String? _passwordError;
 
   @override
   void dispose() {
@@ -56,7 +59,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     decoration: InputDecoration(
                       labelText: context.tr('Email'),
                       prefixIcon: Icon(Icons.email_outlined),
+                      errorText: _emailError,
                     ),
+                    onChanged: (_) {
+                      if (_emailError != null) setState(() => _emailError = null);
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -64,6 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     obscureText: _obscure,
                     decoration: InputDecoration(
                       labelText: context.tr('Password'),
+                      errorText: _passwordError,
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(_obscure
@@ -72,6 +80,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: () => setState(() => _obscure = !_obscure),
                       ),
                     ),
+                    onChanged: (_) {
+                      if (_passwordError != null) setState(() => _passwordError = null);
+                    },
                     onSubmitted: (_) => _submit(context),
                   ),
                   Align(
@@ -153,7 +164,15 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _submit(BuildContext context) async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    if (email.isEmpty || password.isEmpty) return;
+    final emailError = validateEmail(email, tr: context.tr);
+    final passwordError = password.isEmpty ? context.tr('Enter your password') : null;
+    if (emailError != null || passwordError != null) {
+      setState(() {
+        _emailError = emailError;
+        _passwordError = passwordError;
+      });
+      return;
+    }
     await context.read<AuthProvider>().login(email, password);
   }
 }

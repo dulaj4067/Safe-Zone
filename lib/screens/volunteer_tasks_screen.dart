@@ -10,6 +10,7 @@ import '../services/volunteer_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/format_utils.dart';
 import '../l10n/ui_text.dart';
+import '../utils/error_messages.dart';
 
 /// Volunteer opportunities from `volunteer_tasks`. Citizens sign up or
 /// withdraw; authorities and volunteer organisations also post new tasks
@@ -122,6 +123,7 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: titleCtrl,
+                    maxLength: 80,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(labelText: context.tr('Title'), hintText: context.tr('Distribute food packs')),
                     validator: (v) =>
@@ -130,6 +132,7 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: descCtrl,
+                    maxLength: 500,
                     minLines: 2,
                     maxLines: 4,
                     textCapitalization: TextCapitalization.sentences,
@@ -189,7 +192,7 @@ class _VolunteerTasksScreenState extends State<VolunteerTasksScreen> {
                               setSheetState(() => saving = false);
                               if (ctx.mounted) {
                                 ScaffoldMessenger.of(ctx).showSnackBar(
-                                  SnackBar(content: Text(context.tr('Couldn\'t post the task: {e}', {'e': e}))),
+                                  SnackBar(content: Text(context.tr('Couldn\'t post the task: {e}', {'e': context.tr(friendlyError(e))}))),
                                 );
                               }
                             }

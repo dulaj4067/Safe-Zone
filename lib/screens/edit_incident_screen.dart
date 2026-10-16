@@ -17,6 +17,7 @@ import '../widgets/incident_card.dart';
 import '../widgets/map_controls.dart';
 import '../widgets/status_badge.dart';
 import '../l10n/ui_text.dart';
+import '../utils/error_messages.dart';
 
 class EditIncidentScreen extends StatefulWidget {
   final Incident incident;
@@ -83,7 +84,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.tr('Failed to pick photo: {e}', {'e': e}))),
+          SnackBar(content: Text(context.tr('Failed to pick photo: {e}', {'e': context.tr(friendlyError(e))}))),
         );
       }
     }
@@ -105,7 +106,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.tr('Failed to pick video: {e}', {'e': e}))),
+          SnackBar(content: Text(context.tr('Failed to pick video: {e}', {'e': context.tr(friendlyError(e))}))),
         );
       }
     }
@@ -517,6 +518,7 @@ class _EditIncidentScreenState extends State<EditIncidentScreen> {
                 ),
               ),
               maxLines: 3,
+              maxLength: 1000,
               validator: (val) {
                 if (!_isSos && (val == null || val.trim().isEmpty)) {
                   return context.tr('Please provide a short description');

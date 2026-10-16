@@ -101,12 +101,14 @@ class _ShelterResourcesCardState extends State<ShelterResourcesCard> {
                     final q = double.tryParse((v ?? '').trim());
                     if (q == null) return context.tr('Enter a number');
                     if (q < 0) return context.tr("Can't be negative");
+                    if (q > 1000000) return context.tr('That number is too large');
                     return null;
                   },
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: unitCtrl,
+                  maxLength: 20,
                   decoration: InputDecoration(labelText: context.tr('Unit (liters, meals, kits…)')),
                   validator: (v) =>
                       (v ?? '').trim().isEmpty ? context.tr('Enter a unit') : null,
