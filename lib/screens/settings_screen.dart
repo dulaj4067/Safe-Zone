@@ -103,7 +103,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
 
             // ─── Appearance ────────────────────────────────────────────────
-            _buildSectionHeader('Appearance', Icons.palette_outlined),
+            _buildSectionHeader('Appearance & Accessibility', Icons.palette_outlined),
             const SizedBox(height: 8),
             Card(
               child: Padding(
@@ -168,13 +168,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 20),
 
             // ─── Safety & Offline Data ─────────────────────────────────────
-            _buildSectionHeader('Safety & Offline Resilience', Icons.health_and_safety_outlined),
+            _buildSectionHeader('Offline Data', Icons.cloud_off_outlined),
             const SizedBox(height: 8),
             _buildSafetyAndDataCard(context),
             const SizedBox(height: 20),
 
             // ─── Community & Support ───────────────────────────────────────
-            _buildSectionHeader('Community & Support', Icons.forum_outlined),
+            _buildSectionHeader('My Reports & Community', Icons.forum_outlined),
             const SizedBox(height: 8),
             _buildCommunityCard(context),
             const SizedBox(height: 20),
@@ -494,17 +494,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: context.brandInk,
-                side: BorderSide(color: context.brandInk),
-                minimumSize: const Size.fromHeight(48),
-              ),
-              icon: const Icon(Icons.accessibility_new_rounded, size: 18),
-              label: const Text('Inclusion & Accessibility Settings'),
-              onPressed: () => showA11yInclusionSheet(context),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
               key: const Key('deletion_requests_button'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: context.brandInk,
@@ -527,7 +516,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 minimumSize: const Size.fromHeight(42),
               ),
               icon: const Icon(Icons.night_shelter_outlined, size: 18),
-              label: const Text('Shelter Submissions'),
+              label: Text(context.tr('Shelter Submissions')),
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const ShelterSubmissionsScreen()),
@@ -700,8 +689,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                         icon: const Icon(Icons.security, size: 18),
-                        label: const Text(
-                          'DND Access Settings',
+                        label: Text(context.tr('DND Access Settings'),
                           style: TextStyle(fontSize: 13),
                         ),
                         onPressed: () async {
@@ -730,14 +718,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                         icon: const Icon(Icons.volume_up, size: 18),
-                        label: const Text(
-                          'Test Critical Siren',
+                        label: Text(context.tr('Test Critical Siren'),
                           style: TextStyle(fontSize: 13),
                         ),
                         onPressed: () async {
                           final testAlert = DisasterAlert(
                             id: 'test_critical_${DateTime.now().millisecondsSinceEpoch}',
-                            title: 'Flash Flood Emergency Simulation',
+                            title: context.tr('Flash Flood Emergency Simulation'),
                             alertType: 'flood',
                             severity: AlertSeverity.red,
                             status: AlertStatus.active,
@@ -792,57 +779,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildSafetyAndDataCard(BuildContext context) {
     final alertProvider = context.watch<AlertProvider>();
-    String? currentUserId;
-    try {
-      currentUserId = SupabaseService.currentUserId;
-    } catch (_) {}
-
-    final myIncidentsCount = context
-        .watch<IncidentProvider>()
-        .incidents
-        .where((i) => currentUserId != null && i.reporterId == currentUserId)
-        .length;
 
     return Card(
       child: Column(
         children: [
-          ListTile(
-            leading: Icon(Icons.person_pin_circle_outlined, color: context.brandInk),
-            title: Text(context.tr('My Reported Incidents')),
-            subtitle: Text(context.tr('View, edit details, or resolve your incident reports')),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: context.brandInk.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '$myIncidentsCount',
-                    style: AppTheme.dataText(context).copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: context.brandInk,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Icon(Icons.chevron_right, size: 20),
-              ],
-            ),
-            onTap: () {
-              context.read<IncidentProvider>().clearFilters();
-              context.read<IncidentProvider>().setMyReportsFilter(true);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => IncidentsScreen(currentUser: widget.currentUser),
-                ),
-              );
-            },
-          ),
-          const Divider(height: 1),
           ListTile(
             leading: Icon(Icons.cached_outlined, color: context.brandInk),
             title: Text(context.tr('Offline Safe-Zone Maps Cache')),
@@ -923,9 +863,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildCommunityCard(BuildContext context) {
     final alertProvider = context.watch<AlertProvider>();
     final zoneId = alertProvider.userZoneId ?? widget.currentUser?.zoneId;
+    final myIncidentsCount = context
+        .watch<IncidentProvider>()
+        .incidents
+        .where((i) => SupabaseService.currentUserId != null && i.reporterId == SupabaseService.currentUserId)
+        .length;
     return Card(
       child: Column(
         children: [
+          ListTile(
+            leading: Icon(Icons.person_pin_circle_outlined, color: context.brandInk),
+            title: Text(context.tr('My Reported Incidents')),
+            subtitle: Text(context.tr('View, edit details, or resolve your incident reports')),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: context.brandInk.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$myIncidentsCount',
+                    style: AppTheme.dataText(context).copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: context.brandInk,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.chevron_right, size: 20),
+              ],
+            ),
+            onTap: () {
+              context.read<IncidentProvider>().clearFilters();
+              context.read<IncidentProvider>().setMyReportsFilter(true);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => IncidentsScreen(currentUser: widget.currentUser),
+                ),
+              );
+            },
+          ),
+          const Divider(height: 1),
           ListTile(
             key: const Key('manage_shelter_tile'),
             leading: Icon(Icons.night_shelter_outlined, color: context.brandInk),
@@ -949,7 +931,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 if (_unreadMessages > 0)
                   Semantics(
-                    label: '$_unreadMessages unread',
+                    label: context.tr('{_unreadMessages} unread', {'_unreadMessages': _unreadMessages}),
                     child: Badge(label: Text('$_unreadMessages')),
                   ),
                 const SizedBox(width: 6),
@@ -1253,7 +1235,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Icon(icon, size: 18, color: context.brandInk),
         const SizedBox(width: 8),
         Text(
-          title,
+          context.tr(title),
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w700,

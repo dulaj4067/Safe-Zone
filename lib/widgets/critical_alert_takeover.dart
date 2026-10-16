@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_strings.dart';
 import '../models/alert.dart';
 import '../services/siren_player.dart';
+import '../l10n/ui_text.dart';
 
 /// Full-screen takeover for a critical (red) alert that applies to the
 /// person: siren, repeating vibration, the instructions in large text, and
@@ -82,7 +83,7 @@ class _CriticalAlertTakeoverState extends State<CriticalAlertTakeover> {
     final messenger = ScaffoldMessenger.maybeOf(context);
     final ok = await launchUrl(Uri(scheme: 'tel', path: '119'));
     if (!ok) {
-      messenger?.showSnackBar(const SnackBar(content: Text('Dial 119 on your phone.')));
+      messenger?.showSnackBar(SnackBar(content: Text(context.tr('Dial 119 on your phone.'))));
     }
   }
 

@@ -51,12 +51,12 @@ class _DisasterHistoryScreenState extends State<DisasterHistoryScreen> {
         );
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Disaster history record saved.')),
+        SnackBar(content: Text(context.tr('Disaster history record saved.'))),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save the record: $error')),
+        SnackBar(content: Text(context.tr('Could not save the record: {error}', {'error': error}))),
       );
     }
   }
@@ -65,12 +65,12 @@ class _DisasterHistoryScreenState extends State<DisasterHistoryScreen> {
   Widget build(BuildContext context) {
     final canManageHistory = widget.currentUser?.role.isAuthority == true;
     return Scaffold(
-      appBar: AppBar(title: const Text('Disaster history')),
+      appBar: AppBar(title: Text(context.tr('Disaster history'))),
       floatingActionButton: canManageHistory && widget.zones.isNotEmpty
           ? FloatingActionButton.extended(
               onPressed: _addRecord,
               icon: const Icon(Icons.add),
-              label: const Text('Add record'),
+              label: Text(context.tr('Add record')),
             )
           : null,
       body: FutureBuilder<List<DisasterHistoryRecord>>(
@@ -80,15 +80,15 @@ class _DisasterHistoryScreenState extends State<DisasterHistoryScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return const Center(
-              child: Text('Could not load disaster history.'),
+            return Center(
+              child: Text(context.tr('Could not load disaster history.')),
             );
           }
           final records = [...?snapshot.data]
             ..sort((a, b) => b.date.compareTo(a.date));
           if (records.isEmpty) {
-            return const Center(
-              child: Text('No past events are recorded for this zone.'),
+            return Center(
+              child: Text(context.tr('No past events are recorded for this zone.')),
             );
           }
           return ListView.builder(
@@ -106,8 +106,7 @@ class _DisasterHistoryScreenState extends State<DisasterHistoryScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '${MaterialLocalizations.of(context).formatMediumDate(record.date)}  -  ${record.severity} severity',
+                        Text(context.tr('{p0}  -  {p1} severity', {'p0': MaterialLocalizations.of(context).formatMediumDate(record.date), 'p1': record.severity}),
                         ),
                         const SizedBox(height: 6),
                         Text(record.summary),
@@ -169,14 +168,13 @@ class _DisasterHistoryEditorState extends State<_DisasterHistoryEditor> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Add disaster history',
+            Text(context.tr('Add disaster history'),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               initialValue: _zoneId,
-              decoration: const InputDecoration(labelText: 'Zone'),
+              decoration: InputDecoration(labelText: context.tr('Zone')),
               items: widget.zones
                   .map(
                     (zone) => DropdownMenuItem(
@@ -190,7 +188,7 @@ class _DisasterHistoryEditorState extends State<_DisasterHistoryEditor> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _disasterType,
-              decoration: const InputDecoration(labelText: 'Disaster type'),
+              decoration: InputDecoration(labelText: context.tr('Disaster type')),
               validator: (value) => value == null || value.trim().isEmpty
                   ? 'Enter a disaster type.'
                   : null,
@@ -198,12 +196,12 @@ class _DisasterHistoryEditorState extends State<_DisasterHistoryEditor> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _severity,
-              decoration: const InputDecoration(labelText: 'Severity'),
-              items: const [
-                DropdownMenuItem(value: 'low', child: Text('Low')),
-                DropdownMenuItem(value: 'moderate', child: Text('Moderate')),
-                DropdownMenuItem(value: 'high', child: Text('High')),
-                DropdownMenuItem(value: 'severe', child: Text('Severe')),
+              decoration: InputDecoration(labelText: context.tr('Severity')),
+              items: [
+                DropdownMenuItem(value: 'low', child: Text(context.tr('Low'))),
+                DropdownMenuItem(value: 'moderate', child: Text(context.tr('Moderate'))),
+                DropdownMenuItem(value: 'high', child: Text(context.tr('High'))),
+                DropdownMenuItem(value: 'severe', child: Text(context.tr('Severe'))),
               ],
               onChanged: (value) =>
                   setState(() => _severity = value ?? 'moderate'),
@@ -213,8 +211,8 @@ class _DisasterHistoryEditorState extends State<_DisasterHistoryEditor> {
               controller: _summary,
               minLines: 3,
               maxLines: 5,
-              decoration: const InputDecoration(
-                labelText: 'Summary',
+              decoration: InputDecoration(
+                labelText: context.tr('Summary'),
                 border: OutlineInputBorder(),
               ),
               validator: (value) => value == null || value.trim().isEmpty
@@ -233,7 +231,7 @@ class _DisasterHistoryEditorState extends State<_DisasterHistoryEditor> {
                 if (picked != null) setState(() => _date = picked);
               },
               child: InputDecorator(
-                decoration: const InputDecoration(labelText: 'Date'),
+                decoration: InputDecoration(labelText: context.tr('Date')),
                 child: Text(
                   MaterialLocalizations.of(context).formatShortDate(_date),
                 ),
@@ -259,7 +257,7 @@ class _DisasterHistoryEditorState extends State<_DisasterHistoryEditor> {
                     ),
                   );
                 },
-                child: const Text('Save record'),
+                child: Text(context.tr('Save record')),
               ),
             ),
           ],

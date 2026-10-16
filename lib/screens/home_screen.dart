@@ -604,19 +604,19 @@ class _SafeZoneMapState extends State<_SafeZoneMap> {
   Future<void> _confirmIncident(Incident incident) async {
     final userId = SupabaseService.currentUserId;
     if (userId == null) {
-      _say('Sign in to confirm a report.', error: true);
+      _say(context.tr('Sign in to confirm a report.'), error: true);
       return;
     }
     final provider = context.read<IncidentProvider>();
     try {
       if (await provider.hasUserConfirmed(incidentId: incident.id, userId: userId)) {
-        _say('You already confirmed this report.');
+        _say(context.tr('You already confirmed this report.'));
         return;
       }
       await provider.confirmIncident(incidentId: incident.id, memberId: userId);
-      _say('Thanks, you confirmed this report.');
+      _say(context.tr('Thanks, you confirmed this report.'));
     } catch (e) {
-      _say('Could not confirm the report. Please try again.', error: true);
+      _say(context.tr('Could not confirm the report. Please try again.'), error: true);
     }
   }
 

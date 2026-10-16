@@ -98,8 +98,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Text(
-                'Message a volunteer',
+              child: Text(context.tr('Message a volunteer'),
                 style: Theme.of(ctx).textTheme.titleMedium,
               ),
             ),
@@ -141,10 +140,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           SizedBox(height: 120),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              'No messages yet.\nOpen a shelter and tap "Message" next to its '
-              'manager to start a conversation. Shelter managers can also '
-              'message their volunteers with the button below.',
+            child: Text(context.tr('No messages yet.\nOpen a shelter and tap "Message" next to its manager to start a conversation. Shelter managers can also message their volunteers with the button below.'),
               textAlign: TextAlign.center,
             ),
           ),
@@ -192,7 +188,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 Text(timeAgo(c.lastMessage.createdAt), style: Theme.of(context).textTheme.bodySmall),
                 if (unread)
                   Semantics(
-                    label: '${c.unreadCount} unread',
+                    label: context.tr('{p0} unread', {'p0': c.unreadCount}),
                     child: Badge(label: Text('${c.unreadCount}')),
                   ),
               ],
