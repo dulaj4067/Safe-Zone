@@ -50,8 +50,6 @@ Built on [Supabase](https://supabase.com) (Postgres + PostGIS, Auth, Realtime, S
    - `sql/security_hardening_migration.sql` — locks down profiles/PII, server-managed roles, authority-only incident review fields
    - `sql/privacy_consent_onboarding_migration.sql` — policy acceptances, deletion requests, onboarding state, alert engagement
    - `sql/account_deletion_and_notifications_migration.sql` — deletion processing, duplicate-phone sign-ups, "I'm Safe" emails (moves the webhook secret into Vault)
-   - `sql/preparedness_hub_migration.sql` — shared preparedness content, including disaster history
-   - `sql/disaster_history_samples_migration.sql` — fictional, clearly labeled demo history rows (run after the preparedness hub migration)
 
    Then deploy the Edge Functions: `notify-safety-circle-request` and `notify-im-safe` with **verify JWT off** (called by database triggers with a shared secret), and `process-account-deletion` with **verify JWT on**. They need the secrets `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` and `SAFETY_CIRCLE_WEBHOOK_SECRET`.
 
@@ -86,15 +84,9 @@ sql/               # Supabase migrations, run manually via the SQL Editor
 docs/features/     # Design notes for individual features
 ```
 
-## Preparedness Hub Data
-
-- Preparedness content is cached locally and syncs with Supabase when the user is signed in and a connection is available.
-- Disaster history supports national or district records, partial event dates, impact figures, and source attribution.
-- It includes clearly marked fictional demo samples for UI preview. Run `sql/disaster_history_samples_migration.sql` after `sql/preparedness_hub_migration.sql` to add them to Supabase; the same fixtures are available locally, and duplicate copies are collapsed in the UI. These samples are never saved or synced as real events.
-- Before distributing EM-DAT records through the app, review its [data terms](https://doc.emdat.be/docs/legal/terms-of-use/) and obtain any required permission. The terms restrict redistributing EM-DAT data to unauthorized users.
-
 ## Known Limitations
 
+- The Preparedness Hub currently stores guides, routes, and history locally on-device rather than in Supabase.
 - Shelter messages have no unread badges or push notifications yet.
 
 ## Team

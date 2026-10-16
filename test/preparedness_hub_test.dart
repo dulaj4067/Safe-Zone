@@ -12,7 +12,6 @@ import 'package:safezone/modules/preparedness_hub/models/preparedness_reminder.d
 import 'package:safezone/modules/preparedness_hub/providers/preparedness_provider.dart';
 import 'package:safezone/modules/preparedness_hub/screens/checklist_screen.dart';
 import 'package:safezone/modules/preparedness_hub/services/preparedness_repository.dart';
-import 'package:safezone/modules/preparedness_hub/services/disaster_history_samples.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -99,7 +98,6 @@ void main() {
       date: DateTime(2025, 5, 10),
       severity: 'high',
       summary: 'The river overflowed after heavy rain.',
-      sourceEventId: 'EMDAT-flood-test',
     );
     final storm = DisasterHistoryRecord(
       id: 'history-storm-test',
@@ -109,92 +107,25 @@ void main() {
       severity: 'moderate',
       summary: 'Strong winds damaged several roofs.',
     );
-    final national = DisasterHistoryRecord(
-      id: 'history-national-test',
-      zoneId: null,
-      disasterType: 'Drought',
-      date: DateTime(2019, 1),
-      datePrecision: DisasterDatePrecision.month,
-      severity: null,
-      summary: '',
-      locationDescription: 'Several provinces',
-      sourceEventId: '2019-9389-LKA',
-      sourceName: 'EM-DAT, CRED / UCLouvain',
-      totalAffected: 12000,
-    );
-    final secondDistrictCopy = DisasterHistoryRecord(
-      id: 'history-flood-zone-copy',
-      zoneId: 'zone-other',
-      disasterType: flood.disasterType,
-      date: flood.date,
-      severity: flood.severity,
-      summary: flood.summary,
-      sourceEventId: flood.sourceEventId,
-    );
 
     await repository.saveHistoryRecord(flood);
     await repository.saveHistoryRecord(storm);
-    await repository.saveHistoryRecord(national);
-    await repository.saveHistoryRecord(secondDistrictCopy);
 
     final reopenedRepository = LocalPreparednessRepository();
-    final zoneHistory = await reopenedRepository.getHistory('zone-test');
-    final zoneSampleRecords = zoneHistory.where((record) => record.isSample);
     expect(
-      zoneHistory.map((record) => record.id),
-      containsAll([flood.id, national.id]),
+      (await reopenedRepository.getHistory(
+        'zone-test',
+      )).map((record) => record.id),
+      [flood.id],
     );
-    expect(zoneSampleRecords, hasLength(3));
-    expect(zoneHistory, hasLength(5));
     expect(
       (await reopenedRepository.getHistory(
         'zone-other',
       )).map((record) => record.id),
-      containsAll([
-        storm.id,
-        national.id,
-        secondDistrictCopy.id,
-        ...disasterHistorySamples.map((record) => record.id),
-      ]),
+      [storm.id],
     );
-    expect(
-      (await reopenedRepository.getHistory(
-        'unknown-zone',
-      )).where((record) => !record.isSample).single.id,
-      national.id,
-    );
-    final countryHistory = await reopenedRepository.getCountryHistory();
-    expect(countryHistory, hasLength(6));
-    expect(countryHistory.where((record) => record.isSample), hasLength(3));
-    expect(
-      countryHistory.where(
-        (record) => record.sourceEventId == flood.sourceEventId,
-      ),
-      hasLength(1),
-    );
-    final restoredNational = countryHistory.singleWhere(
-      (record) => record.id == national.id,
-    );
-    expect(restoredNational.datePrecision, DisasterDatePrecision.month);
-    expect(restoredNational.toJson()['date'], '2019-01');
-    expect(restoredNational.severity, isNull);
-    expect(restoredNational.sourceEventId, national.sourceEventId);
-    expect(restoredNational.totalAffected, 12000);
+    expect(await reopenedRepository.getHistory('unknown-zone'), isEmpty);
   });
-
-  test(
-    'fictional disaster samples are never written to Supabase content',
-    () async {
-      final repository = LocalPreparednessRepository();
-      final sample = (await repository.getCountryHistory()).firstWhere(
-        (record) => record.isSample,
-      );
-
-      await expectLater(repository.saveHistoryRecord(sample), throwsStateError);
-      final preferences = await SharedPreferences.getInstance();
-      expect(preferences.getString('preparedness.history.v1'), isNull);
-    },
-  );
 
   test('personalized checklist matches household risk factors', () async {
     final repository = LocalPreparednessRepository();
