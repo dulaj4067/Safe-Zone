@@ -228,7 +228,18 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  /// Clears the error banner. Safe to call after the provider is gone (a
+  /// screen closing at app teardown schedules this for the next frame).
   void clearError() {
+    if (_disposed || _error == null) return;
     _error = null;
     notifyListeners();
   }
