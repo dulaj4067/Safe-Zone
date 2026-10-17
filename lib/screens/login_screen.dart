@@ -22,10 +22,24 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _emailError;
   String? _passwordError;
 
+  // The sign-in error lives in the shared AuthProvider, so without this a
+  // "wrong password" banner from the login screen followed the person to
+  // Register and back. Each of these screens starts with a clean slate and
+  // clears the error when it closes.
+  late final AuthProvider _auth;
+
+  @override
+  void initState() {
+    super.initState();
+    _auth = context.read<AuthProvider>();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _auth.clearError());
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _auth.clearError());
     super.dispose();
   }
 
