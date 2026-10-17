@@ -102,8 +102,10 @@ Built by **The Pioneers** for the Y3S2 UEE module.
    | 17 | `sql/preparedness_checklist_starters_migration.sql` | starter checklist items tied to household risk factors |
    | 18 | `sql/incident_realtime_migration.sql` | live incident updates (adds `incidents` to the Realtime publication) |
    | 19 | `sql/query_performance_migration.sql` | indexes and a faster `is_authority()` for row-level security |
+   | 20 | `sql/disaster_history_samples_migration.sql` | optional fictional disaster-history samples (run after migration 12) |
 
    Run 12 to 17 in order: the two starter files need the tables from `preparedness_hub_migration.sql`. That migration drops and recreates a Preparedness Hub table that exists with an older shape.
+   Run 20 afterward only if you want fictional sample disaster-history records.
 
    **Optional demo data** (for a walkthrough): `sql/demo_data.sql` adds alerts, shelters with supplies, volunteer tasks, feedback and Preparedness Hub history and a route. `sql/heatmap_demo_data.sql` adds incident clusters for the heatmap. Both are safe to re-run and have a cleanup note at the bottom.
 
@@ -175,6 +177,13 @@ docs/             # Feature design notes and README images
 videos/           # Investor pitch and technical demo videos
 test/             # Unit and widget tests
 ```
+
+## Preparedness Hub Data
+
+- Preparedness content is cached locally and syncs with Supabase when the user is signed in and a connection is available.
+- Disaster history supports national or district records, partial event dates, impact figures, and source attribution.
+- It includes clearly marked fictional demo samples for UI preview. Run `sql/disaster_history_samples_migration.sql` after `sql/preparedness_hub_migration.sql` to add them to Supabase; the same fixtures are available locally, and duplicate copies are collapsed in the UI. These samples are never saved or synced as real events.
+- Before distributing EM-DAT records through the app, review its [data terms](https://doc.emdat.be/docs/legal/terms-of-use/) and obtain any required permission. The terms restrict redistributing EM-DAT data to unauthorized users.
 
 ## Security and Privacy
 
